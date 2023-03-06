@@ -1,0 +1,140 @@
+basePath: /
+host: localhost:5050
+info:
+  contact:
+    email: slawler@dewberry.com
+    name: Seth Lawler
+  description: An OGC compliant(ish) process server.
+  title: Process-API Server
+  version: dev-3.5.23
+paths:
+  /:
+    get:
+      consumes:
+      - '*/*'
+      description: '[LandingPage Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_landing_page)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Landing Page
+      tags:
+      - info
+  /conformance:
+    get:
+      consumes:
+      - '*/*'
+      description: '[Conformance Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_conformance_classes)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: hello:["dolly"]
+          schema:
+            additionalProperties: true
+            type: object
+      summary: API Conformance List
+      tags:
+      - info
+  /jobs:
+    get:
+      consumes:
+      - '*/*'
+      description: '[Job List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Summary of all (cached) Jobs
+      tags:
+      - jobs
+  /jobs/{jobID}:
+    delete:
+      consumes:
+      - '*/*'
+      description: '[Dismss Job Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#ats_dismiss)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Dismiss Job
+      tags:
+      - jobs
+    get:
+      consumes:
+      - '*/*'
+      description: '[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Job Results
+      tags:
+      - jobs
+  /processes:
+    get:
+      consumes:
+      - '*/*'
+      description: '[Process List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_list)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List Available Processes
+      tags:
+      - processes
+  /processes/{processID}:
+    get:
+      consumes:
+      - '*/*'
+      description: '[Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Describe Process Information
+      tags:
+      - processes
+  /processes/{processID}/execution:
+    post:
+      consumes:
+      - '*/*'
+      description: '[Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Execute Process
+      tags:
+      - processes
+schemes:
+- http
+swagger: "2.0"
