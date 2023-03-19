@@ -43,8 +43,8 @@ const (
 
 // RunRequestBody provides the required inputs for containerized processes
 type RunRequestBody struct {
-	CommandOverride *[]string         `json:"commandOverride"`
-	EnvVars         map[string]string `json:"environmentVariables"`
+	Inputs  []map[string]string `json:"inputs"`
+	EnvVars map[string]string   `json:"environmentVariables"`
 }
 
 type JobsCache struct {

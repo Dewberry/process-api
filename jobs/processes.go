@@ -39,7 +39,7 @@ type ValueDefinition struct {
 
 type LiteralDataDomain struct {
 	DataType        string          `yaml:"dataType"`
-	ValueDefinition ValueDefinition `yaml:"valueDefinition"`
+	ValueDefinition ValueDefinition `yaml:"valueDefinition" json:",omitempty"`
 }
 
 type Input struct {
@@ -76,6 +76,8 @@ type Runtime struct {
 	Tag         string   `yaml:"tag"`
 	Provider    Provider `yaml:"provider"`
 	Description string   `yaml:"description"`
+	EntryPoint  string   `yaml:"entrypoint"`
+	Command     []string `yaml:"command"`
 }
 
 // Provider is currently limited to AWS Batch, will require changes
@@ -104,6 +106,50 @@ func (p Process) Type() string {
 
 func (p Process) ImgTag() string {
 	return fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag)
+}
+
+type inpOccurance struct {
+	occur    int
+	minOccur int
+	maxOccur int
+}
+
+func (p Process) convInpsToCommand(inp []map[string]string) ([]string, error) {
+
+	requestInp := make(map[string]*inpOccurance)
+
+	for _, i := range p.Inputs {
+		requestInp[i.ID] = &inpOccurance{0, i.MinOccurs, i.MaxOccurs}
+	}
+
+	inpMap := make(map[string][]string)
+	for _, i := range inp {
+		o := requestInp[i["id"]]
+		o.occur++
+		if o.occur == 1 {
+			inpMap[i["id"]] = []string{i["value"]}
+		} else {
+			inpMap[i["id"]] = append(inpMap[i["id"]], i["value"])
+		}
+	}
+
+	for id, oc := range requestInp {
+		if (oc.maxOccur > 0 && oc.occur > oc.maxOccur) || (oc.occur < oc.minOccur) {
+			return nil, errors.New("Not the correct number of occurance of input: " + id)
+		}
+	}
+
+	cmd := p.Runtime.Command
+	for id, val := range inpMap {
+		for i := 0; i < len(cmd); i++ {
+			if cmd[i] == "_"+id+"_" {
+				cmd = append(cmd[:i], append(val, cmd[i+1:]...)...)
+				i += len(val)
+			}
+		}
+	}
+
+	return cmd, nil
 }
 
 type ProcessList []Process

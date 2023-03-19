@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -122,49 +123,37 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	var params RunRequestBody
 	err = c.Bind(&params)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	if params.CommandOverride == nil {
-		return c.JSON(http.StatusBadRequest, "'commandOverride' is required in the body of the request")
+	if params.Inputs == nil {
+		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
 	}
 
-	// //  Verify command allowable
-	// var command string
-	// for i, arg := range *params.CommandOverride {
-	// 	if i == 0 {
-	// 		command = arg
-	// 	}
-	// }
-
-	// var allowed bool
-	// for _, c := range p.Inputs {
-	// 	allowableValues := c.Input.LiteralDataDomain.ValueDefinition.PossibleValues
-	// 	for _, value := range allowableValues {
-	// 		if command == value {
-	// 			allowed = true
-	// 		}
-	// 	}
-	// }
-	// if !allowed {
-	// 	return c.JSON(http.StatusBadGateway,
-	// 		fmt.Sprintf("%s not an available comand for process %s", command, processID))
-	// }
+	cmd, err := p.convInpsToCommand(params.Inputs)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, err.Error())
+	}
 
 	var j Job
 	jobType := p.Info.JobControlOptions[0]
+	jobID := uuid.New().String()
+
+	for i := 0; i < len(cmd); i++ {
+		cmd[i] = strings.Replace(cmd[i], "_jobID_", jobID, 1)
+	}
 
 	if jobType == "sync-execute" {
-		j = &DockerJob{Ctx: context.TODO(), UUID: uuid.New().String(),
+		j = &DockerJob{Ctx: context.TODO(), UUID: jobID,
 			ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-			Cmd:    *params.CommandOverride}
+			Cmd:    append([]string{p.Runtime.EntryPoint}, cmd...)}
 
 	} else {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
-			j = &AWSBatchJob{Ctx: context.TODO(), UUID: uuid.New().String(),
-				ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag), Cmd: *params.CommandOverride,
+			j = &AWSBatchJob{Ctx: context.TODO(), UUID: jobID,
+				ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag), Cmd: append([]string{p.Runtime.EntryPoint}, cmd...),
 				JobDef: p.Runtime.Provider.JobDefinition, JobQueue: p.Runtime.Provider.JobQueue,
 				JobName: p.Runtime.Provider.Name}
 		default:

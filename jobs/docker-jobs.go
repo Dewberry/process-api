@@ -14,6 +14,7 @@ type DockerJob struct {
 	UUID        string `json:"jobID"`
 	ContainerID string
 	ImgTag      string   `json:"imageAndTag"`
+	EntryPoint  string   `json:"entrypoint"`
 	Cmd         []string `json:"commandOverride"`
 	UpdateTime  time.Time
 	Status      string `json:"status"`
