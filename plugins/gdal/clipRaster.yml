@@ -1,0 +1,54 @@
+info:
+  version: '2023.2.1'
+  id: clipRaster
+  title: clipRaster
+  description: Clip a raster based on reference vector layer
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository: https://hub.docker.com/r
+  image: osgeo/gdal
+  tag: alpine-small-latest
+  description: Official image from osgeo
+  entrypoint: gdalwarp
+  command:
+    - -overwrite
+    - -of
+    - GTiff
+    - -cutline
+    - _maskLayer_
+    - -cl
+    - maskLayer
+    - -crop_to_cutline
+    - _inputRaster_
+    - clipped_raster__jobID_
+
+inputs:
+  - id: inputRaster
+    title: inputRaster
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: maskLayer
+    title: maskLayer
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: clippedRaster
+    title: clippedRaster
+    output:
+      transmissionMode:
+      - reference
