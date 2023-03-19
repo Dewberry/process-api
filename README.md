@@ -15,11 +15,11 @@ __asynchronous__ jobs are run remotely using AWS Batch. To test/utilize this fea
 
 ---
 
-## Build and run 
+## Build and run
 
 1. Create a `.env` file (example below)
 2. Add process configuration files (yaml) to the [plugins](plugins/) directory
-3. Update swagger documents and compile the server: `swag init && build main.go`. 
+3. Update swagger documents and compile the server: `swag init && go build main.go`.
 4. Run the server: `./main`, with the following available flags:
    ```
       `-c [type string] specify the path of the max cache size for storing jobs (default "11073741824" (1GB))`
