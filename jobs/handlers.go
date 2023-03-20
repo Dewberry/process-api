@@ -143,17 +143,21 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		cmd[i] = strings.Replace(cmd[i], "_jobID_", jobID, 1)
 	}
 
+	if p.Runtime.EntryPoint != "" {
+		cmd = append([]string{p.Runtime.EntryPoint}, cmd...)
+	}
+
 	if jobType == "sync-execute" {
-		j = &DockerJob{Ctx: context.TODO(), UUID: jobID,
+		j = &DockerJob{Ctx: context.TODO(), UUID: jobID, Repository: p.Runtime.Repository,
 			ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-			Cmd:    append([]string{p.Runtime.EntryPoint}, cmd...)}
+			Cmd:    cmd}
 
 	} else {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
 			j = &AWSBatchJob{Ctx: context.TODO(), UUID: jobID,
-				ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag), Cmd: append([]string{p.Runtime.EntryPoint}, cmd...),
+				ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag), Cmd: cmd,
 				JobDef: p.Runtime.Provider.JobDefinition, JobQueue: p.Runtime.Provider.JobQueue,
 				JobName: p.Runtime.Provider.Name}
 		default:

@@ -13,6 +13,7 @@ type DockerJob struct {
 	CtxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	ContainerID string
+	Repository  string   `json:"repository"` // for local repositories leave empty
 	ImgTag      string   `json:"imageAndTag"`
 	EntryPoint  string   `json:"entrypoint"`
 	Cmd         []string `json:"commandOverride"`
@@ -97,10 +98,12 @@ func (j *DockerJob) Create() error {
 	}
 
 	// pull image
-	err = c.EnsureImage(ctx, j.ImgTag, false)
-	if err != nil {
-		j.NewErrorMessage(err.Error())
-		return err
+	if j.Repository != "" {
+		err = c.EnsureImage(ctx, j.ImgTag, false)
+		if err != nil {
+			j.NewErrorMessage(err.Error())
+			return err
+		}
 	}
 
 	j.NewStatusUpdate(ACCEPTED)
