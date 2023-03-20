@@ -91,7 +91,9 @@ type Provider struct {
 
 func (p Process) CreateLinks() []Link {
 	links := make([]Link, 0)
-	links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+	if p.Runtime.Repository != "" {
+		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+	}
 	return links
 }
 
@@ -139,7 +141,7 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, error) {
 		}
 	}
 
-	cmd := p.Runtime.Command
+	cmd := append([]string{}, p.Runtime.Command...)
 	for id, val := range inpMap {
 		for i := 0; i < len(cmd); i++ {
 			if cmd[i] == "_"+id+"_" {
