@@ -3,17 +3,19 @@ info:
   id: gdalVersion
   title: gdalVersion
   description: Calls `ogrinfo` to get the current version of gdal
-  jobControlOptions: 
-    - async-execute
-  outputTransmission: 
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
     - value
-    - reference
 
 runtime:
   repository: https://hub.docker.com/r
   image: osgeo/gdal
   tag: alpine-small-latest
   description: Official image from osgeo
+  entrypoint: gdalinfo
+  command:
+  - --version
   provider:
     type: aws-batch
     jobDefinition: gdal-ogrinfo:5
@@ -21,27 +23,6 @@ runtime:
     name: gdalVersion
 
 inputs:
-  - id: command
-    title: command
-    input:
-      literalDataDomain:
-        dataType: string
-        valueDefinition:
-          anyValue: false
-          possibleValues:
-            - ogrinfo
-    minOccurs: 1
-    maxOccurs: 1
-  - id: argument
-    title: argument
-    input:
-      literalDataDomain:
-        dataType: string
-        valueDefinition:
-          possibleValues:
-          - --version
-    minOccurs: 1
-    maxOccurs: 1
 
 outputs:
   - id: gdalVersionOutput
