@@ -130,7 +130,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
 	}
 
-	cmd, err := p.convInpsToCommand(params.Inputs)
+	cmd, op, err := p.convInpsToCommand(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
@@ -148,18 +148,30 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	if jobType == "sync-execute" {
-		j = &DockerJob{Ctx: context.TODO(), UUID: jobID, Repository: p.Runtime.Repository,
-			ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-			Cmd:    cmd}
+		j = &DockerJob{
+			Ctx:        context.TODO(),
+			UUID:       jobID,
+			Repository: p.Runtime.Repository,
+			EnvVars:    p.Runtime.EnvVars,
+			ImgTag:     fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+			Cmd:        cmd,
+			Outputs:    op,
+		}
 
 	} else {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
-			j = &AWSBatchJob{Ctx: context.TODO(), UUID: jobID,
-				ImgTag: fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag), Cmd: cmd,
-				JobDef: p.Runtime.Provider.JobDefinition, JobQueue: p.Runtime.Provider.JobQueue,
-				JobName: p.Runtime.Provider.Name}
+			j = &AWSBatchJob{
+				Ctx:      context.TODO(),
+				UUID:     jobID,
+				ImgTag:   fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+				Cmd:      cmd,
+				Outputs:  op,
+				JobDef:   p.Runtime.Provider.JobDefinition,
+				JobQueue: p.Runtime.Provider.JobQueue,
+				JobName:  p.Runtime.Provider.Name,
+			}
 		default:
 			return c.JSON(http.StatusBadRequest, fmt.Sprintf("unsupported type %s", jobType))
 		}
@@ -214,7 +226,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	for _, j := range rh.JobsCache.Jobs {
 		if j.JobID() == jobID {
-			output := map[string]string{"jobID": jobID, "status": j.CurrentStatus()}
+			output := map[string]interface{}{"jobID": jobID, "last_update": j.LastUpdate(), "status": j.CurrentStatus()}
 			return c.JSON(http.StatusOK, output)
 		}
 	}
@@ -238,8 +250,8 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 				output := map[string]interface{}{
 					"jobID":       jobID,
 					"status":      j.CurrentStatus(),
-					"logs":        j.JobLogs(),
 					"last_update": j.LastUpdate(),
+					"outputs":     j.JobOutputs(),
 				}
 				return c.JSON(http.StatusOK, output)
 

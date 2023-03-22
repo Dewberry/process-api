@@ -28,6 +28,7 @@ type Job interface {
 	Run()
 	Create() error
 	GetSizeinCache() int
+	JobOutputs() []Link
 }
 
 type Jobs []Job

@@ -24,7 +24,11 @@ runtime:
     - maskLayer
     - -crop_to_cutline
     - _inputRaster_
-    - clipped_raster__jobID_
+    - _clippedRasterDestination_
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE
 
 inputs:
   - id: inputRaster
@@ -45,10 +49,21 @@ inputs:
           anyValue: true
     minOccurs: 1
     maxOccurs: 1
+  - id: clippedRasterDestination
+    title: clippedRasterDestination
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
 
 outputs:
   - id: clippedRaster
     title: clippedRaster
+    inputId: clippedRasterDestination
     output:
       transmissionMode:
       - reference
+

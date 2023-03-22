@@ -20,6 +20,7 @@ type AWSBatchJob struct {
 	MessageList []string
 	LogInfo     string
 	Links       []Link `json:"links"`
+	Outputs     []Link `json:"outputs"`
 
 	JobDef   string `json:"jobDefinition"`
 	JobQueue string `json:"jobQueue"`
@@ -41,6 +42,10 @@ func (j *AWSBatchJob) IMGTAG() string {
 
 func (j *AWSBatchJob) JobLogs() string {
 	return j.LogInfo
+}
+
+func (j *AWSBatchJob) JobOutputs() []Link {
+	return j.Outputs
 }
 
 func (j *AWSBatchJob) Messages(includeErrors bool) []string {

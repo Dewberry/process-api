@@ -63,9 +63,10 @@ type Output struct {
 }
 
 type Outputs struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Output Output `yaml:"output"`
+	ID      string `yaml:"id"`
+	Title   string `yaml:"title"`
+	Output  Output `yaml:"output"`
+	InputID string `yaml:"inputId"` //json omit
 }
 
 // Non-OGC types used for this API's implementation of the standard
@@ -77,6 +78,7 @@ type Runtime struct {
 	Provider    Provider `yaml:"provider"`
 	Description string   `yaml:"description"`
 	EntryPoint  string   `yaml:"entrypoint"`
+	EnvVars     []string `yaml:"envVars"`
 	Command     []string `yaml:"command"`
 }
 
@@ -116,7 +118,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) convInpsToCommand(inp []map[string]string) ([]string, error) {
+func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []Link, error) {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -137,7 +139,7 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, error) {
 
 	for id, oc := range requestInp {
 		if (oc.maxOccur > 0 && oc.occur > oc.maxOccur) || (oc.occur < oc.minOccur) {
-			return nil, errors.New("Not the correct number of occurance of input: " + id)
+			return nil, nil, errors.New("Not the correct number of occurance of input: " + id)
 		}
 	}
 
@@ -151,7 +153,16 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, error) {
 		}
 	}
 
-	return cmd, nil
+	// parse outputs
+	outputs := []Link{}
+	for _, op := range p.Outputs {
+		val, ok := inpMap[op.InputID]
+		if ok {
+			outputs = append(outputs, Link{Href: val[0], Title: op.ID})
+		}
+	}
+
+	return cmd, outputs, nil
 }
 
 type ProcessList []Process

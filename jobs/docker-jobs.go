@@ -4,6 +4,7 @@ import (
 	"app/controllers"
 	"context"
 	"fmt"
+	"os"
 	"time"
 	"unsafe"
 )
@@ -13,15 +14,17 @@ type DockerJob struct {
 	CtxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	ContainerID string
-	Repository  string   `json:"repository"` // for local repositories leave empty
-	ImgTag      string   `json:"imageAndTag"`
-	EntryPoint  string   `json:"entrypoint"`
+	Repository  string `json:"repository"` // for local repositories leave empty
+	ImgTag      string `json:"imageAndTag"`
+	EntryPoint  string `json:"entrypoint"`
+	EnvVars     []string
 	Cmd         []string `json:"commandOverride"`
 	UpdateTime  time.Time
 	Status      string `json:"status"`
 	MessageList []string
 	LogInfo     string
 	Links       []Link `json:"links"`
+	Outputs     []Link `json:"outputs"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -38,6 +41,10 @@ func (j *DockerJob) IMGTAG() string {
 
 func (j *DockerJob) JobLogs() string {
 	return j.LogInfo
+}
+
+func (j *DockerJob) JobOutputs() []Link {
+	return j.Outputs
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
@@ -117,8 +124,13 @@ func (j *DockerJob) Run() {
 		return
 	}
 
-	// start container
+	// get environment variables
 	envVars := map[string]string{}
+	for _, eVar := range j.EnvVars {
+		envVars[eVar] = os.Getenv(eVar)
+	}
+
+	// start container
 	j.NewStatusUpdate(RUNNING)
 	containerID, err := c.ContainerRun(j.Ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
 	if err != nil {
