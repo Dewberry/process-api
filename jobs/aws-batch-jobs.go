@@ -134,17 +134,21 @@ func (j *AWSBatchJob) Run() {
 	}
 
 	for {
-		status, err := c.JobMonitor(j.AWSBatchID)
+		status, logStream, err := c.JobMonitor(j.AWSBatchID)
+
 		if err != nil {
 			j.NewErrorMessage(err.Error())
 			return
 		}
+
 		switch status {
 		case "ACCEPTED":
 			j.NewStatusUpdate(ACCEPTED)
 		case "RUNNING":
+			j.Outputs = []interface{}{logStream}
 			j.NewStatusUpdate(RUNNING)
 		case "SUCCEEDED":
+			j.Outputs = []interface{}{logStream}
 			j.NewStatusUpdate(SUCCESSFUL)
 			j.CtxCancel()
 			return

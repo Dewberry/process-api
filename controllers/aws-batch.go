@@ -59,46 +59,48 @@ func (c *AWSBatchController) JobCreate(ctx context.Context,
 	return aws.StringValue(output.JobId), nil
 }
 
-func (c *AWSBatchController) JobMonitor(batchID string) (string, error) {
+func (c *AWSBatchController) JobMonitor(batchID string) (string, interface{}, error) {
 
 	input := &batch.DescribeJobsInput{Jobs: aws.StringSlice([]string{batchID})}
 	output, err := c.client.DescribeJobs(input)
 	if err != nil {
-		return output.String(), nil
+		return output.String(), "", nil
 	}
 
 	if len(output.Jobs) == 0 {
-		return "", fmt.Errorf("no such job: %s", batchID)
+		return "", "", fmt.Errorf("no such job: %s", batchID)
 	}
 
 	status := aws.StringValue(output.Jobs[0].Status)
+	logStream := aws.StringValue(output.Jobs[0].Container.LogStreamName)
 
 	if status == "FAILED" {
 		reason := aws.StringValue(output.Jobs[0].StatusReason)
 		// Non-standard reason used here to facilitate ogc implementation
 		if reason == "DISMISSED" {
-			return reason, nil
+			return reason, "", nil
 		} else {
-			return status, fmt.Errorf("aws provided StatusReason for failure: %s", reason)
+			return status, "", fmt.Errorf("aws provided StatusReason for failure: %s", reason)
 		}
 	}
 
 	switch status {
 	case "SUBMITTED":
-		return "ACCCEPTED", nil
+		return "ACCCEPTED", "", nil
 	case "PENDING":
-		return "ACCCEPTED", nil
+		return "ACCCEPTED", "", nil
 	case "RUNNABLE":
-		return "ACCCEPTED", nil
+		return "ACCCEPTED", "", nil
 	case "STARTING":
-		return "RUNNING", nil
+		return "RUNNING", logStream, nil
 	case "RUNNING":
-		return "RUNNING", nil
+		return "RUNNING", logStream, nil
 	case "SUCCEEDED":
-		return "SUCCEEDED", nil
+
+		return "SUCCEEDED", logStream, nil
 
 	default:
-		return status, fmt.Errorf("unrecognized status  %s", status)
+		return status, "", fmt.Errorf("unrecognized status  %s", status)
 	}
 }
 
