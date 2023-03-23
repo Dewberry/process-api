@@ -33,6 +33,13 @@ type Job interface {
 
 type Jobs []Job
 
+type JobStatus struct {
+	JobID      string `json:"jobID"`
+	LastUpdate string `json:"last_update"`
+	Status     string `json:"status"`
+	Message    string `json:"message"`
+}
+
 // OGCStatusCode
 const (
 	ACCEPTED   = "accepted"
@@ -76,23 +83,21 @@ func (jc *JobsCache) Remove(j Job) {
 	jc.Jobs = newJobs
 }
 
-func (jc *JobsCache) ListJobs(includeErrorMessages bool) []map[string]interface{} {
+func (jc *JobsCache) ListJobs(includeErrorMessages bool) []JobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	output := make([]map[string]interface{}, len(jc.Jobs))
-	var result map[string]interface{}
+	output := make([]JobStatus, len(jc.Jobs))
 
 	for i, j := range jc.Jobs {
-		result = map[string]interface{}{"jobID": j.JobID(),
-			"status":  j.CurrentStatus(),
-			"updated": j.LastUpdate(),
-			"message": fmt.Sprintf("(process details) %s %s", j.IMGTAG(), j.CMD())}
 
-		if includeErrorMessages {
-			result["error_messages"] = j.Messages(true)
-		}
-		output[i] = result
+		jobStatus := JobStatus{j.JobID(), j.LastUpdate().String(), j.CurrentStatus(),
+			fmt.Sprintf("(process details) %s %s", j.IMGTAG(), j.CMD())}
+
+		// if includeErrorMessages {
+		// 	result["error_messages"] = j.Messages(true)
+		// }
+		output[i] = jobStatus
 	}
 	return output
 }

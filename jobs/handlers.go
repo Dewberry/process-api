@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"text/template"
 
@@ -313,16 +312,30 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /jobs [get]
 func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
-	includeErrorMessages := c.QueryParams().Get("include_error_messages")
-	if includeErrorMessages == "" {
-		return c.JSON(http.StatusOK, rh.JobsCache.ListJobs(false))
+	// includeErrorMessages := c.QueryParams().Get("include_error_messages")
+	// if includeErrorMessages == "" {
+	// 	return c.JSON(http.StatusOK, rh.JobsCache.ListJobs(false))
+	// }
+
+	// _, err := strconv.ParseBool(includeErrorMessages)
+	// if err != nil {
+	// 	return c.JSON(http.StatusBadRequest,
+	// 		fmt.Sprintf("'include_error_messages' must be true or false, not %s", includeErrorMessages))
+	// }
+
+	jobsList := rh.JobsCache.ListJobs(false)
+
+	outputFormat := c.QueryParam("f")
+
+	switch outputFormat {
+	case "html":
+		return c.Render(http.StatusOK, "jobs", jobsList)
+	case "json":
+		return c.JSON(http.StatusOK, jobsList)
+	case "":
+		return c.JSON(http.StatusOK, jobsList)
+	default:
+		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
 	}
 
-	_, err := strconv.ParseBool(includeErrorMessages)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest,
-			fmt.Sprintf("'include_error_messages' must be true or false, not %s", includeErrorMessages))
-	}
-
-	return c.JSON(http.StatusOK, rh.JobsCache.ListJobs(true))
 }

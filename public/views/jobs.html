@@ -1,0 +1,85 @@
+{{define "jobs"}}
+<html>
+
+<head>
+    <title>Jobs List</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            padding: 0.5rem;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+        }
+
+        th:first-child,
+        td:first-child {
+            border-left: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: center;
+            /* text-transform: uppercase; */
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #e6f7ff;
+        }
+
+        .blue {
+            color: blue;
+        }
+
+        .gray {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Jobs List</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>JobID</th>
+                <th>Status</th>
+                <th>LastUpdate</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .}}
+            <tr>
+                <td>{{.JobID}}</td>
+                <td>{{.Status}}</td>
+                <td>{{.LastUpdate}}</td>
+                <td>{{.Message}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</body>
+
+</html>
+{{end}}
