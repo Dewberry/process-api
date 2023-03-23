@@ -79,23 +79,28 @@ func (c *DockerController) Version() string {
 }
 
 // returns container logs as string, error
-func (c *DockerController) ContainerLog(ctx context.Context, id string) (string, error) {
+func (c *DockerController) ContainerLog(ctx context.Context, id string) ([]interface{}, error) {
 
 	reader, err := c.cli.ContainerLogs(ctx, id, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true})
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	buffer, err := io.ReadAll(reader)
 
 	if err != nil && err != io.EOF {
-		return "", err
+		return nil, err
 	}
 
-	return string(buffer), nil
+	data := make([]interface{}, len(buffer))
+	for i, v := range buffer {
+		data[i] = v
+	}
+
+	return data, nil
 }
 
 // returns container status code, error

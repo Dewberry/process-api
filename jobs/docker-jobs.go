@@ -24,8 +24,8 @@ type DockerJob struct {
 	Status      string `json:"status"`
 	MessageList []string
 	LogInfo     string
-	Links       []Link `json:"links"`
-	Outputs     []Link `json:"outputs"`
+	Links       []Link        `json:"links"`
+	Outputs     []interface{} `json:"outputs"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -48,8 +48,13 @@ func (j *DockerJob) JobLogs() string {
 	return j.LogInfo
 }
 
-func (j *DockerJob) JobOutputs() []Link {
+func (j *DockerJob) JobOutputs() []interface{} {
 	return j.Outputs
+}
+
+func (j *DockerJob) ClearOutputs() {
+	j.Outputs = []interface{}{}
+
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
@@ -152,11 +157,22 @@ func (j *DockerJob) Run() {
 		j.NewErrorMessage(err1.Error())
 	} else if statusCode != 0 {
 		if err2 == nil {
-			j.LogInfo = logs
+			var data string
+			for _, v := range logs {
+				data += string(v.(byte))
+			}
+			j.LogInfo = data
 		}
-		j.NewErrorMessage(fmt.Sprintf("container exi code: %d", statusCode))
+		j.NewErrorMessage(fmt.Sprintf("container exit code: %d", statusCode))
 	} else if statusCode == 0 {
-		j.LogInfo = logs
+		var data string
+		output := make([]interface{}, 1)
+		for _, v := range logs {
+			data += string(v.(byte))
+		}
+
+		output[0] = map[string]string{"jobID": j.JobID(), "output": data}
+		j.Outputs = output
 		j.NewStatusUpdate(SUCCESSFUL)
 	}
 

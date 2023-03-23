@@ -15,7 +15,7 @@ runtime:
   description: Official image from osgeo
   entrypoint: gdalinfo
   command:
-  - --version
+    - --version
   provider:
     type: aws-batch
     jobDefinition: gdal-ogrinfo:5

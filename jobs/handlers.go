@@ -147,6 +147,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
+	// Review this section
 	if params.Inputs == nil {
 		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
 	}
@@ -210,10 +211,20 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			fmt.Sprintf("submission errorr %s", err))
 	}
 
-	go j.Run()
-
-	output := map[string]string{"jobID": j.JobID(), "value": "created"}
-	return c.JSON(http.StatusAccepted, output)
+	switch p.Info.JobControlOptions[0] {
+	case "sync-execute":
+		j.Run()
+		outputs := j.JobOutputs()
+		// prevent large caches for synchronous jobs
+		j.ClearOutputs()
+		return c.JSON(http.StatusAccepted, outputs)
+	case "async-execute":
+		go j.Run()
+		output := map[string]string{"jobID": j.JobID(), "value": "created"}
+		return c.JSON(http.StatusAccepted, output)
+	default:
+		return c.JSON(http.StatusBadRequest, "JobControlOptions not allowed")
+	}
 }
 
 // @Summary Dismiss Job

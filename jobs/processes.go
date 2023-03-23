@@ -118,7 +118,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []Link, error) {
+func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []interface{}, error) {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -154,7 +154,7 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []Link, e
 	}
 
 	// parse outputs
-	outputs := []Link{}
+	var outputs []interface{}
 	for _, op := range p.Outputs {
 		val, ok := inpMap[op.InputID]
 		if ok {

@@ -29,7 +29,8 @@ type Job interface {
 	Run()
 	Create() error
 	GetSizeinCache() int
-	JobOutputs() []Link
+	JobOutputs() []interface{}
+	ClearOutputs()
 }
 
 type Jobs []Job
