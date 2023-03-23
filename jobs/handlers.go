@@ -3,9 +3,11 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -24,6 +26,14 @@ func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, erro
 	var jc JobsCache = JobsCache{MaxSizeBytes: uint64(maxCacheSize),
 		CurrentSizeBytes: 0, Jobs: make(Jobs, 0), TrimThreshold: 0.80}
 	return &RESTHandler{ProcessList: &processList, JobsCache: &jc}, nil
+}
+
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 // LandingPage godoc
@@ -72,21 +82,33 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	output := map[string][]interface{}{"processes": processList}
-	return c.JSON(http.StatusOK, output)
+
+	outputFormat := c.QueryParam("f")
+
+	switch outputFormat {
+	case "html":
+		return c.Render(http.StatusOK, "processes", processList)
+	case "json":
+		return c.JSON(http.StatusOK, processList)
+	case "":
+		return c.JSON(http.StatusOK, processList)
+	default:
+		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+	}
+
 }
 
 // ProcessDescribeHandler godoc
 // @Summary Describe Process Information
 // @Description [Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)
 // @Tags processes
+// @Param processID path string true "processID"
 // @Accept */*
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router /processes/{processID} [get]
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
-
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)

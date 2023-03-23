@@ -167,8 +167,8 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []Link, e
 
 type ProcessList []Process
 
-func (ps *ProcessList) ListAll() ([]interface{}, error) {
-	var results []interface{}
+func (ps *ProcessList) ListAll() ([]Info, error) {
+	var results []Info
 	for _, p := range *ps {
 		p.Info.Description += fmt.Sprintf(" called from docker image (%s:%s)", p.Runtime.Image, p.Runtime.Tag)
 		results = append(results, p.Info)

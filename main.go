@@ -3,6 +3,8 @@ package main
 import (
 	_ "app/docs"
 	"app/jobs"
+	"io"
+	"text/template"
 
 	"context"
 	"flag"
@@ -43,6 +45,14 @@ func init() {
 	}
 }
 
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
+}
+
 // @title Process-API Server
 // @version dev-3.5.23
 // @description An OGC compliant(ish) process server.
@@ -71,7 +81,11 @@ func main() {
 		AllowOrigins:     []string{"*"},
 	}))
 
+	t := &Template{
+		templates: template.Must(template.ParseGlob("public/views/*.html")),
+	}
 	e.Logger.SetLevel(log.INFO)
+	e.Renderer = t
 
 	maxCacheSize, err := strconv.Atoi(cacheSize)
 	if err != nil {
