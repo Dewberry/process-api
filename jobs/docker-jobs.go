@@ -16,6 +16,7 @@ type DockerJob struct {
 	ContainerID string
 	Repository  string `json:"repository"` // for local repositories leave empty
 	ImgTag      string `json:"imageAndTag"`
+	ProcessName string `json:"processID"`
 	EntryPoint  string `json:"entrypoint"`
 	EnvVars     []string
 	Cmd         []string `json:"commandOverride"`
@@ -29,6 +30,10 @@ type DockerJob struct {
 
 func (j *DockerJob) JobID() string {
 	return j.UUID
+}
+
+func (j *DockerJob) ProcessID() string {
+	return j.ProcessName
 }
 
 func (j *DockerJob) CMD() []string {

@@ -13,6 +13,7 @@ type AWSBatchJob struct {
 	CtxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	AWSBatchID  string
+	ProcessName string   `json:"processID"`
 	ImgTag      string   `json:"imageAndTag"`
 	Cmd         []string `json:"commandOverride"`
 	UpdateTime  time.Time
@@ -30,6 +31,10 @@ type AWSBatchJob struct {
 
 func (j *AWSBatchJob) JobID() string {
 	return j.UUID
+}
+
+func (j *AWSBatchJob) ProcessID() string {
+	return j.ProcessName
 }
 
 func (j *AWSBatchJob) CMD() []string {

@@ -170,13 +170,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	if jobType == "sync-execute" {
 		j = &DockerJob{
-			Ctx:        context.TODO(),
-			UUID:       jobID,
-			Repository: p.Runtime.Repository,
-			EnvVars:    p.Runtime.EnvVars,
-			ImgTag:     fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-			Cmd:        cmd,
-			Outputs:    op,
+			Ctx:         context.TODO(),
+			UUID:        jobID,
+			ProcessName: processID,
+			Repository:  p.Runtime.Repository,
+			EnvVars:     p.Runtime.EnvVars,
+			ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+			Cmd:         cmd,
+			Outputs:     op,
 		}
 
 	} else {
@@ -184,14 +185,15 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		switch runtime {
 		case "aws-batch":
 			j = &AWSBatchJob{
-				Ctx:      context.TODO(),
-				UUID:     jobID,
-				ImgTag:   fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-				Cmd:      cmd,
-				Outputs:  op,
-				JobDef:   p.Runtime.Provider.JobDefinition,
-				JobQueue: p.Runtime.Provider.JobQueue,
-				JobName:  p.Runtime.Provider.Name,
+				Ctx:         context.TODO(),
+				UUID:        jobID,
+				ProcessName: processID,
+				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+				Cmd:         cmd,
+				Outputs:     op,
+				JobDef:      p.Runtime.Provider.JobDefinition,
+				JobQueue:    p.Runtime.Provider.JobQueue,
+				JobName:     p.Runtime.Provider.Name,
 			}
 		default:
 			return c.JSON(http.StatusBadRequest, fmt.Sprintf("unsupported type %s", jobType))

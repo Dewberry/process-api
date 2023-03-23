@@ -19,6 +19,7 @@ type Job interface {
 	Equals(Job) bool
 	IMGTAG() string
 	JobID() string
+	ProcessID() string
 	JobLogs() string
 	Kill() error
 	LastUpdate() time.Time
@@ -34,10 +35,11 @@ type Job interface {
 type Jobs []Job
 
 type JobStatus struct {
-	JobID      string `json:"jobID"`
-	LastUpdate string `json:"last_update"`
-	Status     string `json:"status"`
-	Message    string `json:"message"`
+	JobID      string   `json:"jobID"`
+	LastUpdate string   `json:"last_update"`
+	Status     string   `json:"status"`
+	ProcessID  string   `json:"processID"`
+	Details    []string `json:"details"`
 }
 
 // OGCStatusCode
@@ -92,7 +94,7 @@ func (jc *JobsCache) ListJobs(includeErrorMessages bool) []JobStatus {
 	for i, j := range jc.Jobs {
 
 		jobStatus := JobStatus{j.JobID(), j.LastUpdate().String(), j.CurrentStatus(),
-			fmt.Sprintf("(process details) %s %s", j.IMGTAG(), j.CMD())}
+			j.ProcessID(), j.CMD()}
 
 		// if includeErrorMessages {
 		// 	result["error_messages"] = j.Messages(true)

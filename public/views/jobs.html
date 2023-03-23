@@ -64,8 +64,9 @@
             <tr>
                 <th>JobID</th>
                 <th>Status</th>
+                <th>ProcessID</th>
+                <th>Details</th>
                 <th>LastUpdate</th>
-                <th>Message</th>
             </tr>
         </thead>
         <tbody>
@@ -73,8 +74,9 @@
             <tr>
                 <td>{{.JobID}}</td>
                 <td>{{.Status}}</td>
+                <td>{{.ProcessID}}</td>
+                <td>{{range .Details}}{{.}} {{end}}</td>
                 <td>{{.LastUpdate}}</td>
-                <td>{{.Message}}</td>
             </tr>
             {{end}}
         </tbody>
