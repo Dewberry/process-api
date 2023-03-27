@@ -1,12 +1,13 @@
 info:
   version: '2023.2.1'
-  id: gdalVersion
-  title: gdalVersion
+  id: ogrVersion
+  title: ogrVersion
   description: Calls `ogrinfo` to get the current version of gdal
   jobControlOptions:
-    - sync-execute
+    - async-execute
   outputTransmission:
     - value
+    - reference
 
 runtime:
   repository: https://hub.docker.com/r
@@ -16,12 +17,17 @@ runtime:
   entrypoint: gdalinfo
   command:
     - --version
+  provider:
+    type: aws-batch
+    jobDefinition: gdal-ogrinfo:5
+    jobQueue: micro-test
+    name: ogrVersion
 
 inputs:
 
 outputs:
   - id: gdalVersionOutput
-    title: gdalVersion output
+    title: ogrVersion output
     output:
       formats:
       - mimeType: application/json
