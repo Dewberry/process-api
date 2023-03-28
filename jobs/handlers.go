@@ -260,11 +260,11 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	for _, j := range rh.JobsCache.Jobs {
 		if j.JobID() == jobID {
-			output := map[string]interface{}{"jobID": jobID, "last_update": j.LastUpdate(), "status": j.CurrentStatus()}
+			output := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "updated": j.LastUpdate(), "status": j.CurrentStatus()}
 			return c.JSON(http.StatusOK, output)
 		}
 	}
-	output := map[string]string{"jobID": jobID, "status": "not found"}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
@@ -282,38 +282,32 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			switch j.CurrentStatus() {
 			case SUCCESSFUL:
 				output := map[string]interface{}{
-					"jobID":       jobID,
-					"status":      j.CurrentStatus(),
-					"last_update": j.LastUpdate(),
-					"outputs":     j.JobOutputs(),
+					"type":    "process",
+					"jobID":   jobID,
+					"status":  j.CurrentStatus(),
+					"updated": j.LastUpdate(),
+					"outputs": j.JobOutputs(),
 				}
 				return c.JSON(http.StatusOK, output)
 
-			case FAILED:
+			case FAILED, DISMISSED:
 				output := map[string]interface{}{
-					"jobID":       jobID,
-					"status":      j.CurrentStatus(),
-					"logs":        j.JobLogs(),
-					"last_update": j.LastUpdate(),
+					"type":    "process",
+					"jobID":   jobID,
+					"status":  j.CurrentStatus(),
+					"detail":  j.JobLogs(),
+					"updated": j.LastUpdate(),
 				}
 				return c.JSON(http.StatusOK, output)
 
-			case DISMISSED:
-				output := map[string]interface{}{
-					"jobID":       jobID,
-					"status":      j.CurrentStatus(),
-					"logs":        j.JobLogs(),
-					"last_update": j.LastUpdate(),
-				}
-				return c.JSON(http.StatusOK, output)
 			default:
-				output := map[string]string{"jobID": jobID, "value": "results not yet available"}
-				return c.JSON(http.StatusProcessing, output)
+				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "detail": "results not ready", "updated": j.LastUpdate()}
+				return c.JSON(http.StatusNotFound, output)
 			}
 
 		}
 	}
-	output := map[string]string{"jobID": jobID, "value": "not found"}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
