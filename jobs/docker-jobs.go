@@ -165,12 +165,6 @@ func (j *DockerJob) Run() {
 		}
 		j.NewErrorMessage(fmt.Sprintf("container exit code: %d", statusCode))
 	} else if statusCode == 0 {
-		var data string
-		for _, v := range logs {
-			data += string(v.(byte))
-		}
-
-		j.Outputs = data
 		j.NewStatusUpdate(SUCCESSFUL)
 	}
 

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -15,6 +17,7 @@ import (
 type RESTHandler struct {
 	JobsCache   *JobsCache
 	ProcessList *ProcessList
+	S3Svc       *s3.S3
 }
 
 func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, error) {
@@ -24,7 +27,14 @@ func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, erro
 	}
 	var jc JobsCache = JobsCache{MaxSizeBytes: uint64(maxCacheSize),
 		CurrentSizeBytes: 0, Jobs: make(Jobs, 0), TrimThreshold: 0.80}
-	return &RESTHandler{ProcessList: &processList, JobsCache: &jc}, nil
+
+	// Set up a session with AWS credentials and region
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	svc := s3.New(sess)
+
+	return &RESTHandler{ProcessList: &processList, JobsCache: &jc, S3Svc: svc}, nil
 }
 
 type Template struct {
@@ -152,7 +162,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
 	}
 
-	op, err := p.verifyInputs(params.Inputs)
+	err = p.verifyInputs(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
@@ -179,7 +189,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			EnvVars:     p.Runtime.EnvVars,
 			ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
 			Cmd:         cmd,
-			Outputs:     op,
 		}
 
 	} else {
@@ -192,7 +201,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				ProcessName: processID,
 				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
 				Cmd:         cmd,
-				Outputs:     op,
 				JobDef:      p.Runtime.Provider.JobDefinition,
 				JobQueue:    p.Runtime.Provider.JobQueue,
 				JobName:     p.Runtime.Provider.Name,
@@ -215,9 +223,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
 		j.Run()
-		outputs := j.JobOutputs()
-		// prevent large caches for synchronous jobs
-		j.ClearOutputs()
+		outputs, err := FetchResults(rh.S3Svc, j.JobID())
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err)
+		}
 		if j.CurrentStatus() == "successful" {
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)

@@ -118,7 +118,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) verifyInputs(inp map[string]interface{}) ([]interface{}, error) {
+func (p Process) verifyInputs(inp map[string]interface{}) error {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -138,20 +138,11 @@ func (p Process) verifyInputs(inp map[string]interface{}) ([]interface{}, error)
 
 	for id, oc := range requestInp {
 		if (oc.maxOccur > 0 && oc.occur > oc.maxOccur) || (oc.occur < oc.minOccur) {
-			return nil, errors.New("Not the correct number of occurance of input: " + id)
+			return errors.New("Not the correct number of occurance of input: " + id)
 		}
 	}
 
-	// parse outputs
-	var outputs []interface{}
-	for _, op := range p.Outputs {
-		val, ok := inp[op.InputID]
-		if ok {
-			outputs = append(outputs, Link{Href: val.(string), Title: op.ID})
-		}
-	}
-
-	return outputs, nil
+	return nil
 }
 
 type ProcessList []Process

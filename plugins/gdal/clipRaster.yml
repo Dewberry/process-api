@@ -18,6 +18,8 @@ runtime:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
     - CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE
+    - S3_BUCKET
+    - RESULTS_DIR
 
 inputs:
   - id: inputRaster

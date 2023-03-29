@@ -3,11 +3,14 @@ package jobs
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/labstack/gommon/log"
 )
 
@@ -179,3 +182,39 @@ func (jc *JobsCache) CheckCache() uint64 {
 // 	})
 // 	jc.Jobs = make(Jobs, 0)
 // }
+
+func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
+	bucket := os.Getenv("S3_BUCKET")
+	key := os.Getenv("RESULTS_DIR") + jid + ".json"
+
+	// Create a new S3GetObjectInput object to specify the file you want to read
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+
+	// Use the S3 service object to download the file into a byte slice
+	resp, err := svc.GetObject(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the file contents into a byte slice
+	jsonBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Declare an empty interface{} value to hold the unmarshalled data
+	var data interface{}
+
+	// Unmarshal the JSON data into the interface{} value
+	err = json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+
+}

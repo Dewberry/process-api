@@ -32,15 +32,11 @@ then
             --header 'Content-Type: application/json' \
             --data "$NEXT_JOB_INPUTS" \
         | jq -r '.jobID')
-    echo -n "$NEXT_JOB_ID"
 else
     echo 'watchJob did not succeed'
     exit 1
 fi
 
-jq -n -j --arg JOB_ID "$JOB_ID" '{nextJobId: $JOB_ID}' > result_${JOB_ID}.json
-
-./cp_file_to_s3.sh result_${JOB_ID}.json results "application/text"
-
-sleep 120s
+jq -n -j --arg JOB_ID "$JOB_ID" '{nextJobId: $JOB_ID}' > ${JOB_ID}.json
+aws s3 cp ${JOB_ID}.json s3://${S3_BUCKET}/results/ --content-type 'application/json'
 
