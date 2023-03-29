@@ -185,7 +185,7 @@ func (jc *JobsCache) CheckCache() uint64 {
 
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	bucket := os.Getenv("S3_BUCKET")
-	key := os.Getenv("RESULTS_DIR") + jid + ".json"
+	key := os.Getenv("S3_RESULTS_DIR") + jid + ".json"
 
 	// Create a new S3GetObjectInput object to specify the file you want to read
 	params := &s3.GetObjectInput{
