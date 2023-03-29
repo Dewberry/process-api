@@ -14,10 +14,11 @@ runtime:
   tag: latest
   description: Curl image with jq utility
   entrypoint:
-  command:
-    - _watchJobId_
-    - _nextJobProcessId_
-    - _nextJobInputs_
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE
+    - S3_BUCKET
 
 inputs:
   - id: watchJobId
@@ -49,10 +50,9 @@ inputs:
     minOccurs: 1
     maxOccurs: 1
 
-
 outputs:
   - id: nextJobId
     title: nextJobId
     output:
       formats:
-        - mimeType: application/json
+        - mimeType: application/text

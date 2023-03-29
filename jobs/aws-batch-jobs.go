@@ -20,8 +20,8 @@ type AWSBatchJob struct {
 	Status      string `json:"status"`
 	MessageList []string
 	LogInfo     string
-	Links       []Link        `json:"links"`
-	Outputs     []interface{} `json:"outputs"`
+	Links       []Link      `json:"links"`
+	Outputs     interface{} `json:"outputs"`
 
 	JobDef   string `json:"jobDefinition"`
 	JobQueue string `json:"jobQueue"`
@@ -49,7 +49,7 @@ func (j *AWSBatchJob) JobLogs() string {
 	return j.LogInfo
 }
 
-func (j *AWSBatchJob) JobOutputs() []interface{} {
+func (j *AWSBatchJob) JobOutputs() interface{} {
 	return j.Outputs
 }
 

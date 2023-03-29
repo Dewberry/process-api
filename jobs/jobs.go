@@ -29,7 +29,7 @@ type Job interface {
 	Run()
 	Create() error
 	GetSizeinCache() int
-	JobOutputs() []interface{}
+	JobOutputs() interface{}
 	ClearOutputs()
 }
 
@@ -54,8 +54,8 @@ const (
 
 // RunRequestBody provides the required inputs for containerized processes
 type RunRequestBody struct {
-	Inputs  []map[string]string `json:"inputs"`
-	EnvVars map[string]string   `json:"environmentVariables"`
+	Inputs  map[string]interface{} `json:"inputs"`
+	EnvVars map[string]string      `json:"environmentVariables"`
 }
 
 type JobsCache struct {

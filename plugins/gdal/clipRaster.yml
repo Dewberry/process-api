@@ -9,22 +9,11 @@ info:
     - reference
 
 runtime:
-  repository: https://hub.docker.com/r
-  image: osgeo/gdal
-  tag: alpine-small-latest
-  description: Official image from osgeo
-  entrypoint: gdalwarp
-  command:
-    - -overwrite
-    - -of
-    - GTiff
-    - -cutline
-    - _maskLayer_
-    - -cl
-    - maskLayer
-    - -crop_to_cutline
-    - _inputRaster_
-    - _clippedRasterDestination_
+  repository:
+  image: clip-raster
+  tag: latest
+  description: GDAL image with jq utility
+  entrypoint:
   envVars:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY

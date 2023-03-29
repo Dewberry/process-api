@@ -118,7 +118,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []interface{}, error) {
+func (p Process) verifyInputs(inp map[string]interface{}) ([]interface{}, error) {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -126,43 +126,32 @@ func (p Process) convInpsToCommand(inp []map[string]string) ([]string, []interfa
 		requestInp[i.ID] = &inpOccurance{0, i.MinOccurs, i.MaxOccurs}
 	}
 
-	inpMap := make(map[string][]string)
-	for _, i := range inp {
-		o := requestInp[i["id"]]
-		o.occur++
-		if o.occur == 1 {
-			inpMap[i["id"]] = []string{i["value"]}
-		} else {
-			inpMap[i["id"]] = append(inpMap[i["id"]], i["value"])
+	for k, val := range inp {
+		o := requestInp[k]
+		switch v := val.(type) {
+		case []interface{}:
+			o.occur = len(v)
+		default:
+			o.occur = 1
 		}
 	}
 
 	for id, oc := range requestInp {
 		if (oc.maxOccur > 0 && oc.occur > oc.maxOccur) || (oc.occur < oc.minOccur) {
-			return nil, nil, errors.New("Not the correct number of occurance of input: " + id)
-		}
-	}
-
-	cmd := append([]string{}, p.Runtime.Command...)
-	for id, val := range inpMap {
-		for i := 0; i < len(cmd); i++ {
-			if cmd[i] == "_"+id+"_" {
-				cmd = append(cmd[:i], append(val, cmd[i+1:]...)...)
-				i += len(val)
-			}
+			return nil, errors.New("Not the correct number of occurance of input: " + id)
 		}
 	}
 
 	// parse outputs
 	var outputs []interface{}
 	for _, op := range p.Outputs {
-		val, ok := inpMap[op.InputID]
+		val, ok := inp[op.InputID]
 		if ok {
-			outputs = append(outputs, Link{Href: val[0], Title: op.ID})
+			outputs = append(outputs, Link{Href: val.(string), Title: op.ID})
 		}
 	}
 
-	return cmd, outputs, nil
+	return outputs, nil
 }
 
 type ProcessList []Process

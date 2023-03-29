@@ -2,10 +2,10 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"text/template"
 
 	"github.com/google/uuid"
@@ -152,7 +152,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
 	}
 
-	cmd, op, err := p.convInpsToCommand(params.Inputs)
+	op, err := p.verifyInputs(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
 	}
@@ -161,13 +161,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
 
-	for i := 0; i < len(cmd); i++ {
-		cmd[i] = strings.Replace(cmd[i], "_jobID_", jobID, 1)
+	params.Inputs["jobID"] = jobID
+	jsonParams, err := json.Marshal(params.Inputs)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
-	if p.Runtime.EntryPoint != "" {
-		cmd = append([]string{p.Runtime.EntryPoint}, cmd...)
-	}
+	cmd := []string{string(jsonParams)}
+	fmt.Println(cmd)
 
 	if jobType == "sync-execute" {
 		j = &DockerJob{
