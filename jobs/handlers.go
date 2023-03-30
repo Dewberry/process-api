@@ -177,8 +177,12 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
-	cmd := []string{string(jsonParams)}
-	fmt.Println(cmd)
+	var cmd []string
+	if p.Runtime.EntryPoint == "" {
+		cmd = []string{string(jsonParams)}
+	} else {
+		cmd = []string{p.Runtime.EntryPoint, string(jsonParams)}
+	}
 
 	if jobType == "sync-execute" {
 		j = &DockerJob{
@@ -220,13 +224,18 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			fmt.Sprintf("submission errorr %s", err))
 	}
 
+	var outputs interface{}
+
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
 		j.Run()
-		outputs, err := FetchResults(rh.S3Svc, j.JobID())
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, err)
+		if p.Outputs != nil {
+			outputs, err = FetchResults(rh.S3Svc, j.JobID())
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, err)
+			}
 		}
+
 		if j.CurrentStatus() == "successful" {
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)
