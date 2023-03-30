@@ -13,7 +13,7 @@ runtime:
   image: clip-raster
   tag: latest
   description: GDAL image with jq utility
-  entrypoint:
+  command:
   envVars:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY

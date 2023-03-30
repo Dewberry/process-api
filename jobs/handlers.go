@@ -178,10 +178,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	var cmd []string
-	if p.Runtime.EntryPoint == "" {
+	if p.Runtime.Command == nil {
 		cmd = []string{string(jsonParams)}
 	} else {
-		cmd = []string{p.Runtime.EntryPoint, string(jsonParams)}
+		cmd = append(p.Runtime.Command, string(jsonParams))
 	}
 
 	if jobType == "sync-execute" {

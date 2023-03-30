@@ -13,8 +13,8 @@ runtime:
   image: osgeo/gdal
   tag: alpine-small-latest
   description: Official image from osgeo
-  entrypoint: gdalinfo
   command:
+    - gdalinfo
     - --version
 
 inputs:

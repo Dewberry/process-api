@@ -17,7 +17,6 @@ type DockerJob struct {
 	Repository  string `json:"repository"` // for local repositories leave empty
 	ImgTag      string `json:"imageAndTag"`
 	ProcessName string `json:"processID"`
-	EntryPoint  string `json:"entrypoint"`
 	EnvVars     []string
 	Cmd         []string `json:"commandOverride"`
 	UpdateTime  time.Time
