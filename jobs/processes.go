@@ -77,7 +77,6 @@ type Runtime struct {
 	Tag         string   `yaml:"tag"`
 	Provider    Provider `yaml:"provider"`
 	Description string   `yaml:"description"`
-	EntryPoint  string   `yaml:"entrypoint"`
 	EnvVars     []string `yaml:"envVars"`
 	Command     []string `yaml:"command"`
 }
@@ -127,12 +126,16 @@ func (p Process) verifyInputs(inp map[string]interface{}) error {
 	}
 
 	for k, val := range inp {
-		o := requestInp[k]
-		switch v := val.(type) {
-		case []interface{}:
-			o.occur = len(v)
-		default:
-			o.occur = 1
+		o, ok := requestInp[k]
+		if ok {
+			switch v := val.(type) {
+			case []interface{}:
+				o.occur = len(v)
+			default:
+				o.occur = 1
+			}
+		} else {
+			return fmt.Errorf("%s is not a valid input option for this process, use /processes/%s endpoint to get list of input options", k, p.Info.ID)
 		}
 	}
 
