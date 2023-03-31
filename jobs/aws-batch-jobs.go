@@ -22,8 +22,7 @@ type AWSBatchJob struct {
 	Status        string `json:"status"`
 	APILogs       []string
 	ContainerLogs []string
-	Links         []Link      `json:"links"`
-	Outputs       interface{} `json:"outputs"`
+	Links         []Link `json:"links"`
 
 	JobDef       string `json:"jobDefinition"`
 	JobQueue     string `json:"jobQueue"`
@@ -53,10 +52,6 @@ func (j *AWSBatchJob) Logs() map[string][]string {
 	l["Container Logs"] = j.ContainerLogs
 	l["API Logs"] = j.APILogs
 	return l
-}
-
-func (j *AWSBatchJob) JobOutputs() interface{} {
-	return j.Outputs
 }
 
 func (j *AWSBatchJob) ClearOutputs() {
@@ -150,38 +145,39 @@ func (j *AWSBatchJob) Run() {
 		return
 	}
 
+	var oldStatus string
+
 	for {
 		status, logStream, err := c.JobMonitor(j.AWSBatchID)
-
 		if err != nil {
 			j.HandleError(err.Error())
 			return
 		}
+		// j.ContainerLogs = append(j.ContainerLogs, logStream)
+		j.ContainerLogs = []string{logStream}
 
-		switch status {
-		case "ACCEPTED":
-			j.NewStatusUpdate(ACCEPTED)
-
-		case "RUNNING":
-			j.Outputs = []interface{}{logStream}
-			j.NewStatusUpdate(RUNNING)
-
-		case "SUCCEEDED":
-			j.Outputs = []interface{}{logStream}
-			j.NewStatusUpdate(SUCCESSFUL)
-			j.CtxCancel()
-			return
-
-		case "DISMISSED":
-			j.NewStatusUpdate(DISMISSED)
-			j.CtxCancel()
-			return
-
-		case "FAILED":
-			j.NewStatusUpdate(FAILED)
-			j.CtxCancel()
-			return
+		if status != oldStatus {
+			switch status {
+			case "ACCEPTED":
+				j.NewStatusUpdate(ACCEPTED)
+			case "RUNNING":
+				j.NewStatusUpdate(RUNNING)
+			case "SUCCEEDED":
+				// fetch results here // todo
+				j.NewStatusUpdate(SUCCESSFUL)
+				j.CtxCancel()
+				return
+			case "DISMISSED":
+				j.NewStatusUpdate(DISMISSED)
+				j.CtxCancel()
+				return
+			case "FAILED":
+				j.NewStatusUpdate(FAILED)
+				j.CtxCancel()
+				return
+			}
 		}
+		oldStatus = status
 		time.Sleep(10 * time.Second)
 	}
 }

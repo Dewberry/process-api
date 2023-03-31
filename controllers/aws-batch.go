@@ -59,7 +59,7 @@ func (c *AWSBatchController) JobCreate(ctx context.Context,
 	return aws.StringValue(output.JobId), nil
 }
 
-func (c *AWSBatchController) JobMonitor(batchID string) (string, interface{}, error) {
+func (c *AWSBatchController) JobMonitor(batchID string) (string, string, error) {
 
 	input := &batch.DescribeJobsInput{Jobs: aws.StringSlice([]string{batchID})}
 	output, err := c.client.DescribeJobs(input)

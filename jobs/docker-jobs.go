@@ -23,8 +23,7 @@ type DockerJob struct {
 	Status        string `json:"status"`
 	APILogs       []string
 	ContainerLogs []string
-	Links         []Link      `json:"links"`
-	Outputs       interface{} `json:"outputs"`
+	Links         []Link `json:"links"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -48,15 +47,6 @@ func (j *DockerJob) Logs() map[string][]string {
 	l["Container Logs"] = j.ContainerLogs
 	l["API Logs"] = j.APILogs
 	return l
-}
-
-func (j *DockerJob) JobOutputs() interface{} {
-	return j.Outputs
-}
-
-func (j *DockerJob) ClearOutputs() {
-	j.Outputs = []interface{}{}
-
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {

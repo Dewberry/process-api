@@ -32,8 +32,6 @@ type Job interface {
 	Run()
 	Create() error
 	GetSizeinCache() int
-	JobOutputs() interface{}
-	ClearOutputs()
 }
 
 type Jobs []Job

@@ -314,12 +314,16 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 		if j.JobID() == jobID {
 			switch j.CurrentStatus() {
 			case SUCCESSFUL:
+				outputs, err := FetchResults(rh.S3Svc, j.JobID())
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, err)
+				}
 				output := map[string]interface{}{
 					"type":    "process",
 					"jobID":   jobID,
 					"status":  j.CurrentStatus(),
 					"updated": j.LastUpdate(),
-					"outputs": j.JobOutputs(),
+					"outputs": outputs,
 				}
 				return c.JSON(http.StatusOK, output)
 
