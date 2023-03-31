@@ -231,14 +231,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
 		j.Run()
-		if p.Outputs != nil {
-			outputs, err = FetchResults(rh.S3Svc, j.JobID())
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, err)
-			}
-		}
 
 		if j.CurrentStatus() == "successful" {
+			if p.Outputs != nil {
+				outputs, err = FetchResults(rh.S3Svc, j.JobID())
+				if err != nil {
+					return c.JSON(http.StatusInternalServerError, err)
+				}
+			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)
 		} else {

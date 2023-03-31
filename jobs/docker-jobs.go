@@ -153,20 +153,31 @@ func (j *DockerJob) Run() {
 	j.ContainerID = containerID
 
 	// wait for process to finish
-	statusCode, err := c.ContainerWait(j.Ctx, j.ContainerID)
-	if err != nil {
-		j.HandleError(err.Error())
-	}
-
-	logs, err := c.ContainerLog(j.Ctx, j.ContainerID)
-	if err != nil {
-		j.HandleError(err.Error())
-	}
-
+	statusCode, errWait := c.ContainerWait(j.Ctx, j.ContainerID)
+	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
 	j.ContainerLogs = logs
 
+	// If there are error messages remove container before cancelling context inside Handle Error
+	for _, err := range []error{errWait, errLog} {
+		if err != nil {
+			errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
+			if errRem != nil {
+				j.HandleError(err.Error() + " " + errRem.Error())
+				return
+			}
+			j.HandleError(err.Error())
+			return
+		}
+	}
+
 	if statusCode != 0 {
+		errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
+		if errRem != nil {
+			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
+			return
+		}
 		j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
+		return
 	} else if statusCode == 0 {
 		j.NewStatusUpdate(SUCCESSFUL)
 	}
@@ -175,6 +186,7 @@ func (j *DockerJob) Run() {
 	err = c.ContainerRemove(j.Ctx, j.ContainerID)
 	if err != nil {
 		j.HandleError(err.Error())
+		return
 	}
 
 	j.CtxCancel()
