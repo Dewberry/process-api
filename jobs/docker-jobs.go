@@ -10,21 +10,21 @@ import (
 )
 
 type DockerJob struct {
-	Ctx         context.Context
-	CtxCancel   context.CancelFunc
-	UUID        string `json:"jobID"`
-	ContainerID string
-	Repository  string `json:"repository"` // for local repositories leave empty
-	ImgTag      string `json:"imageAndTag"`
-	ProcessName string `json:"processID"`
-	EnvVars     []string
-	Cmd         []string `json:"commandOverride"`
-	UpdateTime  time.Time
-	Status      string `json:"status"`
-	MessageList []string
-	LogInfo     string
-	Links       []Link      `json:"links"`
-	Outputs     interface{} `json:"outputs"`
+	Ctx           context.Context
+	CtxCancel     context.CancelFunc
+	UUID          string `json:"jobID"`
+	ContainerID   string
+	Repository    string `json:"repository"` // for local repositories leave empty
+	ImgTag        string `json:"imageAndTag"`
+	ProcessName   string `json:"processID"`
+	EnvVars       []string
+	Cmd           []string `json:"commandOverride"`
+	UpdateTime    time.Time
+	Status        string `json:"status"`
+	APILogs       []string
+	ContainerLogs []string
+	Links         []Link      `json:"links"`
+	Outputs       interface{} `json:"outputs"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -43,8 +43,11 @@ func (j *DockerJob) IMGTAG() string {
 	return j.ImgTag
 }
 
-func (j *DockerJob) JobLogs() string {
-	return j.LogInfo
+func (j *DockerJob) Logs() map[string][]string {
+	l := make(map[string][]string)
+	l["Container Logs"] = j.ContainerLogs
+	l["API Logs"] = j.APILogs
+	return l
 }
 
 func (j *DockerJob) JobOutputs() interface{} {
@@ -57,15 +60,15 @@ func (j *DockerJob) ClearOutputs() {
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
-	return j.MessageList
+	return j.APILogs
 }
 
 func (j *DockerJob) NewMessage(m string) {
-	j.MessageList = append(j.MessageList, m)
+	j.APILogs = append(j.APILogs, m)
 }
 
-func (j *DockerJob) NewErrorMessage(m string) {
-	j.MessageList = append(j.MessageList, m)
+func (j *DockerJob) HandleError(m string) {
+	j.APILogs = append(j.APILogs, m)
 	j.NewStatusUpdate(FAILED)
 	j.CtxCancel()
 }
@@ -103,13 +106,13 @@ func (j *DockerJob) Create() error {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 		return err
 	}
 
 	// verify command in body
 	if j.Cmd == nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 		return err
 	}
 
@@ -117,7 +120,7 @@ func (j *DockerJob) Create() error {
 	if j.Repository != "" {
 		err = c.EnsureImage(ctx, j.ImgTag, false)
 		if err != nil {
-			j.NewErrorMessage(err.Error())
+			j.HandleError(err.Error())
 			return err
 		}
 	}
@@ -129,7 +132,7 @@ func (j *DockerJob) Create() error {
 func (j *DockerJob) Run() {
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 		return
 	}
 
@@ -143,26 +146,27 @@ func (j *DockerJob) Run() {
 	j.NewStatusUpdate(RUNNING)
 	containerID, err := c.ContainerRun(j.Ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
 	if err != nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 		return
 	}
 
 	j.ContainerID = containerID
 
 	// wait for process to finish
-	statusCode, err1 := c.ContainerWait(j.Ctx, j.ContainerID)
-	logs, err2 := c.ContainerLog(j.Ctx, j.ContainerID)
-	if err1 != nil {
-		j.NewErrorMessage(err1.Error())
-	} else if statusCode != 0 {
-		if err2 == nil {
-			var data string
-			for _, v := range logs {
-				data += string(v.(byte))
-			}
-			j.LogInfo = data
-		}
-		j.NewErrorMessage(fmt.Sprintf("container exit code: %d", statusCode))
+	statusCode, err := c.ContainerWait(j.Ctx, j.ContainerID)
+	if err != nil {
+		j.HandleError(err.Error())
+	}
+
+	logs, err := c.ContainerLog(j.Ctx, j.ContainerID)
+	if err != nil {
+		j.HandleError(err.Error())
+	}
+
+	j.ContainerLogs = logs
+
+	if statusCode != 0 {
+		j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
 	} else if statusCode == 0 {
 		j.NewStatusUpdate(SUCCESSFUL)
 	}
@@ -170,7 +174,7 @@ func (j *DockerJob) Run() {
 	// clean up the finished job
 	err = c.ContainerRemove(j.Ctx, j.ContainerID)
 	if err != nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 	}
 
 	j.CtxCancel()
@@ -185,7 +189,7 @@ func (j *DockerJob) Kill() error {
 
 	err = c.ContainerKillAndRemove(j.Ctx, j.ContainerID, "KILL")
 	if err != nil {
-		j.NewErrorMessage(err.Error())
+		j.HandleError(err.Error())
 	}
 
 	j.NewStatusUpdate(DISMISSED)
@@ -199,8 +203,8 @@ func (j *DockerJob) GetSizeinCache() int {
 		cmdData += len(item)
 	}
 
-	messageData := int(unsafe.Sizeof(j.MessageList))
-	for _, item := range j.MessageList {
+	messageData := int(unsafe.Sizeof(j.APILogs))
+	for _, item := range j.APILogs {
 		messageData += len(item)
 	}
 
@@ -215,7 +219,7 @@ func (j *DockerJob) GetSizeinCache() int {
 		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +
 		int(unsafe.Sizeof(j.UpdateTime)) +
 		int(unsafe.Sizeof(j.Status)) +
-		int(unsafe.Sizeof(j.LogInfo)) + len(j.LogInfo)
+		int(unsafe.Sizeof(j.ContainerLogs)) + len(j.ContainerLogs)
 
 	return totalMemory
 }

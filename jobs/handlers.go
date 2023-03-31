@@ -219,7 +219,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// Add to cache
 	rh.JobsCache.Add(j)
 
-	// Send job to go routine
+	// Create job
 	err = j.Create()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
@@ -242,7 +242,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)
 		} else {
-			resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "detail": j.JobLogs()}
+			resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "detail": j.Logs()}
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
@@ -288,8 +288,13 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	for _, j := range rh.JobsCache.Jobs {
 		if j.JobID() == jobID {
-			output := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "updated": j.LastUpdate(), "status": j.CurrentStatus()}
-			return c.JSON(http.StatusOK, output)
+			resp := JobStatus{
+				ProcessID:  j.ProcessID(),
+				JobID:      j.JobID(),
+				LastUpdate: j.LastUpdate(),
+				Status:     j.CurrentStatus(),
+			}
+			return c.JSON(http.StatusOK, resp)
 		}
 	}
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
@@ -323,7 +328,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 					"type":    "process",
 					"jobID":   jobID,
 					"status":  j.CurrentStatus(),
-					"detail":  j.JobLogs(),
+					"detail":  j.Logs(),
 					"updated": j.LastUpdate(),
 				}
 				return c.JSON(http.StatusOK, output)
@@ -333,6 +338,24 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 				return c.JSON(http.StatusNotFound, output)
 			}
 
+		}
+	}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
+	return c.JSON(http.StatusNotFound, output)
+}
+
+// @Summary Job Logs
+// @Description
+// @Tags jobs
+// @Accept */*
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /jobs/{jobID}/logs [get]
+func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
+	jobID := c.Param("jobID")
+	for _, j := range rh.JobsCache.Jobs {
+		if j.JobID() == jobID {
+			return c.JSON(http.StatusOK, j.Logs())
 		}
 	}
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
@@ -358,7 +381,7 @@ func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
 	// 		fmt.Sprintf("'include_error_messages' must be true or false, not %s", includeErrorMessages))
 	// }
 
-	jobsList := rh.JobsCache.ListJobs(false)
+	jobsList := rh.JobsCache.ListJobs()
 
 	outputFormat := c.QueryParam("f")
 

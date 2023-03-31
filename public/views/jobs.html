@@ -65,8 +65,8 @@
                 <th>JobID</th>
                 <th>Status</th>
                 <th>ProcessID</th>
-                <th>Details</th>
-                <th>LastUpdate</th>
+                <th>Commands</th>
+                <th>Updated</th>
             </tr>
         </thead>
         <tbody>
@@ -75,7 +75,7 @@
                 <td>{{.JobID}}</td>
                 <td>{{.Status}}</td>
                 <td>{{.ProcessID}}</td>
-                <td>{{range .Details}}{{.}} {{end}}</td>
+                <td>{{range .CMD}}{{.}} {{end}}</td>
                 <td>{{.LastUpdate}}</td>
             </tr>
             {{end}}

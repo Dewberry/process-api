@@ -23,7 +23,7 @@ type Job interface {
 	IMGTAG() string
 	JobID() string
 	ProcessID() string
-	JobLogs() string
+	Logs() map[string][]string
 	Kill() error
 	LastUpdate() time.Time
 	Messages(bool) []string
@@ -39,11 +39,13 @@ type Job interface {
 type Jobs []Job
 
 type JobStatus struct {
-	JobID      string   `json:"jobID"`
-	LastUpdate string   `json:"last_update"`
-	Status     string   `json:"status"`
-	ProcessID  string   `json:"processID"`
-	Details    []string `json:"details"`
+	JobID      string      `json:"jobID"`
+	LastUpdate time.Time   `json:"updated"`
+	Status     string      `json:"status"`
+	ProcessID  string      `json:"processID"`
+	Logs       interface{} `json:"detail,omitempty"`
+	CMD        []string    `json:"commands,omitempty"`
+	Type       string      `default:"process" json:"type"`
 }
 
 // OGCStatusCode
@@ -89,7 +91,7 @@ func (jc *JobsCache) Remove(j Job) {
 	jc.Jobs = newJobs
 }
 
-func (jc *JobsCache) ListJobs(includeErrorMessages bool) []JobStatus {
+func (jc *JobsCache) ListJobs() []JobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
@@ -97,12 +99,13 @@ func (jc *JobsCache) ListJobs(includeErrorMessages bool) []JobStatus {
 
 	for i, j := range jc.Jobs {
 
-		jobStatus := JobStatus{j.JobID(), j.LastUpdate().String(), j.CurrentStatus(),
-			j.ProcessID(), j.CMD()}
-
-		// if includeErrorMessages {
-		// 	result["error_messages"] = j.Messages(true)
-		// }
+		jobStatus := JobStatus{
+			ProcessID:  j.ProcessID(),
+			JobID:      j.JobID(),
+			LastUpdate: j.LastUpdate(),
+			Status:     j.CurrentStatus(),
+			CMD:        j.CMD(),
+		}
 		output[i] = jobStatus
 	}
 	return output
@@ -117,7 +120,7 @@ func (jc *JobsCache) DumpCacheToFile(fileName string) error {
 	defer f.Close()
 
 	// Write the map to the file
-	b, err := json.Marshal(jc.ListJobs(true))
+	b, err := json.Marshal(jc.ListJobs())
 	if err != nil {
 		return err
 	}
