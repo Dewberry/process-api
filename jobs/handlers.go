@@ -246,7 +246,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
-		log.Debug("async-execute: j.context", j)
 		go j.Run()
 		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": "accepted"}
 		return c.JSON(http.StatusCreated, resp)

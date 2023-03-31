@@ -25,10 +25,11 @@ type AWSBatchJob struct {
 	Links       []Link      `json:"links"`
 	Outputs     interface{} `json:"outputs"`
 
-	JobDef   string `json:"jobDefinition"`
-	JobQueue string `json:"jobQueue"`
-	JobName  string `json:"jobName"`
-	EnvVars  map[string]string
+	JobDef       string `json:"jobDefinition"`
+	JobQueue     string `json:"jobQueue"`
+	JobName      string `json:"jobName"`
+	EnvVars      map[string]string
+	BatchContext *controllers.AWSBatchController
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -105,11 +106,23 @@ func (j *AWSBatchJob) Create() error {
 	j.Ctx = ctx
 	j.CtxCancel = cancelFunc
 
-	_, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
 	if err != nil {
 		j.NewErrorMessage(err.Error())
 		return err
 	}
+
+	log.Debug("j.JobDef | ", j.JobDef)
+	log.Debug("j.JobQueue | ", j.JobQueue)
+	log.Debug("j.JobName  | ", j.JobName)
+	aWSBatchID, err := batchContext.JobCreate(j.Ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
+	if err != nil {
+		j.NewErrorMessage(err.Error())
+		return err
+	}
+
+	j.AWSBatchID = aWSBatchID
+	j.BatchContext = batchContext
 
 	// verify command in body
 	if j.Cmd == nil {
@@ -129,15 +142,16 @@ func (j *AWSBatchJob) Run() {
 		return
 	}
 
-	j.AWSBatchID, err = c.JobCreate(j.Ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
-	log.Debug("jobinfo:", j)
-	if err != nil {
-		j.NewErrorMessage(err.Error())
+	if j.AWSBatchID == "" {
+		j.NewStatusUpdate(FAILED)
+		j.CtxCancel()
 		return
 	}
 
 	for {
+
 		status, logStream, err := c.JobMonitor(j.AWSBatchID)
+		// log.Debug(fmt.Sprintf("batchID=%s", j.AWSBatchID))
 
 		if err != nil {
 			j.NewErrorMessage(err.Error())
@@ -147,18 +161,22 @@ func (j *AWSBatchJob) Run() {
 		switch status {
 		case "ACCEPTED":
 			j.NewStatusUpdate(ACCEPTED)
+
 		case "RUNNING":
 			j.Outputs = []interface{}{logStream}
 			j.NewStatusUpdate(RUNNING)
+
 		case "SUCCEEDED":
 			j.Outputs = []interface{}{logStream}
 			j.NewStatusUpdate(SUCCESSFUL)
 			j.CtxCancel()
 			return
+
 		case "DISMISSED":
 			j.NewStatusUpdate(DISMISSED)
 			j.CtxCancel()
 			return
+
 		case "FAILED":
 			j.NewStatusUpdate(FAILED)
 			j.CtxCancel()
