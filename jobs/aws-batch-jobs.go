@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 	"unsafe"
+
+	"github.com/labstack/gommon/log"
 )
 
 type AWSBatchJob struct {
@@ -103,17 +105,17 @@ func (j *AWSBatchJob) Create() error {
 	j.Ctx = ctx
 	j.CtxCancel = cancelFunc
 
-	// _, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
-	// if err != nil {
-	// 	j.NewErrorMessage(err.Error())
-	// 	return err
-	// }
+	_, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	if err != nil {
+		j.NewErrorMessage(err.Error())
+		return err
+	}
 
-	// // verify command in body
-	// if j.Cmd == nil {
-	// 	j.NewErrorMessage(err.Error())
-	// 	return err
-	// }
+	// verify command in body
+	if j.Cmd == nil {
+		j.NewErrorMessage(err.Error())
+		return err
+	}
 
 	j.NewStatusUpdate(ACCEPTED)
 	return nil
@@ -128,6 +130,7 @@ func (j *AWSBatchJob) Run() {
 	}
 
 	j.AWSBatchID, err = c.JobCreate(j.Ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
+	log.Debug("jobinfo:", j)
 	if err != nil {
 		j.NewErrorMessage(err.Error())
 		return

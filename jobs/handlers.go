@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 type RESTHandler struct {
@@ -142,6 +143,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	processID := c.Param("processID")
 
+	log.Debug("processID", processID)
 	if processID == "" {
 		return c.JSON(http.StatusBadRequest, "'processID' parameter is required")
 	}
@@ -244,6 +246,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
+		log.Debug("async-execute: j.context", j)
 		go j.Run()
 		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": "accepted"}
 		return c.JSON(http.StatusCreated, resp)

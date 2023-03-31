@@ -84,7 +84,7 @@ func main() {
 	t := &Template{
 		templates: template.Must(template.ParseGlob("public/views/*.html")),
 	}
-	e.Logger.SetLevel(log.INFO)
+	e.Logger.SetLevel(log.DEBUG)
 	e.Renderer = t
 
 	maxCacheSize, err := strconv.Atoi(cacheSize)
