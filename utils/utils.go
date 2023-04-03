@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -30,4 +31,28 @@ func WriteToS3(text string, key string, logs *[]string) {
 	if err != nil {
 		*logs = append(*logs, "Failure writing to S3. Error: "+err.Error())
 	}
+}
+
+// Check if an S3 Key exists
+func KeyExists(key string, svc *s3.S3) (bool, error) {
+
+	// it should be HeadObject here, but headbject is giving 403 forbidden error for some reason
+	_, err := svc.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Key:    aws.String(key),
+	})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "NotFound", "Forbidden": // s3.ErrCodeNoSuchKey does not work, aws is missing this error code so we hardwire a string
+				return false, nil
+			default:
+				return false, err
+			}
+		}
+		return false, err
+	}
+
+	return true, nil
 }

@@ -316,6 +316,10 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			case SUCCESSFUL:
 				outputs, err := FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
+					if err.Error() == "resource gone" {
+						output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
+						return c.JSON(http.StatusGone, output)
+					}
 					return c.JSON(http.StatusInternalServerError, err)
 				}
 				output := map[string]interface{}{
@@ -361,6 +365,10 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		if j.JobID() == jobID {
 			logs, err := j.Logs()
 			if err != nil {
+				if err.Error() == "resource gone" {
+					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
+					return c.JSON(http.StatusGone, output)
+				}
 				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
 				return c.JSON(http.StatusInternalServerError, output)
 			}

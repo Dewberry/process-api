@@ -237,8 +237,9 @@ func (j *DockerJob) GetSizeinCache() int {
 	return totalMemory
 }
 
+// If JobID exists but log file doesn't then it raises an error
+// Assumes jobID is valid and the process is sync
 func (j *DockerJob) FetchLogs() ([]string, error) {
-
 	// Set up a session with AWS credentials and region
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
@@ -248,7 +249,16 @@ func (j *DockerJob) FetchLogs() ([]string, error) {
 	bucket := os.Getenv("S3_BUCKET")
 	key := os.Getenv("S3_LOGS_DIR") + j.UUID + ".txt"
 
-	// Create a new S3GetObjectInput object to specify the file you want to read
+	exist, err := utils.KeyExists(key, svc)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("resource gone")
+	}
+
+	// Create a new S3GetObjectInput object to specify the file to read
 	params := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),

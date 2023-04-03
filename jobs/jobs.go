@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"app/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -175,17 +176,20 @@ func (jc *JobsCache) CheckCache() uint64 {
 	return jobSize
 }
 
-// func (jc *JobsCache) ClearCache(desiredLength int64) {
-// 	jobs := jc.Jobs
-// 	sort.Slice(jobs, func(i, j int) bool {
-// 		return jobs[i].LastUpdate().After(jobs[j].LastUpdate())
-// 	})
-// 	jc.Jobs = make(Jobs, 0)
-// }
-
+// If JobID exists but results file doesn't then it raises an error
+// Assumes jobID is valid
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	bucket := os.Getenv("S3_BUCKET")
 	key := os.Getenv("S3_RESULTS_DIR") + jid + ".json"
+
+	exist, err := utils.KeyExists(key, svc)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("resource gone")
+	}
 
 	// Create a new S3GetObjectInput object to specify the file you want to read
 	params := &s3.GetObjectInput{
