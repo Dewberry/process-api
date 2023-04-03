@@ -1,0 +1,30 @@
+info:
+  version: '2023.2.1'
+  id: aepGrid
+  title: aepGrid
+  description: Creates an AEP grid
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image:
+  tag:
+  description:
+  command:
+    - python
+    - aep_blocks.py
+  provider:
+    type: aws-batch
+    jobDefinition: process-sandbox:1
+    jobQueue: micro-test
+    name: aepGrid
+  envVars:
+
+inputs:
+
+outputs:
+
+
