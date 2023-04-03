@@ -23,7 +23,7 @@ type Job interface {
 	IMGTAG() string
 	JobID() string
 	ProcessID() string
-	Logs() map[string][]string
+	Logs() (map[string][]string, error)
 	Kill() error
 	LastUpdate() time.Time
 	Messages(bool) []string
@@ -37,13 +37,12 @@ type Job interface {
 type Jobs []Job
 
 type JobStatus struct {
-	JobID      string      `json:"jobID"`
-	LastUpdate time.Time   `json:"updated"`
-	Status     string      `json:"status"`
-	ProcessID  string      `json:"processID"`
-	Logs       interface{} `json:"detail,omitempty"`
-	CMD        []string    `json:"commands,omitempty"`
-	Type       string      `default:"process" json:"type"`
+	JobID      string    `json:"jobID"`
+	LastUpdate time.Time `json:"updated"`
+	Status     string    `json:"status"`
+	ProcessID  string    `json:"processID"`
+	CMD        []string  `json:"commands,omitempty"`
+	Type       string    `default:"process" json:"type"`
 }
 
 // OGCStatusCode
@@ -217,5 +216,4 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	}
 
 	return data, nil
-
 }

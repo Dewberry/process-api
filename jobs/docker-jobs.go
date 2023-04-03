@@ -2,28 +2,34 @@ package jobs
 
 import (
 	"app/controllers"
+	"app/utils"
+	"bufio"
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type DockerJob struct {
-	Ctx           context.Context
-	CtxCancel     context.CancelFunc
-	UUID          string `json:"jobID"`
-	ContainerID   string
-	Repository    string `json:"repository"` // for local repositories leave empty
-	ImgTag        string `json:"imageAndTag"`
-	ProcessName   string `json:"processID"`
-	EnvVars       []string
-	Cmd           []string `json:"commandOverride"`
-	UpdateTime    time.Time
-	Status        string `json:"status"`
-	APILogs       []string
-	ContainerLogs []string
-	Links         []Link `json:"links"`
+	Ctx         context.Context
+	CtxCancel   context.CancelFunc
+	UUID        string `json:"jobID"`
+	ContainerID string
+	Repository  string `json:"repository"` // for local repositories leave empty
+	ImgTag      string `json:"imageAndTag"`
+	ProcessName string `json:"processID"`
+	EnvVars     []string
+	Cmd         []string `json:"commandOverride"`
+	UpdateTime  time.Time
+	Status      string `json:"status"`
+	APILogs     []string
+	Links       []Link `json:"links"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -42,11 +48,16 @@ func (j *DockerJob) IMGTAG() string {
 	return j.ImgTag
 }
 
-func (j *DockerJob) Logs() map[string][]string {
+// Fetches Container logs from S3 and API logs from cache
+func (j *DockerJob) Logs() (map[string][]string, error) {
 	l := make(map[string][]string)
-	l["Container Logs"] = j.ContainerLogs
+	cl, err := j.FetchLogs()
+	if err != nil {
+		return nil, err
+	}
+	l["Container Logs"] = cl
 	l["API Logs"] = j.APILogs
-	return l
+	return l, nil
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
@@ -145,7 +156,9 @@ func (j *DockerJob) Run() {
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.Ctx, j.ContainerID)
 	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
-	j.ContainerLogs = logs
+
+	// Creating new routine so that failure of writing logs does not mean failure of job
+	go utils.WriteToS3(strings.Join(logs, "\n"), os.Getenv("S3_LOGS_DIR")+j.UUID+".txt", &j.APILogs)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
@@ -220,8 +233,43 @@ func (j *DockerJob) GetSizeinCache() int {
 		int(unsafe.Sizeof(j.ContainerID)) + len(j.ContainerID) +
 		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +
 		int(unsafe.Sizeof(j.UpdateTime)) +
-		int(unsafe.Sizeof(j.Status)) +
-		int(unsafe.Sizeof(j.ContainerLogs)) + len(j.ContainerLogs)
-
+		int(unsafe.Sizeof(j.Status))
 	return totalMemory
+}
+
+func (j *DockerJob) FetchLogs() ([]string, error) {
+
+	// Set up a session with AWS credentials and region
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	svc := s3.New(sess)
+
+	bucket := os.Getenv("S3_BUCKET")
+	key := os.Getenv("S3_LOGS_DIR") + j.UUID + ".txt"
+
+	// Create a new S3GetObjectInput object to specify the file you want to read
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+
+	// Use the S3 service object to download the file into a byte slice
+	resp, err := svc.GetObject(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	var logs []string
+
+	for scanner.Scan() {
+		logs = append(logs, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return logs, nil
 }
