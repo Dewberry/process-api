@@ -242,7 +242,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)
 		} else {
-			resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "detail": j.Logs()}
+			resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "message": "Job Failed. Call logs route for details."}
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
@@ -250,7 +250,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": "accepted"}
 		return c.JSON(http.StatusCreated, resp)
 	default:
-		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "detail": "incorrect controller option defined in process configuration"}
+		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "message": "incorrect controller option defined in process configuration"}
 		return c.JSON(http.StatusInternalServerError, resp)
 	}
 }
@@ -297,7 +297,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 			return c.JSON(http.StatusOK, resp)
 		}
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
@@ -332,19 +332,19 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 					"type":    "process",
 					"jobID":   jobID,
 					"status":  j.CurrentStatus(),
-					"detail":  j.Logs(),
+					"message": "Job Failed or Dismissed. Call logs route for details.",
 					"updated": j.LastUpdate(),
 				}
 				return c.JSON(http.StatusOK, output)
 
 			default:
-				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "detail": "results not ready", "updated": j.LastUpdate()}
+				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": "results not ready", "updated": j.LastUpdate()}
 				return c.JSON(http.StatusNotFound, output)
 			}
 
 		}
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
@@ -359,10 +359,15 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	for _, j := range rh.JobsCache.Jobs {
 		if j.JobID() == jobID {
-			return c.JSON(http.StatusOK, j.Logs())
+			logs, err := j.Logs()
+			if err != nil {
+				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
+				return c.JSON(http.StatusInternalServerError, output)
+			}
+			return c.JSON(http.StatusOK, logs)
 		}
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "detail": "jobID not found"}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
