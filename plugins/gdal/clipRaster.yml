@@ -10,23 +10,23 @@ info:
 
 runtime:
   repository:
-  image: clip-raster
+  image: custom-gdal
   tag: latest
-  description: GDAL image with jq utility
+  description: GDAL image with python processes
   command:
+    - clip_raster.py
   envVars:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
     - CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE
     - S3_BUCKET
-    - S3_RESULTS_DIR
 
 inputs:
   - id: inputRaster
     title: inputRaster
     input:
       literalDataDomain:
-        dataType: reference
+        dataType: string
         valueDefinition:
           anyValue: true
     minOccurs: 1
@@ -35,7 +35,7 @@ inputs:
     title: maskLayer
     input:
       literalDataDomain:
-        dataType: reference
+        dataType: string
         valueDefinition:
           anyValue: true
     minOccurs: 1
@@ -44,7 +44,7 @@ inputs:
     title: clippedRasterDestination
     input:
       literalDataDomain:
-        dataType: reference
+        dataType: string
         valueDefinition:
           anyValue: true
     minOccurs: 1
@@ -53,7 +53,6 @@ inputs:
 outputs:
   - id: clippedRaster
     title: clippedRaster
-    inputId: clippedRasterDestination
     output:
       transmissionMode:
       - reference
