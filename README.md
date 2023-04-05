@@ -33,6 +33,9 @@ Once the server is up and running, go to http://localhost:5050/swagger/ for docu
 
 For more information on the specification visit the [OGC API - Processes - Part 1: Core](https://docs.ogc.org/is/18-062r2/18-062r2.html#toc0).
 
+The API responses follow the examples provided here:
+https://developer.ogc.org/api/processes/index.html
+
 ---
 
 ## Behavior
@@ -52,6 +55,19 @@ For AWS services, an env file should be located at the root of this repository (
 AWS_ACCESS_KEY_ID='ASDFASDFEXAMPLE'
 AWS_SECRET_ACCESS_KEY='ASDFASDFASDFASDFASDFEXAMPLE'
 AWS_DEFAULT_REGION='us-east-1'
+
+AWS_ACCESS_KEY_ID='************'
+AWS_SECRET_ACCESS_KEY='**************************'
+AWS_DEFAULT_REGION='us-east-1'
+S3_BUCKET='********'
+S3_RESULTS_DIR='results'
+S3_LOGS_DIR='logs'
+
+# BATCH
+BATCH_LOG_STREAM_GROUP='/aws/batch/job'
+
+# GDAL
+CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES'
 ```
 
 *NOTE: This server was adapted for ogc-compliance from an existing api developed by @albrazeau*
