@@ -16,8 +16,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"var resp = pm.response.json()\r",
-									"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -28,7 +27,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"inputs\": {\n        \"inputRaster\": \"/vsis3/texas-glo/clipped-raster-inputs/input_raster.tif\",\n        \"maskLayer\": \"/vsizip//vsis3/texas-glo/clipped-raster-inputs/maskLayer.zip/maskLayer.shp\",\n        \"clippedRasterDestination\": \"/vsis3/texas-glo/clipped-raster-inputs/clipped_raster.tif\"\n    }\n}\n\n",
+							"raw": "{\n    \"inputs\": {\n        \"inputRaster\": \"/vsis3/texas-glo/clipped-raster-inputs/input_raster.tif\",\n        \"maskLayer\": \"/vsizip//vsis3/texas-glo/clipped-raster-inputs/maskLayer.zip/maskLayer.shp\",\n        \"clippedRasterDestination\": \"clipped-raster-outputs/clipped_raster.tif\"\n    }\n}\n\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -54,40 +53,27 @@
 						}
 					},
 					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
 				},
 				{
-					"name": "execution-gdalVersion",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"inputs\": []\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{url}}/processes/:processID/execution",
-							"host": [
-								"{{url}}"
-							],
-							"path": [
-								"processes",
-								":processID",
-								"execution"
-							],
-							"variable": [
-								{
-									"key": "processID",
-									"value": "gdalVersion"
-								}
-							]
-						}
-					},
-					"response": []
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var resp = pm.response.json()",
+							"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+						]
+					}
 				}
 			]
 		},
@@ -101,8 +87,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"var resp = pm.response.json()\r",
-									"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -113,7 +98,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output2.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+							"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -139,6 +124,27 @@
 						}
 					},
 					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"var resp = pm.response.json()",
+							"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+						]
+					}
 				}
 			]
 		},
