@@ -158,6 +158,7 @@ func (j *DockerJob) Run() {
 	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
+	// This function does not panic
 	go utils.WriteToS3(strings.Join(logs, "\n"), fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
@@ -255,7 +256,7 @@ func (j *DockerJob) FetchLogs() ([]string, error) {
 	}
 
 	if !exist {
-		return nil, fmt.Errorf("resource gone")
+		return nil, fmt.Errorf("not found")
 	}
 
 	// Create a new S3GetObjectInput object to specify the file to read

@@ -188,7 +188,7 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	}
 
 	if !exist {
-		return nil, fmt.Errorf("resource gone")
+		return nil, fmt.Errorf("not found")
 	}
 
 	// Create a new S3GetObjectInput object to specify the file you want to read

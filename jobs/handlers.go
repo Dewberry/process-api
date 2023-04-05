@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -174,6 +175,8 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	jobID := uuid.New().String()
 
 	params.Inputs["jobID"] = jobID
+	params.Inputs["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
+	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
 	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -316,9 +319,9 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			case SUCCESSFUL:
 				outputs, err := FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					if err.Error() == "resource gone" {
+					if err.Error() == "not found" {
 						output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
-						return c.JSON(http.StatusGone, output)
+						return c.JSON(http.StatusNotFound, output)
 					}
 					return c.JSON(http.StatusInternalServerError, err)
 				}
@@ -365,9 +368,9 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		if j.JobID() == jobID {
 			logs, err := j.Logs()
 			if err != nil {
-				if err.Error() == "resource gone" {
+				if err.Error() == "not found" {
 					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
-					return c.JSON(http.StatusGone, output)
+					return c.JSON(http.StatusNotFound, output)
 				}
 				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
 				return c.JSON(http.StatusInternalServerError, output)
