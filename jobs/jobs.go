@@ -180,7 +180,7 @@ func (jc *JobsCache) CheckCache() uint64 {
 // Assumes jobID is valid
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	bucket := os.Getenv("S3_BUCKET")
-	key := os.Getenv("S3_RESULTS_DIR") + jid + ".json"
+	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_RESULTS_DIR"), jid)
 
 	exist, err := utils.KeyExists(key, svc)
 	if err != nil {

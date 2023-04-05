@@ -158,7 +158,7 @@ func (j *DockerJob) Run() {
 	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
-	go utils.WriteToS3(strings.Join(logs, "\n"), os.Getenv("S3_LOGS_DIR")+j.UUID+".txt", &j.APILogs)
+	go utils.WriteToS3(strings.Join(logs, "\n"), fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
@@ -247,7 +247,7 @@ func (j *DockerJob) FetchLogs() ([]string, error) {
 	svc := s3.New(sess)
 
 	bucket := os.Getenv("S3_BUCKET")
-	key := os.Getenv("S3_LOGS_DIR") + j.UUID + ".txt"
+	key := fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID)
 
 	exist, err := utils.KeyExists(key, svc)
 	if err != nil {

@@ -71,6 +71,8 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
+
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
