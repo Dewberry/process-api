@@ -16,7 +16,7 @@ import (
 // Given text and an S3 location write a file on S3 with expiration policy
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(text string, key string, logs *[]string) {
+func WriteToS3(text string, key string, logs *[]string, contType string) {
 
 	defer func(logs *[]string) {
 		if r := recover(); r != nil {
@@ -39,10 +39,11 @@ func WriteToS3(text string, key string, logs *[]string) {
 
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
-		Bucket:  aws.String(os.Getenv("S3_BUCKET")),
-		Key:     aws.String(key),
-		Body:    bytes.NewReader(textBytes),
-		Expires: aws.Time(expirationDate),
+		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(textBytes),
+		Expires:     aws.Time(expirationDate),
+		ContentType: &contType,
 	})
 
 	if err != nil {

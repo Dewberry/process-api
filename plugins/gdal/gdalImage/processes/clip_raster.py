@@ -53,5 +53,8 @@ if __name__ == "__main__":
         }
     }
     write_text_to_s3_file(
-        dumps(result), f'{params_dict["resultsDir"]}/{params_dict["jobID"]}.json', int(params_dict["expDays"])
+        dumps(result),
+        f'{params_dict["resultsDir"]}/{params_dict["jobID"]}.json',
+        "application/json",
+        int(params_dict["expDays"]),
     )

@@ -159,7 +159,7 @@ func (j *DockerJob) Run() {
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
 	// This function does not panic
-	go utils.WriteToS3(strings.Join(logs, "\n"), fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs)
+	go utils.WriteToS3(strings.Join(logs, "\n"), fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs, "text/plain")
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {

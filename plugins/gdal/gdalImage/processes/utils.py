@@ -31,12 +31,12 @@ def upload_file_to_s3(fpath: str, s3_key: str):
     logging.info(f"Success. File written to {S3_BUCKET}/{s3_key}")
 
 
-def write_text_to_s3_file(text: str, s3_key: str, exp_days: int = 0):
+def write_text_to_s3_file(text: str, s3_key: str, content_type: str, exp_days: int = 0):
     if exp_days:
         expiration_time = datetime.now() + timedelta(days=exp_days)
-        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text, Expires=expiration_time)
+        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text, ContentType=content_type, Expires=expiration_time)
     else:
-        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text)
+        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text, ContentType=content_type)
 
     logging.info(f"Success. Data written to {S3_BUCKET}/{s3_key}")
 
