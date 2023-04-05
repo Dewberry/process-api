@@ -2,7 +2,10 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -10,9 +13,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// Given text and an S3 location write a file on S3
+// Given text and an S3 location write a file on S3 with expiration policy
 // If failure occurs append error message to the logs stream
+// This function does not panic to safeguard server
 func WriteToS3(text string, key string, logs *[]string) {
+
+	defer func(logs *[]string) {
+		if r := recover(); r != nil {
+			// Handle the panic gracefully
+			*logs = append(*logs, fmt.Sprintf("Failure writing to S3. Log writing routine panicked: %v", r))
+		}
+	}(logs)
+
 	// Set up a session with AWS credentials and region
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
@@ -21,11 +33,16 @@ func WriteToS3(text string, key string, logs *[]string) {
 
 	textBytes := []byte(text)
 
+	expDays, _ := strconv.Atoi(os.Getenv("EXPIRY_DAYS"))
+
+	expirationDate := time.Now().AddDate(0, 0, expDays)
+
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
-		Bucket: aws.String(os.Getenv("S3_BUCKET")),
-		Key:    aws.String(key),
-		Body:   bytes.NewReader(textBytes),
+		Bucket:  aws.String(os.Getenv("S3_BUCKET")),
+		Key:     aws.String(key),
+		Body:    bytes.NewReader(textBytes),
+		Expires: aws.Time(expirationDate),
 	})
 
 	if err != nil {
