@@ -52,4 +52,6 @@ if __name__ == "__main__":
             "links": [{"href": presigned_url, "type": "application/tif; application/geotiff", "title": "presignedURL"}],
         }
     }
-    write_text_to_s3_file(dumps(result), f'{params_dict["resultsDir"]}/{params_dict["jobID"]}.json')
+    write_text_to_s3_file(
+        dumps(result), f'{params_dict["resultsDir"]}/{params_dict["jobID"]}.json', int(params_dict["expDays"])
+    )

@@ -31,13 +31,21 @@ def upload_file_to_s3(fpath: str, s3_key: str):
     logging.info(f"Success. File written to {S3_BUCKET}/{s3_key}")
 
 
-def write_text_to_s3_file(text: str, s3_key: str):
-    s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text)
+def write_text_to_s3_file(text: str, s3_key: str, exp_days: int = 0):
+    if exp_days:
+        expiration_time = datetime.now() + timedelta(days=exp_days)
+        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text, Expires=expiration_time)
+    else:
+        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=text)
+
     logging.info(f"Success. Data written to {S3_BUCKET}/{s3_key}")
 
 
-def create_presigned_url(s3_key: str, days: int = 7) -> str:
-    expiration_time = datetime.now() + timedelta(days=days)
+def create_presigned_url(s3_key: str, exp_days: int = 7) -> str:
+    if not exp_days:  # handle 0 expiry days
+        exp_days = 7
+
+    expiration_time = datetime.now() + timedelta(days=exp_days)
 
     presigned_url = s3_client.generate_presigned_url(
         "get_object",
