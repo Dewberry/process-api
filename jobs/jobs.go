@@ -35,8 +35,6 @@ type Job interface {
 	GetSizeinCache() int
 }
 
-type Jobs []Job
-
 type JobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
@@ -62,49 +60,44 @@ type RunRequestBody struct {
 }
 
 type JobsCache struct {
-	Jobs             `json:"jobs"`
+	Jobs             map[string]*Job `json:"jobs"`
+	MaxSizeBytes     uint64          `json:"maxCacheBytes"`
+	TrimThreshold    float64         `json:"cacheTrimThreshold"`
+	CurrentSizeBytes uint64          `json:"currentCacheBytes"`
 	mu               sync.Mutex
-	MaxSizeBytes     uint64  `json:"maxCacheBytes"`
-	TrimThreshold    float64 `json:"cacheTrimThreshold"`
-	CurrentSizeBytes uint64  `json:"currentCacheBytes"`
 }
 
-func (jc *JobsCache) Add(j ...Job) {
+func (jc *JobsCache) Add(j *Job) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
-	jc.Jobs = append(jc.Jobs, j...)
+	jc.Jobs[(*j).JobID()] = j
 }
 
-func (jc *JobsCache) Remove(j Job) {
+func (jc *JobsCache) Remove(j *Job) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	newJobs := make([]Job, 0)
-	for _, j := range jc.Jobs {
-
-		if !j.Equals(j) {
-			newJobs = append(newJobs, j)
-		}
-	}
-	jc.Jobs = newJobs
+	delete(jc.Jobs, (*j).JobID())
 }
 
+// Returns an array of all Job statuses in memory
 func (jc *JobsCache) ListJobs() []JobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
 	output := make([]JobStatus, len(jc.Jobs))
 
-	for i, j := range jc.Jobs {
-
+	var i int
+	for _, j := range jc.Jobs {
 		jobStatus := JobStatus{
-			ProcessID:  j.ProcessID(),
-			JobID:      j.JobID(),
-			LastUpdate: j.LastUpdate(),
-			Status:     j.CurrentStatus(),
-			CMD:        j.CMD(),
+			ProcessID:  (*j).ProcessID(),
+			JobID:      (*j).JobID(),
+			LastUpdate: (*j).LastUpdate(),
+			Status:     (*j).CurrentStatus(),
+			CMD:        (*j).CMD(),
 		}
 		output[i] = jobStatus
+		i++
 	}
 	return output
 }
@@ -132,24 +125,36 @@ func (jc *JobsCache) DumpCacheToFile(fileName string) error {
 func (jc *JobsCache) TrimCache(desiredLength int64) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
-	jobs := jc.Jobs
-	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].LastUpdate().After(jobs[j].LastUpdate())
+
+	jobIDs := make([]string, len(jc.Jobs))
+
+	var i int
+	for k := range jc.Jobs {
+		jobIDs[i] = k
+		i++
+	}
+
+	// sort the jobIDs in reverse order with most recent time first
+	sort.Slice(jobIDs, func(i, j int) bool {
+		return (*jc.Jobs[jobIDs[i]]).LastUpdate().After((*jc.Jobs[jobIDs[j]]).LastUpdate())
 	})
-	jc.Jobs = jobs[0:desiredLength]
+
+	// delete these records from the map
+	for _, jid := range jobIDs[0:desiredLength] {
+		delete(jc.Jobs, jid)
+	}
 }
 
+// to do: should it kill all containers or just containers running or accepted?
 func (jc *JobsCache) KillAll() error {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
 	for _, j := range jc.Jobs {
-		if err := j.Kill(); err != nil {
+		if err := (*j).Kill(); err != nil {
 			return err
 		}
 	}
-	jc.Jobs = make([]Job, 0)
-
 	return nil
 }
 
@@ -157,11 +162,12 @@ func (jc *JobsCache) CheckCache() uint64 {
 	// jc.mu.Lock()
 	// defer jc.mu.Unlock()
 
-	var jobSize uint64
+	// calculate total size of cache as of now
+	var currentSizeBytes uint64
 	for _, j := range jc.Jobs {
-		jobSize += uint64(j.GetSizeinCache())
+		currentSizeBytes += uint64((*j).GetSizeinCache())
 	}
-	jc.CurrentSizeBytes = jobSize
+	jc.CurrentSizeBytes = currentSizeBytes
 
 	pctCacheFull := float64(jc.CurrentSizeBytes) / float64(jc.MaxSizeBytes)
 	log.Info("cache_pct_full=", pctCacheFull, " current_size=", float64(jc.CurrentSizeBytes), " jobs=", len(jc.Jobs), " (max cache=", float64(jc.MaxSizeBytes), ")")
@@ -173,7 +179,7 @@ func (jc *JobsCache) CheckCache() uint64 {
 		log.Info(message)
 		jc.TrimCache(desiredLength)
 	}
-	return jobSize
+	return currentSizeBytes
 }
 
 // If JobID exists but results file doesn't then it raises an error

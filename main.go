@@ -34,7 +34,7 @@ func init() {
 
 	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size (default= 1GB)")
+	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
