@@ -83,11 +83,12 @@ func (jc *JobsCache) Remove(j *Job) {
 }
 
 // Returns an array of all Job statuses in memory
+// Most recently updated job first
 func (jc *JobsCache) ListJobs() []JobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	output := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]JobStatus, len(jc.Jobs))
 
 	var i int
 	for _, j := range jc.Jobs {
@@ -98,10 +99,16 @@ func (jc *JobsCache) ListJobs() []JobStatus {
 			Status:     (*j).CurrentStatus(),
 			CMD:        (*j).CMD(),
 		}
-		output[i] = jobStatus
+		jobs[i] = jobStatus
 		i++
 	}
-	return output
+
+	// sort the jobs in order with most recent time first
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].LastUpdate.After(jobs[j].LastUpdate)
+	})
+
+	return jobs
 }
 
 func (jc *JobsCache) DumpCacheToFile() error {
@@ -125,6 +132,14 @@ func (jc *JobsCache) DumpCacheToFile() error {
 	if err != nil {
 		return err
 	}
+	file.Close()
+	// saving it to tmp is better because
+	// if the gob panics then the existing snapshot is still untouched
+	err = os.Rename(".data/snapshot.gob.tmp", ".data/snapshot.gob")
+	if err != nil {
+		return fmt.Errorf("error moving file: %v", err.Error())
+	}
+
 	return nil
 }
 
