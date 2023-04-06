@@ -2,7 +2,9 @@ package jobs
 
 import (
 	"app/utils"
+	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -102,23 +104,52 @@ func (jc *JobsCache) ListJobs() []JobStatus {
 	return output
 }
 
-func (jc *JobsCache) DumpCacheToFile(fileName string) error {
-	// Create a file
-	f, err := os.Create(fileName)
+func (jc *JobsCache) DumpCacheToFile() error {
+	// create a file to write the serialized data to
+	err := os.MkdirAll(".data", os.ModePerm)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	file, err := os.Create(".data/snapshot.gob.tmp")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-	// Write the map to the file
-	b, err := json.Marshal(jc.ListJobs())
+	gob.Register(&DockerJob{})
+	gob.Register(&AWSBatchJob{})
+
+	// create an encoder and use it to serialize the map to the file
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(jc.Jobs)
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(b)
-	if err != nil {
+	return nil
+}
+
+func (jc *JobsCache) LoadCacheFromFile() error {
+
+	jc.Jobs = make(map[string]*Job)
+
+	// create a file to read the serialized data from
+	file, err := os.Open(".data/snapshot.gob")
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	defer file.Close()
+
+	gob.Register(&DockerJob{})
+	gob.Register(&AWSBatchJob{})
+
+	// create a decoder and use it to deserialize the people map from the file
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&jc.Jobs)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
+	fmt.Println("Starting from snapshot saved at .data/snapshot.gob")
 	return nil
 }
 
@@ -145,14 +176,16 @@ func (jc *JobsCache) TrimCache(desiredLength int64) {
 	}
 }
 
-// to do: should it kill all containers or just containers running or accepted?
+// Revised to kill only currently active jobs
 func (jc *JobsCache) KillAll() error {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
 	for _, j := range jc.Jobs {
-		if err := (*j).Kill(); err != nil {
-			return err
+		if (*j).CurrentStatus() == ACCEPTED || (*j).CurrentStatus() == RUNNING {
+			if err := (*j).Kill(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

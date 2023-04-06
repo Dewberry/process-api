@@ -17,8 +17,8 @@ import (
 )
 
 type DockerJob struct {
-	Ctx         context.Context
-	CtxCancel   context.CancelFunc
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	ContainerID string
 	Repository  string `json:"repository"` // for local repositories leave empty
@@ -71,7 +71,7 @@ func (j *DockerJob) NewMessage(m string) {
 func (j *DockerJob) HandleError(m string) {
 	j.APILogs = append(j.APILogs, m)
 	j.NewStatusUpdate(FAILED)
-	j.CtxCancel()
+	j.ctxCancel()
 }
 
 func (j *DockerJob) LastUpdate() time.Time {
@@ -94,16 +94,16 @@ func (j *DockerJob) ProviderID() string {
 func (j *DockerJob) Equals(job Job) bool {
 	switch jj := job.(type) {
 	case *DockerJob:
-		return j.Ctx == jj.Ctx
+		return j.ctx == jj.ctx
 	default:
 		return false
 	}
 }
 
 func (j *DockerJob) Create() error {
-	ctx, cancelFunc := context.WithCancel(j.Ctx)
-	j.Ctx = ctx
-	j.CtxCancel = cancelFunc
+	ctx, cancelFunc := context.WithCancel(j.ctx)
+	j.ctx = ctx
+	j.ctxCancel = cancelFunc
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
@@ -145,7 +145,7 @@ func (j *DockerJob) Run() {
 
 	// start container
 	j.NewStatusUpdate(RUNNING)
-	containerID, err := c.ContainerRun(j.Ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
+	containerID, err := c.ContainerRun(j.ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
 	if err != nil {
 		j.HandleError(err.Error())
 		return
@@ -154,8 +154,8 @@ func (j *DockerJob) Run() {
 	j.ContainerID = containerID
 
 	// wait for process to finish
-	statusCode, errWait := c.ContainerWait(j.Ctx, j.ContainerID)
-	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
+	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
+	logs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
 	// This function does not panic
@@ -164,7 +164,7 @@ func (j *DockerJob) Run() {
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
 		if err != nil {
-			errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
+			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
 			if errRem != nil {
 				j.HandleError(err.Error() + " " + errRem.Error())
 				return
@@ -175,7 +175,7 @@ func (j *DockerJob) Run() {
 	}
 
 	if statusCode != 0 {
-		errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
+		errRem := c.ContainerRemove(j.ctx, j.ContainerID)
 		if errRem != nil {
 			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
 			return
@@ -187,29 +187,35 @@ func (j *DockerJob) Run() {
 	}
 
 	// clean up the finished job
-	err = c.ContainerRemove(j.Ctx, j.ContainerID)
+	err = c.ContainerRemove(j.ctx, j.ContainerID)
 	if err != nil {
 		j.HandleError(err.Error())
 		return
 	}
 
-	j.CtxCancel()
+	j.ctxCancel()
 }
 
 // kill local container
 func (j *DockerJob) Kill() error {
+	switch j.CurrentStatus() {
+	case SUCCESSFUL, FAILED, DISMISSED:
+		// if these jobs have been loaded from previous snapshot they would not have context etc
+		return fmt.Errorf("can't call delete on an already accepted, failed, or dismissed job")
+	}
+
 	c, err := controllers.NewDockerController()
 	if err != nil {
 		j.NewMessage(err.Error())
 	}
 
-	err = c.ContainerKillAndRemove(j.Ctx, j.ContainerID, "KILL")
+	err = c.ContainerKillAndRemove(j.ctx, j.ContainerID, "KILL")
 	if err != nil {
 		j.HandleError(err.Error())
 	}
 
 	j.NewStatusUpdate(DISMISSED)
-	j.CtxCancel()
+	j.ctxCancel()
 	return nil
 }
 
@@ -228,8 +234,8 @@ func (j *DockerJob) GetSizeinCache() int {
 	linkData := int(unsafe.Sizeof(j.Links))
 
 	totalMemory := cmdData + messageData + linkData +
-		int(unsafe.Sizeof(j.Ctx)) +
-		int(unsafe.Sizeof(j.CtxCancel)) +
+		int(unsafe.Sizeof(j.ctx)) +
+		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.ContainerID)) + len(j.ContainerID) +
 		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +

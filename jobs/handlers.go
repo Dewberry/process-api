@@ -27,8 +27,16 @@ func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, erro
 	if err != nil {
 		return nil, err
 	}
+
 	var jc JobsCache = JobsCache{MaxSizeBytes: uint64(maxCacheSize),
-		CurrentSizeBytes: 0, Jobs: make(map[string]*Job), TrimThreshold: 0.80}
+		CurrentSizeBytes: 0, TrimThreshold: 0.80}
+
+	// load from previous snapshot if it exist
+	err = jc.LoadCacheFromFile()
+	if err != nil {
+		fmt.Printf("Error loading snapshot: %s \n", err.Error())
+		jc.Jobs = make(map[string]*Job)
+	}
 
 	// Set up a session with AWS credentials and region
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -191,7 +199,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	if jobType == "sync-execute" {
 		j = &DockerJob{
-			Ctx:         context.TODO(),
+			ctx:         context.TODO(),
 			UUID:        jobID,
 			ProcessName: processID,
 			Repository:  p.Runtime.Repository,
@@ -205,7 +213,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		switch runtime {
 		case "aws-batch":
 			j = &AWSBatchJob{
-				Ctx:         context.TODO(),
+				ctx:         context.TODO(),
 				UUID:        jobID,
 				ProcessName: processID,
 				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
@@ -270,7 +278,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		err := (*job).Kill()
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, err)
+			return c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(http.StatusOK, fmt.Sprintf("job %s dismissed", jobID))
 	}
