@@ -132,7 +132,7 @@ func main() {
 	go func() {
 		e.Logger.Info("server starting on port: ", port)
 		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
-			log.Error("server error : ", err)
+			log.Error("server error : ", err.Error())
 			e.Logger.Fatal("shutting down the server")
 		}
 	}()
@@ -164,5 +164,5 @@ func main() {
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
 	}
-
+	e.Logger.Info("server gracefully shutdown")
 }

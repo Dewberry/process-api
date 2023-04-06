@@ -130,12 +130,12 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
 	description, err := p.Describe()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, description)
@@ -234,7 +234,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	err = j.Create()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
-			fmt.Sprintf("submission errorr %s", err))
+			fmt.Sprintf("submission errorr %s", err.Error()))
 	}
 
 	var outputs interface{}
@@ -247,7 +247,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			if p.Outputs != nil {
 				outputs, err = FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, err)
+					return c.JSON(http.StatusInternalServerError, err.Error())
 				}
 			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
@@ -326,7 +326,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": err.Error()}
 					return c.JSON(http.StatusNotFound, output)
 				}
-				return c.JSON(http.StatusInternalServerError, err)
+				return c.JSON(http.StatusInternalServerError, err.Error())
 			}
 			output := map[string]interface{}{
 				"type":    "process",
