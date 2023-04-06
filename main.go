@@ -123,8 +123,8 @@ func main() {
 	// JobCache Monitor
 	go func() {
 		for {
-			_ = rh.JobsCache.CheckCache()
 			time.Sleep(60 * 60 * time.Second) // check cache once an hour
+			_ = rh.JobsCache.CheckCache()
 		}
 	}()
 
@@ -145,15 +145,20 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	// Dump cache to file
-	rh.JobsCache.DumpCacheToFile("dump.json")
 	err = rh.JobsCache.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
 	}
 	e.Logger.Info("killed and removed active containers")
 
-	// shutdown the server
+	// Dump cache to file
+	err = rh.JobsCache.DumpCacheToFile()
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	e.Logger.Info("snapshot created at .data/snapshot.gob")
+
+	// Shutdown the server
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
