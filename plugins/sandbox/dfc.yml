@@ -1,0 +1,69 @@
+info:
+  version: '2023.2.1'
+  id: dfc
+  title: dfc
+  description: Returns data for depth-frequency curve
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image: process-sandbox
+  tag: latest
+  description:
+  command:
+    - python
+    - dfc.py
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - S3_BUCKET
+
+inputs:
+  - id: crs
+    title: crs
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: tile
+    title: tile
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: epoch
+    title: epoch
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: points
+    title: points
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 999999
+
+outputs:
+  - id: dfc
+    title: dfc
+    output:
+      transmissionMode:
+      - value
+
+
