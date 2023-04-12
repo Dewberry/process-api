@@ -3,6 +3,8 @@ package main
 import (
 	_ "app/docs"
 	"app/jobs"
+	"io"
+	"text/template"
 
 	"context"
 	"flag"
@@ -32,7 +34,7 @@ func init() {
 
 	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size (default= 1GB)")
+	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -41,6 +43,14 @@ func init() {
 	if err != nil {
 		log.Warnf("no .env file is being used: %s", err.Error())
 	}
+}
+
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 // @title Process-API Server
@@ -61,6 +71,8 @@ func init() {
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
+
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -71,7 +83,12 @@ func main() {
 		AllowOrigins:     []string{"*"},
 	}))
 
-	e.Logger.SetLevel(log.INFO)
+	t := &Template{
+		templates: template.Must(template.ParseGlob("public/views/*.html")),
+	}
+	e.Logger.SetLevel(log.DEBUG)
+	log.SetLevel(log.INFO)
+	e.Renderer = t
 
 	maxCacheSize, err := strconv.Atoi(cacheSize)
 	if err != nil {
@@ -100,13 +117,14 @@ func main() {
 	e.GET("/jobs", rh.JobsCacheHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler) //requires cache
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)       //requires cache
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// JobCache Monitor
 	go func() {
 		for {
-			_ = rh.JobsCache.CheckCache()
 			time.Sleep(60 * 60 * time.Second) // check cache once an hour
+			_ = rh.JobsCache.CheckCache()
 		}
 	}()
 
@@ -114,7 +132,7 @@ func main() {
 	go func() {
 		e.Logger.Info("server starting on port: ", port)
 		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
-			log.Error("server error : ", err)
+			log.Error("server error : ", err.Error())
 			e.Logger.Fatal("shutting down the server")
 		}
 	}()
@@ -127,19 +145,24 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	// Dump cache to file
-	rh.JobsCache.DumpCacheToFile("dump.json")
 	err = rh.JobsCache.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
 	}
 	e.Logger.Info("killed and removed active containers")
 
-	// shutdown the server
+	// Dump cache to file
+	err = rh.JobsCache.DumpCacheToFile()
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	e.Logger.Info("snapshot created at .data/snapshot.gob")
+
+	// Shutdown the server
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
 		e.Logger.Fatal(err)
 	}
-
+	e.Logger.Info("server gracefully shutdown")
 }

@@ -1,0 +1,63 @@
+info:
+  version: '2023.2.1'
+  id: aepGrid
+  title: aepGrid
+  description: Creates an AEP grid
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image:
+  tag:
+  description:
+  command:
+    - python
+    - aep_blocks.py
+  provider:
+    type: aws-batch
+    jobDefinition: process-sandbox:1
+    jobQueue: micro-test
+    name: aepGrid
+  envVars:
+
+inputs:
+  - id: tile
+    title: tile
+    input:
+      literalDataDomain:
+        dataType: string
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: epoch
+    title: epoch
+    input:
+      literalDataDomain:
+        dataType: string
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: aepGridDestination
+    title: aepGridDestination
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: aepGrid
+    title: aepGrid
+    inputId: aepGridDestination
+    output:
+      transmissionMode:
+      - reference
+
+

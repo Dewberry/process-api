@@ -39,7 +39,7 @@ type ValueDefinition struct {
 
 type LiteralDataDomain struct {
 	DataType        string          `yaml:"dataType"`
-	ValueDefinition ValueDefinition `yaml:"valueDefinition"`
+	ValueDefinition ValueDefinition `yaml:"valueDefinition" json:",omitempty"`
 }
 
 type Input struct {
@@ -63,9 +63,10 @@ type Output struct {
 }
 
 type Outputs struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
-	Output Output `yaml:"output"`
+	ID      string `yaml:"id"`
+	Title   string `yaml:"title"`
+	Output  Output `yaml:"output"`
+	InputID string `yaml:"inputId"` //json omit
 }
 
 // Non-OGC types used for this API's implementation of the standard
@@ -76,6 +77,8 @@ type Runtime struct {
 	Tag         string   `yaml:"tag"`
 	Provider    Provider `yaml:"provider"`
 	Description string   `yaml:"description"`
+	EnvVars     []string `yaml:"envVars"`
+	Command     []string `yaml:"command"`
 }
 
 // Provider is currently limited to AWS Batch, will require changes
@@ -89,7 +92,9 @@ type Provider struct {
 
 func (p Process) CreateLinks() []Link {
 	links := make([]Link, 0)
-	links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+	if p.Runtime.Repository != "" {
+		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+	}
 	return links
 }
 
@@ -106,10 +111,47 @@ func (p Process) ImgTag() string {
 	return fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag)
 }
 
+type inpOccurance struct {
+	occur    int
+	minOccur int
+	maxOccur int
+}
+
+func (p Process) verifyInputs(inp map[string]interface{}) error {
+
+	requestInp := make(map[string]*inpOccurance)
+
+	for _, i := range p.Inputs {
+		requestInp[i.ID] = &inpOccurance{0, i.MinOccurs, i.MaxOccurs}
+	}
+
+	for k, val := range inp {
+		o, ok := requestInp[k]
+		if ok {
+			switch v := val.(type) {
+			case []interface{}:
+				o.occur = len(v)
+			default:
+				o.occur = 1
+			}
+		} else {
+			return fmt.Errorf("%s is not a valid input option for this process, use /processes/%s endpoint to get list of input options", k, p.Info.ID)
+		}
+	}
+
+	for id, oc := range requestInp {
+		if (oc.maxOccur > 0 && oc.occur > oc.maxOccur) || (oc.occur < oc.minOccur) {
+			return errors.New("Not the correct number of occurance of input: " + id)
+		}
+	}
+
+	return nil
+}
+
 type ProcessList []Process
 
-func (ps *ProcessList) ListAll() ([]interface{}, error) {
-	var results []interface{}
+func (ps *ProcessList) ListAll() ([]Info, error) {
+	var results []Info
 	for _, p := range *ps {
 		p.Info.Description += fmt.Sprintf(" called from docker image (%s:%s)", p.Runtime.Image, p.Runtime.Tag)
 		results = append(results, p.Info)

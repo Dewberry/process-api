@@ -173,6 +173,15 @@ const docTemplate = `{
                     "processes"
                 ],
                 "summary": "Describe Process Information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "processID",
+                        "name": "processID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"os"
@@ -79,23 +80,28 @@ func (c *DockerController) Version() string {
 }
 
 // returns container logs as string, error
-func (c *DockerController) ContainerLog(ctx context.Context, id string) (string, error) {
+func (c *DockerController) ContainerLog(ctx context.Context, id string) ([]string, error) {
 
 	reader, err := c.cli.ContainerLogs(ctx, id, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true})
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	buffer, err := io.ReadAll(reader)
+	scanner := bufio.NewScanner(reader)
+	var logs []string
 
-	if err != nil && err != io.EOF {
-		return "", err
+	for scanner.Scan() {
+		logs = append(logs, scanner.Text())
 	}
 
-	return string(buffer), nil
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return logs, nil
 }
 
 // returns container status code, error

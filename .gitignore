@@ -16,4 +16,5 @@
 
 .DS_Store
 .env
-dump.json
+.vscode/settings.json
+.data/*
