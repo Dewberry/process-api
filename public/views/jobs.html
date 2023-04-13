@@ -77,7 +77,10 @@
                 <td>{{.Status}}</td>
                 <td><a href="http://ec2-54-88-35-92.compute-1.amazonaws.com/processes/{{.ProcessID}}?f=html"
                         target="_blank">{{.ProcessID}}</a></td>
-                <td>{{range .CMD}}{{.}} {{end}}</td>
+                <td>
+                    <pre
+                        style="max-width: 700px; white-space: pre-wrap; word-break: break-word;">{{range .CMD}}{{.}} {{end}}</pre>
+                </td>
                 <td>{{.LastUpdate}}</td>
                 <td></td>
             </tr>
