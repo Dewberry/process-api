@@ -119,6 +119,9 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Router /processes/{processID} [get]
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
+
+	outputFormat := c.QueryParam("f")
+
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err)
@@ -126,10 +129,20 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 
 	description, err := p.Describe()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, description)
+	switch outputFormat {
+	case "html":
+		return c.Render(http.StatusOK, "process", description)
+	case "json":
+		return c.JSON(http.StatusOK, description)
+	case "":
+		return c.JSON(http.StatusOK, description)
+	default:
+		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+	}
+
 }
 
 // @Summary Execute Process
@@ -361,20 +374,34 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
+	outputFormat := c.QueryParam("f")
+
 	for _, j := range rh.JobsCache.Jobs {
 		if j.JobID() == jobID {
 			logs, err := j.Logs()
 			if err != nil {
-				if err.Error() == "resource gone" {
+				if err.Error() == "resource not found" {
 					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
 					return c.JSON(http.StatusGone, output)
 				}
+
 				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
 				return c.JSON(http.StatusInternalServerError, output)
 			}
-			return c.JSON(http.StatusOK, logs)
+
+			switch outputFormat {
+			case "html":
+				return c.Render(http.StatusOK, "logs", logs)
+			case "json":
+				return c.JSON(http.StatusOK, logs)
+			case "":
+				return c.JSON(http.StatusOK, logs)
+			default:
+				return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+			}
 		}
 	}
+
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }

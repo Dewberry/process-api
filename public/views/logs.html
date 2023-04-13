@@ -1,8 +1,9 @@
-{{define "jobs"}}
+{{define "logs"}}
 <html>
 
+
 <head>
-    <title>Jobs List</title>
+    <title>Job Log</title>
     <style>
         body {
             font-family: sans-serif;
@@ -57,32 +58,23 @@
     </style>
 </head>
 
+
 <body>
-    <h1>Jobs List</h1>
+    <h1>API Logs</h1>
     <table>
-        <thead>
-            <tr>
-                <th>JobID</th>
-                <th>Status</th>
-                <th>ProcessID</th>
-                <th>Commands</th>
-                <th>Updated</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .}}
-            <tr>
-                <td><a href="http://ec2-54-88-35-92.compute-1.amazonaws.com/jobs/{{.JobID}}/logs?f=html"
-                        target="_blank">{{.JobID}}</a></td>
-                <td>{{.Status}}</td>
-                <td><a href="http://ec2-54-88-35-92.compute-1.amazonaws.com/processes/{{.ProcessID}}?f=html"
-                        target="_blank">{{.ProcessID}}</a></td>
-                <td>{{range .CMD}}{{.}} {{end}}</td>
-                <td>{{.LastUpdate}}</td>
-                <td></td>
-            </tr>
-            {{end}}
-        </tbody>
+        {{range .APILog}}
+        <tr>
+            <td>{{.}}</td>
+        </tr>
+        {{end}}
+    </table>
+    <h1>Container Logs</h1>
+    <table>
+        {{range .ContainerLog}}
+        <tr>
+            <td>{{.}}</td>
+        </tr>
+        {{end}}
     </table>
 </body>
 
