@@ -31,6 +31,15 @@ inputs:
           anyValue: true
     minOccurs: 1
     maxOccurs: 1
+  - id: planID
+    title: planID
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
   - id: prepinputs
     title: prepinputs
     input:
