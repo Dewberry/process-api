@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -26,8 +27,16 @@ func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, erro
 	if err != nil {
 		return nil, err
 	}
+
 	var jc JobsCache = JobsCache{MaxSizeBytes: uint64(maxCacheSize),
-		CurrentSizeBytes: 0, Jobs: make(Jobs, 0), TrimThreshold: 0.80}
+		CurrentSizeBytes: 0, TrimThreshold: 0.80}
+
+	// load from previous snapshot if it exist
+	err = jc.LoadCacheFromFile()
+	if err != nil {
+		fmt.Printf("Error loading snapshot: %s \n", err.Error())
+		jc.Jobs = make(map[string]*Job)
+	}
 
 	// Set up a session with AWS credentials and region
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -124,12 +133,12 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return c.JSON(http.StatusBadRequest, err.Error())
 	}
 
 	description, err := p.Describe()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err.Error())
+		return c.JSON(http.StatusInternalServerError, err.Error().Error())
 	}
 
 	switch outputFormat {
@@ -187,6 +196,8 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	jobID := uuid.New().String()
 
 	params.Inputs["jobID"] = jobID
+	params.Inputs["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
+	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
 	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -201,7 +212,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	if jobType == "sync-execute" {
 		j = &DockerJob{
-			Ctx:         context.TODO(),
+			ctx:         context.TODO(),
 			UUID:        jobID,
 			ProcessName: processID,
 			Repository:  p.Runtime.Repository,
@@ -215,7 +226,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		switch runtime {
 		case "aws-batch":
 			j = &AWSBatchJob{
-				Ctx:         context.TODO(),
+				ctx:         context.TODO(),
 				UUID:        jobID,
 				ProcessName: processID,
 				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
@@ -230,13 +241,13 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	// Add to cache
-	rh.JobsCache.Add(j)
+	rh.JobsCache.Add(&j)
 
 	// Create job
 	err = j.Create()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError,
-			fmt.Sprintf("submission errorr %s", err))
+			fmt.Sprintf("submission errorr %s", err.Error()))
 	}
 
 	var outputs interface{}
@@ -249,7 +260,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			if p.Outputs != nil {
 				outputs, err = FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, err)
+					return c.JSON(http.StatusInternalServerError, err.Error())
 				}
 			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
@@ -277,16 +288,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 // @Router /jobs/{jobID} [delete]
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	for _, job := range rh.JobsCache.Jobs {
-		if job.JobID() == jobID {
-			err := job.Kill()
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, err)
-			}
-			return c.JSON(http.StatusOK, fmt.Sprintf("job %s dismissed", jobID))
+	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+		err := (*job).Kill()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, err.Error())
 		}
+		return c.JSON(http.StatusOK, fmt.Sprintf("job %s dismissed", jobID))
 	}
-	return c.JSON(http.StatusGone, fmt.Sprintf("job %s not in the active jobs list", jobID))
+	return c.JSON(http.StatusNotFound, fmt.Sprintf("job %s not in the active jobs list", jobID))
 }
 
 // @Summary Job Status
@@ -299,16 +308,14 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	for _, j := range rh.JobsCache.Jobs {
-		if j.JobID() == jobID {
-			resp := JobStatus{
-				ProcessID:  j.ProcessID(),
-				JobID:      j.JobID(),
-				LastUpdate: j.LastUpdate(),
-				Status:     j.CurrentStatus(),
-			}
-			return c.JSON(http.StatusOK, resp)
+	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+		resp := JobStatus{
+			ProcessID:  (*job).ProcessID(),
+			JobID:      (*job).JobID(),
+			LastUpdate: (*job).LastUpdate(),
+			Status:     (*job).CurrentStatus(),
 		}
+		return c.JSON(http.StatusOK, resp)
 	}
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
@@ -323,43 +330,41 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	for _, j := range rh.JobsCache.Jobs {
-		if j.JobID() == jobID {
-			switch j.CurrentStatus() {
-			case SUCCESSFUL:
-				outputs, err := FetchResults(rh.S3Svc, j.JobID())
-				if err != nil {
-					if err.Error() == "resource gone" {
-						output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
-						return c.JSON(http.StatusGone, output)
-					}
-					return c.JSON(http.StatusInternalServerError, err)
+	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+		switch (*job).CurrentStatus() {
+		case SUCCESSFUL:
+			outputs, err := FetchResults(rh.S3Svc, (*job).JobID())
+			if err != nil {
+				if err.Error() == "not found" {
+					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": err.Error()}
+					return c.JSON(http.StatusNotFound, output)
 				}
-				output := map[string]interface{}{
-					"type":    "process",
-					"jobID":   jobID,
-					"status":  j.CurrentStatus(),
-					"updated": j.LastUpdate(),
-					"outputs": outputs,
-				}
-				return c.JSON(http.StatusOK, output)
-
-			case FAILED, DISMISSED:
-				output := map[string]interface{}{
-					"type":    "process",
-					"jobID":   jobID,
-					"status":  j.CurrentStatus(),
-					"message": "Job Failed or Dismissed. Call logs route for details.",
-					"updated": j.LastUpdate(),
-				}
-				return c.JSON(http.StatusOK, output)
-
-			default:
-				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": "results not ready", "updated": j.LastUpdate()}
-				return c.JSON(http.StatusNotFound, output)
+				return c.JSON(http.StatusInternalServerError, err.Error())
 			}
+			output := map[string]interface{}{
+				"type":    "process",
+				"jobID":   jobID,
+				"status":  (*job).CurrentStatus(),
+				"updated": (*job).LastUpdate(),
+				"outputs": outputs,
+			}
+			return c.JSON(http.StatusOK, output)
 
+		case FAILED, DISMISSED:
+			output := map[string]interface{}{
+				"type":    "process",
+				"jobID":   jobID,
+				"status":  (*job).CurrentStatus(),
+				"message": "Job Failed or Dismissed. Call logs route for details.",
+				"updated": (*job).LastUpdate(),
+			}
+			return c.JSON(http.StatusOK, output)
+
+		default:
+			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": "results not ready", "updated": (*job).LastUpdate()}
+			return c.JSON(http.StatusNotFound, output)
 		}
+
 	}
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
@@ -374,34 +379,18 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	outputFormat := c.QueryParam("f")
-
-	for _, j := range rh.JobsCache.Jobs {
-		if j.JobID() == jobID {
-			logs, err := j.Logs()
-			if err != nil {
-				if err.Error() == "resource not found" {
-					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": j.CurrentStatus(), "message": err.Error()}
-					return c.JSON(http.StatusGone, output)
-				}
-
-				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
-				return c.JSON(http.StatusInternalServerError, output)
+	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+		logs, err := (*job).Logs()
+		if err != nil {
+			if err.Error() == "not found" {
+				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": err.Error()}
+				return c.JSON(http.StatusNotFound, output)
 			}
-
-			switch outputFormat {
-			case "html":
-				return c.Render(http.StatusOK, "logs", logs)
-			case "json":
-				return c.JSON(http.StatusOK, logs)
-			case "":
-				return c.JSON(http.StatusOK, logs)
-			default:
-				return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
-			}
+			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
+			return c.JSON(http.StatusInternalServerError, output)
 		}
+		return c.JSON(http.StatusOK, logs)
 	}
-
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }

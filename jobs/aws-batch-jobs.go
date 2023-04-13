@@ -15,8 +15,8 @@ import (
 )
 
 type AWSBatchJob struct {
-	Ctx         context.Context
-	CtxCancel   context.CancelFunc
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	AWSBatchID  string
 	ProcessName string   `json:"processID"`
@@ -31,7 +31,7 @@ type AWSBatchJob struct {
 	JobQueue      string `json:"jobQueue"`
 	JobName       string `json:"jobName"`
 	EnvVars       map[string]string
-	BatchContext  *controllers.AWSBatchController
+	batchContext  *controllers.AWSBatchController
 	LogStreamName string
 }
 
@@ -78,7 +78,7 @@ func (j *AWSBatchJob) NewMessage(m string) {
 func (j *AWSBatchJob) HandleError(m string) {
 	j.APILogs = append(j.APILogs, m)
 	j.NewStatusUpdate(FAILED)
-	j.CtxCancel()
+	j.ctxCancel()
 }
 
 func (j *AWSBatchJob) LastUpdate() time.Time {
@@ -101,16 +101,16 @@ func (j *AWSBatchJob) ProviderID() string {
 func (j *AWSBatchJob) Equals(job Job) bool {
 	switch jj := job.(type) {
 	case *AWSBatchJob:
-		return j.Ctx == jj.Ctx
+		return j.ctx == jj.ctx
 	default:
 		return false
 	}
 }
 
 func (j *AWSBatchJob) Create() error {
-	ctx, cancelFunc := context.WithCancel(j.Ctx)
-	j.Ctx = ctx
-	j.CtxCancel = cancelFunc
+	ctx, cancelFunc := context.WithCancel(j.ctx)
+	j.ctx = ctx
+	j.ctxCancel = cancelFunc
 
 	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
 	if err != nil {
@@ -121,14 +121,14 @@ func (j *AWSBatchJob) Create() error {
 	log.Debug("j.JobDef | ", j.JobDef)
 	log.Debug("j.JobQueue | ", j.JobQueue)
 	log.Debug("j.JobName  | ", j.JobName)
-	aWSBatchID, err := batchContext.JobCreate(j.Ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
+	aWSBatchID, err := batchContext.JobCreate(j.ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
 	if err != nil {
 		j.HandleError(err.Error())
 		return err
 	}
 
 	j.AWSBatchID = aWSBatchID
-	j.BatchContext = batchContext
+	j.batchContext = batchContext
 
 	// verify command in body
 	if j.Cmd == nil {
@@ -170,15 +170,15 @@ func (j *AWSBatchJob) Run() {
 			case "SUCCEEDED":
 				// fetch results here // todo
 				j.NewStatusUpdate(SUCCESSFUL)
-				j.CtxCancel()
+				j.ctxCancel()
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)
-				j.CtxCancel()
+				j.ctxCancel()
 				return
 			case "FAILED":
 				j.NewStatusUpdate(FAILED)
-				j.CtxCancel()
+				j.ctxCancel()
 				return
 			}
 		}
@@ -188,6 +188,12 @@ func (j *AWSBatchJob) Run() {
 }
 
 func (j *AWSBatchJob) Kill() error {
+	switch j.CurrentStatus() {
+	case SUCCESSFUL, FAILED, DISMISSED:
+		// if these jobs have been loaded from previous snapshot they would not have context etc
+		return fmt.Errorf("can't call delete on an already accepted, failed, or dismissed job")
+	}
+
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
 	if err != nil {
 		j.HandleError(err.Error())
@@ -200,7 +206,7 @@ func (j *AWSBatchJob) Kill() error {
 	}
 
 	j.NewStatusUpdate(DISMISSED)
-	j.CtxCancel()
+	j.ctxCancel()
 	return nil
 }
 
@@ -220,8 +226,8 @@ func (j *AWSBatchJob) GetSizeinCache() int {
 	linkData := int(unsafe.Sizeof(j.Links))
 
 	totalMemory := cmdData + messageData + linkData +
-		int(unsafe.Sizeof(j.Ctx)) +
-		int(unsafe.Sizeof(j.CtxCancel)) +
+		int(unsafe.Sizeof(j.ctx)) +
+		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.AWSBatchID)) + len(j.AWSBatchID) +
 		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +

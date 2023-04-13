@@ -51,14 +51,13 @@ If the client cancels the processing request for any reason (timeout, etc.), the
 
 For AWS services, an env file should be located at the root of this repository (`./.env`) and be formatted like so:
 
-```bash
-AWS_ACCESS_KEY_ID='ASDFASDFEXAMPLE'
-AWS_SECRET_ACCESS_KEY='ASDFASDFASDFASDFASDFEXAMPLE'
-AWS_DEFAULT_REGION='us-east-1'
-
+```properties
+# AWS
 AWS_ACCESS_KEY_ID='************'
 AWS_SECRET_ACCESS_KEY='**************************'
 AWS_DEFAULT_REGION='us-east-1'
+
+# S3
 S3_BUCKET='********'
 S3_RESULTS_DIR='results'
 S3_LOGS_DIR='logs'
@@ -68,6 +67,9 @@ BATCH_LOG_STREAM_GROUP='/aws/batch/job'
 
 # GDAL
 CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES'
+
+# Policies
+EXPIRY_DAYS='7'
 ```
 
 *NOTE: This server was adapted for ogc-compliance from an existing api developed by @albrazeau*

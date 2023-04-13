@@ -2,7 +2,9 @@ package jobs
 
 import (
 	"app/utils"
+	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,8 +37,6 @@ type Job interface {
 	GetSizeinCache() int
 }
 
-type Jobs []Job
-
 type JobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
@@ -67,94 +67,147 @@ type RunRequestBody struct {
 }
 
 type JobsCache struct {
-	Jobs             `json:"jobs"`
+	Jobs             map[string]*Job `json:"jobs"`
+	MaxSizeBytes     uint64          `json:"maxCacheBytes"`
+	TrimThreshold    float64         `json:"cacheTrimThreshold"`
+	CurrentSizeBytes uint64          `json:"currentCacheBytes"`
 	mu               sync.Mutex
-	MaxSizeBytes     uint64  `json:"maxCacheBytes"`
-	TrimThreshold    float64 `json:"cacheTrimThreshold"`
-	CurrentSizeBytes uint64  `json:"currentCacheBytes"`
 }
 
-func (jc *JobsCache) Add(j ...Job) {
+func (jc *JobsCache) Add(j *Job) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
-	jc.Jobs = append(jc.Jobs, j...)
+	jc.Jobs[(*j).JobID()] = j
 }
 
-func (jc *JobsCache) Remove(j Job) {
+func (jc *JobsCache) Remove(j *Job) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	newJobs := make([]Job, 0)
-	for _, j := range jc.Jobs {
-
-		if !j.Equals(j) {
-			newJobs = append(newJobs, j)
-		}
-	}
-	jc.Jobs = newJobs
+	delete(jc.Jobs, (*j).JobID())
 }
 
+// Returns an array of all Job statuses in memory
+// Most recently updated job first
 func (jc *JobsCache) ListJobs() []JobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	output := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]JobStatus, len(jc.Jobs))
 
-	for i, j := range jc.Jobs {
-
+	var i int
+	for _, j := range jc.Jobs {
 		jobStatus := JobStatus{
-			ProcessID:  j.ProcessID(),
-			JobID:      j.JobID(),
-			LastUpdate: j.LastUpdate(),
-			Status:     j.CurrentStatus(),
-			CMD:        j.CMD(),
+			ProcessID:  (*j).ProcessID(),
+			JobID:      (*j).JobID(),
+			LastUpdate: (*j).LastUpdate(),
+			Status:     (*j).CurrentStatus(),
+			CMD:        (*j).CMD(),
 		}
-		output[i] = jobStatus
+		jobs[i] = jobStatus
+		i++
 	}
-	return output
+
+	// sort the jobs in order with most recent time first
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].LastUpdate.After(jobs[j].LastUpdate)
+	})
+
+	return jobs
 }
 
-func (jc *JobsCache) DumpCacheToFile(fileName string) error {
-	// Create a file
-	f, err := os.Create(fileName)
+func (jc *JobsCache) DumpCacheToFile() error {
+	// create a file to write the serialized data to
+	err := os.MkdirAll(".data", os.ModePerm)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	file, err := os.Create(".data/snapshot.gob.tmp")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-	// Write the map to the file
-	b, err := json.Marshal(jc.ListJobs())
+	gob.Register(&DockerJob{})
+	gob.Register(&AWSBatchJob{})
+
+	// create an encoder and use it to serialize the map to the file
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(jc.Jobs)
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(b)
+	file.Close()
+	// saving it to tmp is better because
+	// if the gob panics then the existing snapshot is still untouched
+	err = os.Rename(".data/snapshot.gob.tmp", ".data/snapshot.gob")
 	if err != nil {
+		return fmt.Errorf("error moving file: %v", err.Error())
+	}
+
+	return nil
+}
+
+func (jc *JobsCache) LoadCacheFromFile() error {
+
+	jc.Jobs = make(map[string]*Job)
+
+	// create a file to read the serialized data from
+	file, err := os.Open(".data/snapshot.gob")
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	defer file.Close()
+
+	gob.Register(&DockerJob{})
+	gob.Register(&AWSBatchJob{})
+
+	// create a decoder and use it to deserialize the people map from the file
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&jc.Jobs)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
+	fmt.Println("Starting from snapshot saved at .data/snapshot.gob")
 	return nil
 }
 
 func (jc *JobsCache) TrimCache(desiredLength int64) {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
-	jobs := jc.Jobs
-	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].LastUpdate().After(jobs[j].LastUpdate())
+
+	jobIDs := make([]string, len(jc.Jobs))
+
+	var i int
+	for k := range jc.Jobs {
+		jobIDs[i] = k
+		i++
+	}
+
+	// sort the jobIDs in reverse order with most recent time first
+	sort.Slice(jobIDs, func(i, j int) bool {
+		return (*jc.Jobs[jobIDs[i]]).LastUpdate().After((*jc.Jobs[jobIDs[j]]).LastUpdate())
 	})
-	jc.Jobs = jobs[0:desiredLength]
+
+	// delete these records from the map
+	for _, jid := range jobIDs[0:desiredLength] {
+		delete(jc.Jobs, jid)
+	}
 }
 
+// Revised to kill only currently active jobs
 func (jc *JobsCache) KillAll() error {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
 	for _, j := range jc.Jobs {
-		if err := j.Kill(); err != nil {
-			return err
+		if (*j).CurrentStatus() == ACCEPTED || (*j).CurrentStatus() == RUNNING {
+			if err := (*j).Kill(); err != nil {
+				return err
+			}
 		}
 	}
-	jc.Jobs = make([]Job, 0)
-
 	return nil
 }
 
@@ -162,11 +215,12 @@ func (jc *JobsCache) CheckCache() uint64 {
 	// jc.mu.Lock()
 	// defer jc.mu.Unlock()
 
-	var jobSize uint64
+	// calculate total size of cache as of now
+	var currentSizeBytes uint64
 	for _, j := range jc.Jobs {
-		jobSize += uint64(j.GetSizeinCache())
+		currentSizeBytes += uint64((*j).GetSizeinCache())
 	}
-	jc.CurrentSizeBytes = jobSize
+	jc.CurrentSizeBytes = currentSizeBytes
 
 	pctCacheFull := float64(jc.CurrentSizeBytes) / float64(jc.MaxSizeBytes)
 	log.Info("cache_pct_full=", pctCacheFull, " current_size=", float64(jc.CurrentSizeBytes), " jobs=", len(jc.Jobs), " (max cache=", float64(jc.MaxSizeBytes), ")")
@@ -178,7 +232,7 @@ func (jc *JobsCache) CheckCache() uint64 {
 		log.Info(message)
 		jc.TrimCache(desiredLength)
 	}
-	return jobSize
+	return currentSizeBytes
 }
 
 // If JobID exists but results file doesn't then it raises an error
@@ -193,7 +247,7 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	}
 
 	if !exist {
-		return nil, fmt.Errorf("resource gone")
+		return nil, fmt.Errorf("not found")
 	}
 
 	// Create a new S3GetObjectInput object to specify the file you want to read
