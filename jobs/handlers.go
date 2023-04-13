@@ -138,7 +138,7 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 
 	description, err := p.Describe()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err.Error().Error())
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
 	switch outputFormat {
@@ -379,6 +379,8 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
+	outputFormat := c.QueryParam("f")
+
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		logs, err := (*job).Logs()
 		if err != nil {
@@ -389,9 +391,20 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
 			return c.JSON(http.StatusInternalServerError, output)
 		}
-		return c.JSON(http.StatusOK, logs)
+
+		switch outputFormat {
+		case "html":
+			return c.Render(http.StatusOK, "logs", logs)
+		case "json":
+			return c.JSON(http.StatusOK, logs)
+		case "":
+			return c.JSON(http.StatusOK, logs)
+		default:
+			return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+		}
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
+
+	output := JobLog{ContainerLog: []string{"jobID not found, if the job was just submitted logs may not be available"}}
 	return c.JSON(http.StatusNotFound, output)
 }
 
