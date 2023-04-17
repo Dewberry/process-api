@@ -72,11 +72,9 @@
         <tbody>
             {{range .}}
             <tr>
-                <td><a href="http://vap.api.dewberryanalytics.com/jobs/{{.JobID}}/logs?f=html"
-                        target="_blank">{{.JobID}}</a></td>
+                <td><a href="/jobs/{{.JobID}}/logs?f=html" target="_blank">{{.JobID}}</a></td>
                 <td>{{.Status}}</td>
-                <td><a href="http://vap.api.dewberryanalytics.com/processes/{{.ProcessID}}?f=html"
-                        target="_blank">{{.ProcessID}}</a></td>
+                <td><a href="/processes/{{.ProcessID}}?f=html" target="_blank">{{.ProcessID}}</a></td>
                 <td>
                     <pre
                         style="max-width: 700px; white-space: pre-wrap; word-break: break-word;">{{range .CMD}}{{.}} {{end}}</pre>
