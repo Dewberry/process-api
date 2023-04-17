@@ -375,7 +375,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} JobLog
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")

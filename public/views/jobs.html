@@ -72,10 +72,10 @@
         <tbody>
             {{range .}}
             <tr>
-                <td><a href="http://ec2-54-88-35-92.compute-1.amazonaws.com/jobs/{{.JobID}}/logs?f=html"
+                <td><a href="http://vap.api.dewberryanalytics.com/jobs/{{.JobID}}/logs?f=html"
                         target="_blank">{{.JobID}}</a></td>
                 <td>{{.Status}}</td>
-                <td><a href="http://ec2-54-88-35-92.compute-1.amazonaws.com/processes/{{.ProcessID}}?f=html"
+                <td><a href="http://vap.api.dewberryanalytics.com/processes/{{.ProcessID}}?f=html"
                         target="_blank">{{.ProcessID}}</a></td>
                 <td>
                     <pre
