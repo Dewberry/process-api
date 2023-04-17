@@ -26,7 +26,7 @@ type Job interface {
 	IMGTAG() string
 	JobID() string
 	ProcessID() string
-	Logs() (JobLog, error)
+	Logs() (JobLogs, error)
 	Kill() error
 	LastUpdate() time.Time
 	Messages(bool) []string
@@ -46,7 +46,7 @@ type JobStatus struct {
 	Type       string    `default:"process" json:"type"`
 }
 
-type JobLog struct {
+type JobLogs struct {
 	ContainerLog []string `json:"container_log"`
 	APILog       []string `json:"api_log"`
 }

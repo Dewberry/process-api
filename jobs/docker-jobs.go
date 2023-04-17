@@ -49,15 +49,15 @@ func (j *DockerJob) IMGTAG() string {
 }
 
 // Fetches Container logs from S3 and API logs from cache
-func (j *DockerJob) Logs() (JobLog, error) {
-	var log JobLog
+func (j *DockerJob) Logs() (JobLogs, error) {
+	var logs JobLogs
 	cl, err := j.FetchLogs()
 	if err != nil {
-		return log, err
+		return JobLogs{}, err
 	}
-	log.ContainerLog = cl
-	log.APILog = j.APILogs
-	return log, nil
+	logs.ContainerLog = cl
+	logs.APILog = j.APILogs
+	return logs, nil
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {

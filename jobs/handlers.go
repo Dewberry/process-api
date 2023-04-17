@@ -375,7 +375,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobLog
+// @Success 200 {object} JobLogs
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
@@ -404,7 +404,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		}
 	}
 
-	output := JobLog{ContainerLog: []string{"jobID not found, if the job was just submitted logs may not be available"}}
+	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 

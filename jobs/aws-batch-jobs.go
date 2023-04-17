@@ -52,15 +52,15 @@ func (j *AWSBatchJob) IMGTAG() string {
 }
 
 // Fetches Container logs from CloudWatch and API logs from cache
-func (j *AWSBatchJob) Logs() (JobLog, error) {
-	var log JobLog
+func (j *AWSBatchJob) Logs() (JobLogs, error) {
+	var logs JobLogs
 	cl, err := j.FetchLogs()
 	if err != nil {
-		return log, err
+		return JobLogs{}, err
 	}
-	log.ContainerLog = cl
-	log.APILog = j.APILogs
-	return log, nil
+	logs.ContainerLog = cl
+	logs.APILog = j.APILogs
+	return logs, nil
 }
 
 func (j *AWSBatchJob) ClearOutputs() {
