@@ -1,0 +1,72 @@
+{{define "process"}}
+<html>
+
+<head>
+    <title>{{.Title}}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+        }
+
+        .blue {
+            color: blue;
+        }
+
+        .gray {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>ProcessID</h3>
+
+    <h4>Info</h4>
+
+    <ul>
+        <li><strong>Title: </strong> {{.Info.Title}}</li>
+        <li><strong>Description: </strong> {{.Info.Description}}</li>
+        <li><strong>Version: </strong> {{.Info.Version}}</li>
+    </ul>
+
+    <h4>Inputs</h4>
+
+    {{range .Inputs}}
+    <ul>
+        <li><strong>{{.Title}}</strong> </li>
+        <ul>
+            <li>Min {{.MinOccurs}}
+            <li>Max {{.MaxOccurs}}
+        </ul>
+    </ul>
+    {{end}}
+
+    <h4>Outputs</h4>
+
+    {{range .Outputs}}
+    <ul>
+        <li><strong>{{.Formats}}</strong> </li>
+    </ul>
+    {{end}}
+
+    <h4>Links</h4>
+
+    {{range .Links}}
+    <ul>
+        <li><strong>{{.Title}}</strong> </li>
+        <ul>
+            <li>Href {{.Href}}
+            <li>Rel {{.Rel}}
+            <li>Type {{.Type}}
+        </ul>
+    </ul>
+    {{end}}
+
+</body>
+
+</html>
+{{end}}

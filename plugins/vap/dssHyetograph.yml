@@ -1,0 +1,73 @@
+info:
+  version: '2023.3.30'
+  id: dssbuild
+  title: dssbuild
+  description: Build gridded DSS hyetograph for HEC-RAS 2D input
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image: 172866912423.dkr.ecr.us-east-1.amazonaws.com/va-pluvial-etl
+  tag: dss-hyetograph-latest
+  description: Build gridded DSS hyetograph for HEC-RAS 2D input
+  command: 
+    - python3 
+    - -m 
+    - app.main
+  provider:
+    type: aws-batch
+    jobDefinition: va-dss-hyetograph:5
+    jobQueue: va-pluvial
+    name: va-dss-hyetograph
+
+inputs:
+  - id: schema
+    title: schema
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: table
+    title: table
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: column
+    title: column
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: poly_id
+    title: poly_id
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: out_dss_s3
+    title: out_dss_s3
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:

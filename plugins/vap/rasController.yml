@@ -1,0 +1,98 @@
+info:
+  version: '2023.3.30'
+  id: vaController
+  title: vaController
+  description: controls model creation and processes for va-pluvial 
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image: 172866912423.dkr.ecr.us-east-1.amazonaws.com/va-pluvial-etl
+  tag: rascontroller-latest
+  description: controls model creation and processes for va-pluvial 
+  command: 
+    - ./main 
+  provider:
+    type: aws-batch
+    jobDefinition: va-controller:4
+    jobQueue: va-pluvial
+    name: va-controller
+
+inputs:
+  - id: watershedID
+    title: watershedID
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: planID
+    title: planID
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: prepinputs
+    title: prepinputs
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: dssbuild
+    title: dssbuild
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: preprocess
+    title: preprocess
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: preplinux
+    title: preplinux
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: unsteady
+    title: unsteady
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: postprocess
+    title: postprocess
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+
+outputs:

@@ -1,4 +1,19 @@
 basePath: /
+definitions:
+  jobs.JobLog:
+    properties:
+      api_log:
+        items:
+          type: string
+        type: array
+      container_log:
+        items:
+          type: string
+        type: array
+    type: object
+externalDocs:
+  description: Schemas
+  url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 host: localhost:5050
 info:
   contact:
@@ -85,6 +100,20 @@ paths:
             additionalProperties: true
             type: object
       summary: Job Results
+      tags:
+      - jobs
+  /jobs/{jobID}/logs:
+    get:
+      consumes:
+      - '*/*'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jobs.JobLog'
+      summary: Job Logs
       tags:
       - jobs
   /processes:

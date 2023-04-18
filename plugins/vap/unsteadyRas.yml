@@ -1,0 +1,35 @@
+info:
+  version: '2023.3.30'
+  id: unsteady
+  title: unsteady
+  description: Run HEC-RAS Unsteady simulation
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image: lawlerseth/ras-docker-6.1-ubi8.5
+  tag: latest
+  description: Runs Unsteady RAS simulation
+  command:
+    - ./main
+  provider:
+    type: aws-batch
+    jobDefinition: va-unsteady:5
+    jobQueue: va-pluvial
+    name: va-unsteady
+
+inputs:
+  - id: s3key
+    title: s3key
+    input:
+      literalDataDomain:
+        dataType: reference
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:

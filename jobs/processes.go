@@ -16,6 +16,13 @@ type Process struct {
 	Outputs []Outputs `yaml:"outputs"`
 }
 
+type ProcessDescription struct {
+	Info    `json:"info"`
+	Inputs  []Inputs  `json:"inputs"`
+	Outputs []Outputs `json:"outputs"`
+	Links   []Link    `json:"links"`
+}
+
 type Link struct {
 	Href  string `yaml:"href" json:"href"`
 	Rel   string `yaml:"rel,omitempty" json:"rel,omitempty"`
@@ -98,9 +105,11 @@ func (p Process) CreateLinks() []Link {
 	return links
 }
 
-func (p Process) Describe() (map[string]interface{}, error) {
-	return map[string]interface{}{
-		"info": p.Info, "inputs": p.Inputs, "outputs": p.Outputs, "links": p.CreateLinks()}, nil
+func (p Process) Describe() (ProcessDescription, error) {
+	pd := ProcessDescription{
+		Info: p.Info, Inputs: p.Inputs, Outputs: p.Outputs, Links: p.CreateLinks()}
+
+	return pd, nil
 }
 
 func (p Process) Type() string {

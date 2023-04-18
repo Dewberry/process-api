@@ -26,7 +26,7 @@ type Job interface {
 	IMGTAG() string
 	JobID() string
 	ProcessID() string
-	Logs() (map[string][]string, error)
+	Logs() (JobLogs, error)
 	Kill() error
 	LastUpdate() time.Time
 	Messages(bool) []string
@@ -44,6 +44,11 @@ type JobStatus struct {
 	ProcessID  string    `json:"processID"`
 	CMD        []string  `json:"commands,omitempty"`
 	Type       string    `default:"process" json:"type"`
+}
+
+type JobLogs struct {
+	ContainerLog []string `json:"container_log"`
+	APILog       []string `json:"api_log"`
 }
 
 // OGCStatusCode
