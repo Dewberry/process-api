@@ -128,6 +128,9 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Router /processes/{processID} [get]
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
+
+	outputFormat := c.QueryParam("f")
+
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, err.Error())
@@ -138,7 +141,17 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, description)
+	switch outputFormat {
+	case "html":
+		return c.Render(http.StatusOK, "process", description)
+	case "json":
+		return c.JSON(http.StatusOK, description)
+	case "":
+		return c.JSON(http.StatusOK, description)
+	default:
+		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+	}
+
 }
 
 // @Summary Execute Process
@@ -362,10 +375,12 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} JobLogs
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
+	outputFormat := c.QueryParam("f")
+
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		logs, err := (*job).Logs()
 		if err != nil {
@@ -376,8 +391,19 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
 			return c.JSON(http.StatusInternalServerError, output)
 		}
-		return c.JSON(http.StatusOK, logs)
+
+		switch outputFormat {
+		case "html":
+			return c.Render(http.StatusOK, "logs", logs)
+		case "json":
+			return c.JSON(http.StatusOK, logs)
+		case "":
+			return c.JSON(http.StatusOK, logs)
+		default:
+			return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+		}
 	}
+
 	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
