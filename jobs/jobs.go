@@ -169,7 +169,7 @@ func (jc *JobsCache) LoadCacheFromFile() error {
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
-	fmt.Println("Starting from snapshot saved at .data/snapshot.gob")
+	log.Info("Starting from snapshot saved at .data/snapshot.gob")
 	return nil
 }
 

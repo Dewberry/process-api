@@ -34,7 +34,8 @@ func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, erro
 	// load from previous snapshot if it exist
 	err = jc.LoadCacheFromFile()
 	if err != nil {
-		fmt.Printf("Error loading snapshot: %s \n", err.Error())
+		log.Errorf("Error loading snapshot: %s \n", err.Error())
+		log.Info("Starting with clean database.")
 		jc.Jobs = make(map[string]*Job)
 	}
 
