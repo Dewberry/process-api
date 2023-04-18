@@ -203,28 +203,28 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	log.Debug("processID", processID)
 	if processID == "" {
-		return c.JSON(http.StatusBadRequest, "'processID' parameter is required")
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
 
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, fmt.Sprintf("processID '%s' is not an available process", processID))
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
 
 	var params RunRequestBody
 	err = c.Bind(&params)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err.Error())
+		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
 	// Review this section
 	if params.Inputs == nil {
-		return c.JSON(http.StatusBadRequest, "'inputs' is required in the body of the request")
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
 	}
 
 	err = p.verifyInputs(params.Inputs)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err.Error())
+		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
 	var j Job
@@ -236,7 +236,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
 	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err.Error())
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 	}
 
 	var cmd []string
@@ -272,7 +272,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				JobName:     p.Runtime.Provider.Name,
 			}
 		default:
-			return c.JSON(http.StatusBadRequest, fmt.Sprintf("unsupported type %s", jobType))
+			return c.JSON(http.StatusBadRequest, errResponse{Message: fmt.Sprintf("unsupported type %s", jobType)})
 		}
 	}
 
@@ -282,8 +282,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// Create job
 	err = j.Create()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError,
-			fmt.Sprintf("submission errorr %s", err.Error()))
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
 	}
 
 	var outputs interface{}
@@ -296,21 +295,21 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			if p.Outputs != nil {
 				outputs, err = FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, err.Error())
+					return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 				}
 			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 			return c.JSON(http.StatusOK, resp)
 		} else {
-			resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "message": "Job Failed. Call logs route for details."}
+			resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "Job Failed. Call logs route for details."}
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
 		go j.Run()
-		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": "accepted"}
+		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
 		return c.JSON(http.StatusCreated, resp)
 	default:
-		resp := map[string]interface{}{"processID": j.ProcessID(), "type": "process", "jobID": jobID, "status": 0, "message": "incorrect controller option defined in process configuration"}
+		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "incorrect controller option defined in process configuration"}
 		return c.JSON(http.StatusInternalServerError, resp)
 	}
 }
@@ -324,14 +323,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 // @Router /jobs/{jobID} [delete]
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		err := (*job).Kill()
+	if j, ok := rh.JobsCache.Jobs[jobID]; ok {
+		err := (*j).Kill()
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, err.Error())
+			return c.JSON(http.StatusBadRequest, jobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: err.Error()})
 		}
-		return c.JSON(http.StatusOK, fmt.Sprintf("job %s dismissed", jobID))
+		return c.JSON(http.StatusOK, jobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: fmt.Sprintf("job %s dismissed", jobID)})
 	}
-	return c.JSON(http.StatusNotFound, fmt.Sprintf("job %s not in the active jobs list", jobID))
+	return c.JSON(http.StatusNotFound, errResponse{Message: fmt.Sprintf("job %s not in the active jobs list", jobID)})
 }
 
 // @Summary Job Status
