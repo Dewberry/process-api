@@ -102,10 +102,16 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 // @Success 200 {object} map[string]interface{}
 // @Router / [get]
 func (rh *RESTHandler) LandingPage(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
+
+	output := map[string]string{
 		"title":       "process-api",
 		"description": "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
-	})
+	}
+	return prepareResponse(c, http.StatusOK, "landing", output)
 }
 
 // Conformance godoc
@@ -117,13 +123,20 @@ func (rh *RESTHandler) LandingPage(c echo.Context) error {
 // @Success 200 {object} map[string]interface{} "hello:["dolly"]"
 // @Router /conformance [get]
 func (rh *RESTHandler) Conformance(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string][]string{
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
+
+	output := map[string][]string{
 		"conformsTo": {
 			"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json"},
-	})
+	}
+
+	return prepareResponse(c, http.StatusOK, "conformance", output)
 }
 
 // ProcessListHandler godoc
