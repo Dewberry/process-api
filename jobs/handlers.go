@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"app/utils"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,6 +21,42 @@ type RESTHandler struct {
 	JobsCache   *JobsCache
 	ProcessList *ProcessList
 	S3Svc       *s3.S3
+}
+
+// base error
+type errResponse struct {
+	HTTPStatus int    `json:"-"`
+	Message    string `json:"message"`
+}
+
+// StatusText returns a text for the HTTP status code. It returns the empty
+// string if the code is unknown.
+func (er errResponse) GetHTTPStatusText() string {
+	return http.StatusText(er.HTTPStatus)
+}
+
+var validFormats = []string{"", "json", "html"}
+
+// Check if format query parameter is allowed.
+func validateFormat(c echo.Context) error {
+	outputFormat := c.QueryParam("f")
+	if !utils.StringInSlice(outputFormat, validFormats) {
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "Invalid option for query parameter 'f'. Valid options are 'html' or 'json'. default (i.e. not specified) is json)"})
+	}
+	return nil
+}
+
+// Prepare and return response based on query parameter.
+// Assumes query parameter is valid.
+func prepareResponse(c echo.Context, httpStatus int, renderName string, output interface{}) error {
+	outputFormat := c.QueryParam("f")
+	switch outputFormat {
+	case "html":
+		return c.Render(httpStatus, renderName, output)
+	case "json", "":
+		return c.JSON(httpStatus, output)
+	}
+	return nil
 }
 
 func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, error) {
@@ -98,24 +135,17 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /processes [get]
 func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
-	processList, err := rh.ProcessList.ListAll()
+	err := validateFormat(c)
 	if err != nil {
 		return err
 	}
 
-	outputFormat := c.QueryParam("f")
-
-	switch outputFormat {
-	case "html":
-		return c.Render(http.StatusOK, "processes", processList)
-	case "json":
-		return c.JSON(http.StatusOK, processList)
-	case "":
-		return c.JSON(http.StatusOK, processList)
-	default:
-		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
+	processList, err := rh.ProcessList.ListAll()
+	if err != nil {
+		return prepareResponse(c, http.StatusInternalServerError, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusInternalServerError})
 	}
 
+	return prepareResponse(c, http.StatusOK, "processes", processList)
 }
 
 // ProcessDescribeHandler godoc
@@ -292,7 +322,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		err := (*job).Kill()
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, err.Error())
+			return c.JSON(http.StatusBadRequest, err.Error())
 		}
 		return c.JSON(http.StatusOK, fmt.Sprintf("job %s dismissed", jobID))
 	}
