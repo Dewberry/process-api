@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>{{.Title}}</title>
+    <title>Process Description: {{.Info.Title}}</title>
     <style>
         body {
             font-family: sans-serif;
@@ -23,9 +23,9 @@
 </head>
 
 <body>
-    <h3>ProcessID</h3>
+    <h1>Process Description: {{.Info.Title}}</h1>
 
-    <h4>Info</h4>
+    <h3>Info</h3>
 
     <ul>
         <li><strong>Title: </strong> {{.Info.Title}}</li>
@@ -33,7 +33,7 @@
         <li><strong>Version: </strong> {{.Info.Version}}</li>
     </ul>
 
-    <h4>Inputs</h4>
+    <h3>Inputs</h3>
 
     {{range .Inputs}}
     <ul>
@@ -45,15 +45,23 @@
     </ul>
     {{end}}
 
-    <h4>Outputs</h4>
+    <h3>Outputs</h3>
 
     {{range .Outputs}}
     <ul>
-        <li><strong>{{.Formats}}</strong> </li>
+        <li><strong>{{.Title}}</strong> </li>
+        <ul>
+            <li>Formats
+                {{range .Output.Formats}}
+                <ul>
+                    <li>{{.}}
+                </ul>
+                {{end}}
+        </ul>
     </ul>
     {{end}}
 
-    <h4>Links</h4>
+    <h3>Links</h3>
 
     {{range .Links}}
     <ul>

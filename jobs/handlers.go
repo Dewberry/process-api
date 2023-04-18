@@ -173,29 +173,21 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
 
-	outputFormat := c.QueryParam("f")
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
 
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, err.Error())
+		return prepareResponse(c, http.StatusBadRequest, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusBadRequest})
 	}
 
 	description, err := p.Describe()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err.Error())
+		return prepareResponse(c, http.StatusInternalServerError, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusInternalServerError})
 	}
-
-	switch outputFormat {
-	case "html":
-		return c.Render(http.StatusOK, "process", description)
-	case "json":
-		return c.JSON(http.StatusOK, description)
-	case "":
-		return c.JSON(http.StatusOK, description)
-	default:
-		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
-	}
-
+	return prepareResponse(c, http.StatusOK, "process", description)
 }
 
 // @Summary Execute Process
