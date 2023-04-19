@@ -37,13 +37,23 @@ type Job interface {
 	GetSizeinCache() int
 }
 
-type JobStatus struct {
+type jobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
 	Status     string    `json:"status"`
 	ProcessID  string    `json:"processID"`
 	CMD        []string  `json:"commands,omitempty"`
 	Type       string    `default:"process" json:"type"`
+}
+
+type jobResponse struct {
+	Type       string      `default:"process" json:"type"`
+	JobID      string      `json:"jobID"`
+	LastUpdate time.Time   `json:"updated,omitempty"`
+	Status     string      `json:"status"`
+	ProcessID  string      `json:"processID,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	Outputs    interface{} `json:"outputs,omitempty"`
 }
 
 type JobLogs struct {
@@ -89,22 +99,22 @@ func (jc *JobsCache) Remove(j *Job) {
 
 // Returns an array of all Job statuses in memory
 // Most recently updated job first
-func (jc *JobsCache) ListJobs() []JobStatus {
+func (jc *JobsCache) ListJobs() []jobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	jobs := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]jobStatus, len(jc.Jobs))
 
 	var i int
 	for _, j := range jc.Jobs {
-		jobStatus := JobStatus{
+		js := jobStatus{
 			ProcessID:  (*j).ProcessID(),
 			JobID:      (*j).JobID(),
 			LastUpdate: (*j).LastUpdate(),
 			Status:     (*j).CurrentStatus(),
 			CMD:        (*j).CMD(),
 		}
-		jobs[i] = jobStatus
+		jobs[i] = js
 		i++
 	}
 
@@ -169,7 +179,7 @@ func (jc *JobsCache) LoadCacheFromFile() error {
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
-	fmt.Println("Starting from snapshot saved at .data/snapshot.gob")
+	log.Info("Starting from snapshot saved at .data/snapshot.gob")
 	return nil
 }
 

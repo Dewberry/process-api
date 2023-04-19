@@ -74,3 +74,13 @@ func KeyExists(key string, svc *s3.S3) (bool, error) {
 
 	return true, nil
 }
+
+// Check if a string is in string slice
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}

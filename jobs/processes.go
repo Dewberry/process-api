@@ -61,12 +61,8 @@ type Inputs struct {
 	MaxOccurs int    `yaml:"maxOccurs,omitempty"`
 }
 
-type Formats struct {
-	MimeType string `yaml:"mimeType"`
-}
-
 type Output struct {
-	Formats []Formats `yaml:"formats"`
+	Formats []string `yaml:"transmissionMode"`
 }
 
 type Outputs struct {

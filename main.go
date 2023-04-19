@@ -54,8 +54,8 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 }
 
 // @title Process-API Server
-// @version dev-3.5.23
-// @description An OGC compliant(ish) process server.
+// @version dev-4.19.23
+// @description An OGC compliant process server.
 
 // @contact.name Seth Lawler
 // @contact.email slawler@dewberry.com

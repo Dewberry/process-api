@@ -201,7 +201,7 @@ func (j *DockerJob) Kill() error {
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
 		// if these jobs have been loaded from previous snapshot they would not have context etc
-		return fmt.Errorf("can't call delete on an already accepted, failed, or dismissed job")
+		return fmt.Errorf("can't call delete on an already completed, failed, or dismissed job")
 	}
 
 	c, err := controllers.NewDockerController()
