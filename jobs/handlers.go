@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -41,7 +42,7 @@ var validFormats = []string{"", "json", "html"}
 func validateFormat(c echo.Context) error {
 	outputFormat := c.QueryParam("f")
 	if !utils.StringInSlice(outputFormat, validFormats) {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: "Invalid option for query parameter 'f'. Valid options are 'html' or 'json'. default (i.e. not specified) is json)"})
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "Invalid option for query parameter 'f'. Valid options are 'html' or 'json'. Default (i.e. not specified) is json for non browser requests and html for browser requests."})
 	}
 	return nil
 }
@@ -53,10 +54,19 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	switch outputFormat {
 	case "html":
 		return c.Render(httpStatus, renderName, output)
-	case "json", "":
+	case "json":
 		return c.JSON(httpStatus, output)
+	default:
+		userAgent := c.Request().UserAgent()
+		// this method is not foolproof
+		if strings.Contains(userAgent, "Mozilla") && strings.Contains(userAgent, "AppleWebKit") {
+			// Request is coming from a browser
+			return c.Render(httpStatus, renderName, output)
+		} else {
+			// Request is not coming from a browser
+			return c.JSON(httpStatus, output)
+		}
 	}
-	return nil
 }
 
 func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, error) {
