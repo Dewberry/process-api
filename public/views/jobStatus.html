@@ -1,11 +1,10 @@
-{{define "jobs"}}
+{{define "jobStatus"}}
 <!DOCTYPE html>
-
 <html>
 
 <head>
     <meta charset="UTF-8">
-    <title>Jobs List</title>
+    <title>Job Status</title>
     <style>
         body {
             font-family: sans-serif;
@@ -57,36 +56,35 @@
         .gray {
             color: gray;
         }
+
+        .bold {
+            font-weight: bold;
+        }
     </style>
 </head>
 
+
 <body>
-    <h1>Jobs List</h1>
+    <h1>Job Status</h1>
     <hr>
     <table>
-        <thead>
-            <tr>
-                <th>JobID</th>
-                <th>Status</th>
-                <th>ProcessID</th>
-                <th>Commands</th>
-                <th>Updated</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .}}
-            <tr>
-                <td><a href="/jobs/{{.JobID}}" target="_blank">{{.JobID}}</a></td>
-                <td>{{.Status}}</td>
-                <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
-                <td>
-                    <pre
-                        style="max-width: 700px; white-space: pre-wrap; word-break: break-word;">{{range .CMD}}{{.}} {{end}}</pre>
-                </td>
-                <td>{{.LastUpdate}}</td>
-            </tr>
-            {{end}}
-        </tbody>
+        <tr>
+            <td class="bold">Process ID</td>
+            <td>{{.ProcessID}}</td>
+        </tr>
+        <tr>
+            <td class="bold">Job ID</td>
+            <td>{{.JobID}}</td>
+        </tr>
+        <tr>
+            <td class="bold">Status</td>
+            <td>{{.Status}}</td>
+        </tr>
+        <tr>
+            <td class="bold">Last Updated</td>
+            <td>{{.LastUpdate}}</td>
+        </tr>
+
     </table>
 </body>
 

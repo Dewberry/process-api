@@ -207,6 +207,7 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router /processes/{processID}/execution [post]
+// Does not produce HTML
 func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	processID := c.Param("processID")
@@ -218,7 +219,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
 	var params RunRequestBody
@@ -331,12 +332,13 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router /jobs/{jobID} [delete]
+// Does not produce HTML
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if j, ok := rh.JobsCache.Jobs[jobID]; ok {
 		err := (*j).Kill()
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, jobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: err.Error()})
+			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 		}
 		return c.JSON(http.StatusOK, jobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: fmt.Sprintf("job %s dismissed", jobID)})
 	}
@@ -352,6 +354,11 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
+
 	jobID := c.Param("jobID")
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		resp := JobStatus{
@@ -360,10 +367,10 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 			LastUpdate: (*job).LastUpdate(),
 			Status:     (*job).CurrentStatus(),
 		}
-		return c.JSON(http.StatusOK, resp)
+		return prepareResponse(c, http.StatusOK, "jobStatus", resp)
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
-	return c.JSON(http.StatusNotFound, output)
+	output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("%s job id not found", jobID)}
+	return prepareResponse(c, http.StatusNotFound, "error", output)
 }
 
 // @Summary Job Results
@@ -373,6 +380,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router /jobs/{jobID} [get]
+// Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
@@ -381,37 +389,31 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			outputs, err := FetchResults(rh.S3Svc, (*job).JobID())
 			if err != nil {
 				if err.Error() == "not found" {
-					output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": err.Error()}
+					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
 					return c.JSON(http.StatusNotFound, output)
 				}
 				return c.JSON(http.StatusInternalServerError, err.Error())
 			}
-			output := map[string]interface{}{
-				"type":    "process",
-				"jobID":   jobID,
-				"status":  (*job).CurrentStatus(),
-				"updated": (*job).LastUpdate(),
-				"outputs": outputs,
+			output := jobResponse{
+				Type:       "process",
+				JobID:      jobID,
+				Status:     (*job).CurrentStatus(),
+				LastUpdate: (*job).LastUpdate(),
+				Outputs:    outputs,
 			}
 			return c.JSON(http.StatusOK, output)
 
 		case FAILED, DISMISSED:
-			output := map[string]interface{}{
-				"type":    "process",
-				"jobID":   jobID,
-				"status":  (*job).CurrentStatus(),
-				"message": "Job Failed or Dismissed. Call logs route for details.",
-				"updated": (*job).LastUpdate(),
-			}
+			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
 			return c.JSON(http.StatusOK, output)
 
 		default:
-			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": "results not ready", "updated": (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
 			return c.JSON(http.StatusNotFound, output)
 		}
 
 	}
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
+	output := errResponse{Message: "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
@@ -424,33 +426,28 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	outputFormat := c.QueryParam("f")
+
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
 
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		logs, err := (*job).Logs()
 		if err != nil {
 			if err.Error() == "not found" {
-				output := map[string]interface{}{"type": "process", "jobID": jobID, "status": (*job).CurrentStatus(), "message": err.Error()}
-				return c.JSON(http.StatusNotFound, output)
+				output := errResponse{HTTPStatus: http.StatusNotFound, Message: err.Error()}
+				return prepareResponse(c, http.StatusNotFound, "error", output)
 			}
-			output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "Error while fetching logs: " + err.Error()}
-			return c.JSON(http.StatusInternalServerError, output)
+			output := errResponse{HTTPStatus: http.StatusNotFound, Message: "Error while fetching logs: " + err.Error()}
+			return prepareResponse(c, http.StatusInternalServerError, "error", output)
 		}
 
-		switch outputFormat {
-		case "html":
-			return c.Render(http.StatusOK, "logs", logs)
-		case "json":
-			return c.JSON(http.StatusOK, logs)
-		case "":
-			return c.JSON(http.StatusOK, logs)
-		default:
-			return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
-		}
+		return prepareResponse(c, http.StatusOK, "logs", logs)
 	}
 
-	output := map[string]interface{}{"type": "process", "jobID": jobID, "status": 0, "message": "jobID not found"}
-	return c.JSON(http.StatusNotFound, output)
+	output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
+	return prepareResponse(c, http.StatusNotFound, "error", output)
 }
 
 // @Summary Summary of all (cached) Jobs
@@ -461,30 +458,13 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /jobs [get]
 func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
-	// includeErrorMessages := c.QueryParams().Get("include_error_messages")
-	// if includeErrorMessages == "" {
-	// 	return c.JSON(http.StatusOK, rh.JobsCache.ListJobs(false))
-	// }
 
-	// _, err := strconv.ParseBool(includeErrorMessages)
-	// if err != nil {
-	// 	return c.JSON(http.StatusBadRequest,
-	// 		fmt.Sprintf("'include_error_messages' must be true or false, not %s", includeErrorMessages))
-	// }
+	err := validateFormat(c)
+	if err != nil {
+		return err
+	}
 
 	jobsList := rh.JobsCache.ListJobs()
 
-	outputFormat := c.QueryParam("f")
-
-	switch outputFormat {
-	case "html":
-		return c.Render(http.StatusOK, "jobs", jobsList)
-	case "json":
-		return c.JSON(http.StatusOK, jobsList)
-	case "":
-		return c.JSON(http.StatusOK, jobsList)
-	default:
-		return c.JSON(http.StatusBadRequest, "valid format options are 'html' or 'json'. default (i.e. not specified) is json)")
-	}
-
+	return prepareResponse(c, http.StatusOK, "jobs", jobsList)
 }

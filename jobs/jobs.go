@@ -47,12 +47,13 @@ type JobStatus struct {
 }
 
 type jobResponse struct {
-	Type       string    `default:"process" json:"type"`
-	JobID      string    `json:"jobID"`
-	LastUpdate time.Time `json:"updated,omitempty"`
-	Status     string    `json:"status"`
-	ProcessID  string    `json:"processID,omitempty"`
-	Message    string    `json:"message,omitempty"`
+	Type       string      `default:"process" json:"type"`
+	JobID      string      `json:"jobID"`
+	LastUpdate time.Time   `json:"updated,omitempty"`
+	Status     string      `json:"status"`
+	ProcessID  string      `json:"processID,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	Outputs    interface{} `json:"outputs,omitempty"`
 }
 
 type JobLogs struct {
