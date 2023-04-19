@@ -66,7 +66,7 @@
     <table>
         <thead>
             <tr>
-                <th>JobID</th>
+                <th>Logs (JobID)</th>
                 <th>Status</th>
                 <th>ProcessID</th>
                 <th>Commands</th>
@@ -76,8 +76,8 @@
         <tbody>
             {{range .}}
             <tr>
-                <td><a href="/jobs/{{.JobID}}" target="_blank">{{.JobID}}</a></td>
-                <td>{{.Status}}</td>
+                <td><a href="/jobs/{{.JobID}}/logs" target="_blank">{{.JobID}}</a></td>
+                <td><a href="/jobs/{{.JobID}}" target="_blank">{{.Status}}</a></td>
                 <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
                 <td>
                     <pre
