@@ -191,7 +191,7 @@ func (j *AWSBatchJob) Kill() error {
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
 		// if these jobs have been loaded from previous snapshot they would not have context etc
-		return fmt.Errorf("can't call delete on an already accepted, failed, or dismissed job")
+		return fmt.Errorf("can't call delete on an already completed, failed, or dismissed job")
 	}
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
