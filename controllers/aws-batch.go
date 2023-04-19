@@ -128,7 +128,7 @@ func (c *AWSBatchController) JobKill(jobID string) (string, error) {
 		}
 		return output, nil
 
-	case "STARTING", "jobs.RUNNING":
+	case "STARTING", "RUNNING":
 		output, err := c.JobTerminate(jobID, "DISMISSED")
 		if err != nil {
 			return "", err
