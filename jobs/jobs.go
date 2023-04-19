@@ -37,7 +37,7 @@ type Job interface {
 	GetSizeinCache() int
 }
 
-type JobStatus struct {
+type jobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
 	Status     string    `json:"status"`
@@ -99,22 +99,22 @@ func (jc *JobsCache) Remove(j *Job) {
 
 // Returns an array of all Job statuses in memory
 // Most recently updated job first
-func (jc *JobsCache) ListJobs() []JobStatus {
+func (jc *JobsCache) ListJobs() []jobStatus {
 	jc.mu.Lock()
 	defer jc.mu.Unlock()
 
-	jobs := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]jobStatus, len(jc.Jobs))
 
 	var i int
 	for _, j := range jc.Jobs {
-		jobStatus := JobStatus{
+		js := jobStatus{
 			ProcessID:  (*j).ProcessID(),
 			JobID:      (*j).JobID(),
 			LastUpdate: (*j).LastUpdate(),
 			Status:     (*j).CurrentStatus(),
 			CMD:        (*j).CMD(),
 		}
-		jobs[i] = jobStatus
+		jobs[i] = js
 		i++
 	}
 

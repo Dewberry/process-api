@@ -353,7 +353,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobStatus
+// @Success 200 {object} jobStatus
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -363,13 +363,13 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		resp := JobStatus{
+		resp := jobStatus{
 			ProcessID:  (*job).ProcessID(),
 			JobID:      (*job).JobID(),
 			LastUpdate: (*job).LastUpdate(),
 			Status:     (*job).CurrentStatus(),
 		}
-		return prepareResponse(c, http.StatusOK, "jobStatus", resp)
+		return prepareResponse(c, http.StatusOK, "js", resp)
 	}
 	output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("%s job id not found", jobID)}
 	return prepareResponse(c, http.StatusNotFound, "error", output)
@@ -457,7 +457,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []JobStatus
+// @Success 200 {object} []jobStatus
 // @Router /jobs [get]
 func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
 

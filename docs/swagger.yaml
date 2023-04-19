@@ -48,7 +48,7 @@ definitions:
           type: string
         type: array
     type: object
-  jobs.JobStatus:
+  jobs.jobStatus:
     properties:
       commands:
         items:
@@ -202,7 +202,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/jobs.JobStatus'
+              $ref: '#/definitions/jobs.jobStatus'
             type: array
       summary: Summary of all (cached) Jobs
       tags:
