@@ -1,6 +1,43 @@
 basePath: /
 definitions:
-  jobs.JobLog:
+  jobs.Info:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      jobControlOptions:
+        items:
+          type: string
+        type: array
+      outputTransmission:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      version:
+        type: string
+    type: object
+  jobs.Input:
+    properties:
+      literalDataDomain:
+        $ref: '#/definitions/jobs.LiteralDataDomain'
+    type: object
+  jobs.Inputs:
+    properties:
+      id:
+        type: string
+      input:
+        $ref: '#/definitions/jobs.Input'
+      maxOccurs:
+        type: integer
+      minOccurs:
+        type: integer
+      title:
+        type: string
+    type: object
+  jobs.JobLogs:
     properties:
       api_log:
         items:
@@ -11,17 +48,115 @@ definitions:
           type: string
         type: array
     type: object
+  jobs.JobStatus:
+    properties:
+      commands:
+        items:
+          type: string
+        type: array
+      jobID:
+        type: string
+      processID:
+        type: string
+      status:
+        type: string
+      type:
+        default: process
+        type: string
+      updated:
+        type: string
+    type: object
+  jobs.Link:
+    properties:
+      href:
+        type: string
+      rel:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  jobs.LiteralDataDomain:
+    properties:
+      dataType:
+        type: string
+      valueDefinition:
+        $ref: '#/definitions/jobs.ValueDefinition'
+    type: object
+  jobs.Output:
+    properties:
+      formats:
+        items:
+          type: string
+        type: array
+    type: object
+  jobs.Outputs:
+    properties:
+      id:
+        type: string
+      inputID:
+        description: json omit
+        type: string
+      output:
+        $ref: '#/definitions/jobs.Output'
+      title:
+        type: string
+    type: object
+  jobs.ProcessDescription:
+    properties:
+      info:
+        $ref: '#/definitions/jobs.Info'
+      inputs:
+        items:
+          $ref: '#/definitions/jobs.Inputs'
+        type: array
+      links:
+        items:
+          $ref: '#/definitions/jobs.Link'
+        type: array
+      outputs:
+        items:
+          $ref: '#/definitions/jobs.Outputs'
+        type: array
+    type: object
+  jobs.ValueDefinition:
+    properties:
+      anyValue:
+        type: boolean
+      possibleValues:
+        items:
+          type: string
+        type: array
+    type: object
+  jobs.jobResponse:
+    properties:
+      jobID:
+        type: string
+      message:
+        type: string
+      outputs: {}
+      processID:
+        type: string
+      status:
+        type: string
+      type:
+        default: process
+        type: string
+      updated:
+        type: string
+    type: object
 externalDocs:
   description: Schemas
   url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
-host: localhost:5050
+host: http://vap.api.dewberryanalytics.com
 info:
   contact:
     email: slawler@dewberry.com
     name: Seth Lawler
-  description: An OGC compliant(ish) process server.
+  description: An OGC compliant process server.
   title: Process-API Server
-  version: dev-3.5.23
+  version: dev-4.19.23
 paths:
   /:
     get:
@@ -48,7 +183,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: hello:["dolly"]
+          description: conformsTo:["http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/...."]
           schema:
             additionalProperties: true
             type: object
@@ -66,8 +201,9 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/jobs.JobStatus'
+            type: array
       summary: Summary of all (cached) Jobs
       tags:
       - jobs
@@ -82,8 +218,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/jobs.jobResponse'
       summary: Dismiss Job
       tags:
       - jobs
@@ -97,8 +232,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/jobs.jobResponse'
       summary: Job Results
       tags:
       - jobs
@@ -112,7 +246,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jobs.JobLog'
+            $ref: '#/definitions/jobs.JobLogs'
       summary: Job Logs
       tags:
       - jobs
@@ -127,8 +261,9 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/jobs.Info'
+            type: array
       summary: List Available Processes
       tags:
       - processes
@@ -149,8 +284,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/jobs.ProcessDescription'
       summary: Describe Process Information
       tags:
       - processes
@@ -165,8 +299,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/jobs.jobResponse'
       summary: Execute Process
       tags:
       - processes

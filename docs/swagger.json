@@ -4,15 +4,15 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "An OGC compliant(ish) process server.",
+        "description": "An OGC compliant process server.",
         "title": "Process-API Server",
         "contact": {
             "name": "Seth Lawler",
             "email": "slawler@dewberry.com"
         },
-        "version": "dev-3.5.23"
+        "version": "dev-4.19.23"
     },
-    "host": "localhost:5050",
+    "host": "http://vap.api.dewberryanalytics.com",
     "basePath": "/",
     "paths": {
         "/": {
@@ -54,7 +54,7 @@
                 "summary": "API Conformance List",
                 "responses": {
                     "200": {
-                        "description": "hello:[\"dolly\"]",
+                        "description": "conformsTo:[\"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/....\"]",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -80,8 +80,10 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.JobStatus"
+                            }
                         }
                     }
                 }
@@ -104,8 +106,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -126,8 +127,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -149,7 +149,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.JobLog"
+                            "$ref": "#/definitions/jobs.JobLogs"
                         }
                     }
                 }
@@ -172,8 +172,10 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.Info"
+                            }
                         }
                     }
                 }
@@ -205,8 +207,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.ProcessDescription"
                         }
                     }
                 }
@@ -229,8 +230,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -238,7 +238,64 @@
         }
     },
     "definitions": {
-        "jobs.JobLog": {
+        "jobs.Info": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "jobControlOptions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "outputTransmission": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.Input": {
+            "type": "object",
+            "properties": {
+                "literalDataDomain": {
+                    "$ref": "#/definitions/jobs.LiteralDataDomain"
+                }
+            }
+        },
+        "jobs.Inputs": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "input": {
+                    "$ref": "#/definitions/jobs.Input"
+                },
+                "maxOccurs": {
+                    "type": "integer"
+                },
+                "minOccurs": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.JobLogs": {
             "type": "object",
             "properties": {
                 "api_log": {
@@ -252,6 +309,155 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "jobs.JobStatus": {
+            "type": "object",
+            "properties": {
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "jobID": {
+                    "type": "string"
+                },
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.Link": {
+            "type": "object",
+            "properties": {
+                "href": {
+                    "type": "string"
+                },
+                "rel": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.LiteralDataDomain": {
+            "type": "object",
+            "properties": {
+                "dataType": {
+                    "type": "string"
+                },
+                "valueDefinition": {
+                    "$ref": "#/definitions/jobs.ValueDefinition"
+                }
+            }
+        },
+        "jobs.Output": {
+            "type": "object",
+            "properties": {
+                "formats": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "jobs.Outputs": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "inputID": {
+                    "description": "json omit",
+                    "type": "string"
+                },
+                "output": {
+                    "$ref": "#/definitions/jobs.Output"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.ProcessDescription": {
+            "type": "object",
+            "properties": {
+                "info": {
+                    "$ref": "#/definitions/jobs.Info"
+                },
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Inputs"
+                    }
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Link"
+                    }
+                },
+                "outputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Outputs"
+                    }
+                }
+            }
+        },
+        "jobs.ValueDefinition": {
+            "type": "object",
+            "properties": {
+                "anyValue": {
+                    "type": "boolean"
+                },
+                "possibleValues": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "jobs.jobResponse": {
+            "type": "object",
+            "properties": {
+                "jobID": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "outputs": {},
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
                 }
             }
         }

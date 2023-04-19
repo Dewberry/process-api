@@ -58,7 +58,7 @@ const docTemplate = `{
                 "summary": "API Conformance List",
                 "responses": {
                     "200": {
-                        "description": "hello:[\"dolly\"]",
+                        "description": "conformsTo:[\"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/....\"]",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -84,8 +84,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.JobStatus"
+                            }
                         }
                     }
                 }
@@ -108,8 +110,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -130,8 +131,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -153,7 +153,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.JobLog"
+                            "$ref": "#/definitions/jobs.JobLogs"
                         }
                     }
                 }
@@ -176,8 +176,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/jobs.Info"
+                            }
                         }
                     }
                 }
@@ -209,8 +211,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.ProcessDescription"
                         }
                     }
                 }
@@ -233,8 +234,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/jobs.jobResponse"
                         }
                     }
                 }
@@ -242,7 +242,64 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "jobs.JobLog": {
+        "jobs.Info": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "jobControlOptions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "outputTransmission": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.Input": {
+            "type": "object",
+            "properties": {
+                "literalDataDomain": {
+                    "$ref": "#/definitions/jobs.LiteralDataDomain"
+                }
+            }
+        },
+        "jobs.Inputs": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "input": {
+                    "$ref": "#/definitions/jobs.Input"
+                },
+                "maxOccurs": {
+                    "type": "integer"
+                },
+                "minOccurs": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.JobLogs": {
             "type": "object",
             "properties": {
                 "api_log": {
@@ -258,6 +315,155 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "jobs.JobStatus": {
+            "type": "object",
+            "properties": {
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "jobID": {
+                    "type": "string"
+                },
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.Link": {
+            "type": "object",
+            "properties": {
+                "href": {
+                    "type": "string"
+                },
+                "rel": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.LiteralDataDomain": {
+            "type": "object",
+            "properties": {
+                "dataType": {
+                    "type": "string"
+                },
+                "valueDefinition": {
+                    "$ref": "#/definitions/jobs.ValueDefinition"
+                }
+            }
+        },
+        "jobs.Output": {
+            "type": "object",
+            "properties": {
+                "formats": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "jobs.Outputs": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "inputID": {
+                    "description": "json omit",
+                    "type": "string"
+                },
+                "output": {
+                    "$ref": "#/definitions/jobs.Output"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.ProcessDescription": {
+            "type": "object",
+            "properties": {
+                "info": {
+                    "$ref": "#/definitions/jobs.Info"
+                },
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Inputs"
+                    }
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Link"
+                    }
+                },
+                "outputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.Outputs"
+                    }
+                }
+            }
+        },
+        "jobs.ValueDefinition": {
+            "type": "object",
+            "properties": {
+                "anyValue": {
+                    "type": "boolean"
+                },
+                "possibleValues": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "jobs.jobResponse": {
+            "type": "object",
+            "properties": {
+                "jobID": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "outputs": {},
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
         }
     },
     "externalDocs": {
@@ -268,12 +474,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "dev-3.5.23",
-	Host:             "localhost:5050",
+	Version:          "dev-4.19.23",
+	Host:             "http://vap.api.dewberryanalytics.com",
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "Process-API Server",
-	Description:      "An OGC compliant(ish) process server.",
+	Description:      "An OGC compliant process server.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

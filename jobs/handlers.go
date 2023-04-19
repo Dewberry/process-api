@@ -130,7 +130,7 @@ func (rh *RESTHandler) LandingPage(c echo.Context) error {
 // @Tags info
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{} "hello:["dolly"]"
+// @Success 200 {object} map[string]interface{} "conformsTo:["http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/...."]"
 // @Router /conformance [get]
 func (rh *RESTHandler) Conformance(c echo.Context) error {
 	err := validateFormat(c)
@@ -143,7 +143,9 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 			"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json"},
+			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json",
+			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/html",
+		},
 	}
 
 	return prepareResponse(c, http.StatusOK, "conformance", output)
@@ -155,7 +157,7 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 // @Tags processes
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} []Info
 // @Router /processes [get]
 func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -178,7 +180,7 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Param processID path string true "processID"
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} ProcessDescription
 // @Router /processes/{processID} [get]
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
@@ -205,7 +207,7 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Tags processes
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
 func (rh *RESTHandler) Execution(c echo.Context) error {
@@ -330,7 +332,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [delete]
 // Does not produce HTML
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
@@ -351,7 +353,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} JobStatus
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -378,7 +380,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [get]
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
@@ -455,7 +457,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} []JobStatus
 // @Router /jobs [get]
 func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
 
