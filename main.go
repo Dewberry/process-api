@@ -1,10 +1,9 @@
 package main
 
 import (
+	"app/config"
 	_ "app/docs"
 	"app/jobs"
-	"io"
-	"text/template"
 
 	"context"
 	"flag"
@@ -45,14 +44,6 @@ func init() {
 	}
 }
 
-type Template struct {
-	templates *template.Template
-}
-
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
-}
-
 // @title Process-API Server
 // @version dev-4.19.23
 // @description An OGC compliant process server.
@@ -71,6 +62,9 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+	// Initialize resources
+	appConfig := config.Init()
+
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
 	e := echo.New()
@@ -83,12 +77,9 @@ func main() {
 		AllowOrigins:     []string{"*"},
 	}))
 
-	t := &Template{
-		templates: template.Must(template.ParseGlob("public/views/*.html")),
-	}
 	e.Logger.SetLevel(log.DEBUG)
 	log.SetLevel(log.INFO)
-	e.Renderer = t
+	e.Renderer = &appConfig.T
 
 	maxCacheSize, err := strconv.Atoi(cacheSize)
 	if err != nil {
