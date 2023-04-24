@@ -61,6 +61,12 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	}
 }
 
+// runRequestBody provides the required inputs for containerized processes
+type runRequestBody struct {
+	Inputs  map[string]interface{} `json:"inputs"`
+	EnvVars map[string]string      `json:"environmentVariables"`
+}
+
 // LandingPage godoc
 // @Summary Landing Page
 // @Description [LandingPage Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_landing_page)
@@ -187,7 +193,7 @@ func Execution(pl *jobs.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.Handl
 			return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 		}
 
-		var params jobs.RunRequestBody
+		var params runRequestBody
 		err = c.Bind(&params)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})

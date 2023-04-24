@@ -70,12 +70,6 @@ const (
 	DISMISSED  = "dismissed"
 )
 
-// RunRequestBody provides the required inputs for containerized processes
-type RunRequestBody struct {
-	Inputs  map[string]interface{} `json:"inputs"`
-	EnvVars map[string]string      `json:"environmentVariables"`
-}
-
 type JobsCache struct {
 	Jobs             map[string]*Job `json:"jobs"`
 	MaxSizeBytes     uint64          `json:"maxCacheBytes"`
