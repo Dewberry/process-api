@@ -26,7 +26,6 @@ type AWSBatchJob struct {
 	UpdateTime  time.Time
 	Status      string `json:"status"`
 	APILogs     []string
-	Links       []Link `json:"links"`
 
 	JobDef        string `json:"jobDefinition"`
 	JobQueue      string `json:"jobQueue"`
@@ -223,10 +222,7 @@ func (j *AWSBatchJob) GetSizeinCache() int {
 		messageData += len(item)
 	}
 
-	// not calculated appropriately, add method...
-	linkData := int(unsafe.Sizeof(j.Links))
-
-	totalMemory := cmdData + messageData + linkData +
+	totalMemory := cmdData + messageData +
 		int(unsafe.Sizeof(j.Ctx)) +
 		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +

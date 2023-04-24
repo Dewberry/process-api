@@ -1,4 +1,6 @@
-package jobs
+// Package processes register processes from yaml specs
+// and provide types and function to interact with these processes
+package processes
 
 import (
 	"errors"
@@ -9,14 +11,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Process struct {
+type process struct {
 	Info    Info      `yaml:"info"`
 	Runtime Runtime   `yaml:"runtime"`
 	Inputs  []Inputs  `yaml:"inputs"`
 	Outputs []Outputs `yaml:"outputs"`
 }
 
-type ProcessDescription struct {
+type processDescription struct {
 	Info    `json:"info"`
 	Inputs  []Inputs  `json:"inputs"`
 	Outputs []Outputs `json:"outputs"`
@@ -93,7 +95,7 @@ type Provider struct {
 	Name          string `yaml:"name"`
 }
 
-func (p Process) CreateLinks() []Link {
+func (p process) CreateLinks() []Link {
 	links := make([]Link, 0)
 	if p.Runtime.Repository != "" {
 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
@@ -101,18 +103,18 @@ func (p Process) CreateLinks() []Link {
 	return links
 }
 
-func (p Process) Describe() (ProcessDescription, error) {
-	pd := ProcessDescription{
+func (p process) Describe() (processDescription, error) {
+	pd := processDescription{
 		Info: p.Info, Inputs: p.Inputs, Outputs: p.Outputs, Links: p.CreateLinks()}
 
 	return pd, nil
 }
 
-func (p Process) Type() string {
+func (p process) Type() string {
 	return p.Runtime.Provider.Type
 }
 
-func (p Process) ImgTag() string {
+func (p process) ImgTag() string {
 	return fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag)
 }
 
@@ -122,7 +124,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) VerifyInputs(inp map[string]interface{}) error {
+func (p process) VerifyInputs(inp map[string]interface{}) error {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -153,7 +155,7 @@ func (p Process) VerifyInputs(inp map[string]interface{}) error {
 	return nil
 }
 
-type ProcessList []Process
+type ProcessList []process
 
 func (ps *ProcessList) ListAll() ([]Info, error) {
 	var results []Info
@@ -164,18 +166,18 @@ func (ps *ProcessList) ListAll() ([]Info, error) {
 	return results, nil
 }
 
-func (ps *ProcessList) Get(processID string) (Process, error) {
+func (ps *ProcessList) Get(processID string) (process, error) {
 	for _, p := range *ps {
 		p.Info.Description += fmt.Sprintf(" called from docker image (%s:%s)", p.Runtime.Image, p.Runtime.Tag)
 		if p.Info.ID == processID {
 			return p, nil
 		}
 	}
-	return Process{}, errors.New("process not found")
+	return process{}, errors.New("process not found")
 }
 
-func newProcess(f string) (Process, error) {
-	var p Process
+func newProcess(f string) (process, error) {
+	var p process
 	data, err := os.ReadFile(f)
 	if err != nil {
 		return p, err

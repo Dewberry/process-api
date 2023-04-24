@@ -1,7 +1,10 @@
+// Package handlers implements echo handler functions.
+// It communicates with jobs and processes package to get required resources
 package handlers
 
 import (
 	"app/jobs"
+	pr "app/processes"
 	"app/utils"
 	"context"
 	"encoding/json"
@@ -135,7 +138,7 @@ func Conformance(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} []Info
 // @Router /processes [get]
-func ProcessListHandler(pl *jobs.ProcessList) echo.HandlerFunc {
+func ProcessListHandler(pl *pr.ProcessList) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		err := validateFormat(c)
 		if err != nil {
@@ -160,7 +163,7 @@ func ProcessListHandler(pl *jobs.ProcessList) echo.HandlerFunc {
 // @Produce json
 // @Success 200 {object} ProcessDescription
 // @Router /processes/{processID} [get]
-func ProcessDescribeHandler(pl *jobs.ProcessList) echo.HandlerFunc {
+func ProcessDescribeHandler(pl *pr.ProcessList) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		processID := c.Param("processID")
 
@@ -190,7 +193,7 @@ func ProcessDescribeHandler(pl *jobs.ProcessList) echo.HandlerFunc {
 // @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
-func Execution(pl *jobs.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
+func Execution(pl *pr.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
 	return func(c echo.Context) error {
 
 		processID := c.Param("processID")

@@ -2,6 +2,7 @@ package config
 
 import (
 	"app/jobs"
+	pr "app/processes"
 	"io"
 	"text/template"
 
@@ -26,7 +27,7 @@ type APIConfig struct {
 	T           Template
 	S3Svc       *s3.S3
 	JobsCache   *jobs.JobsCache
-	ProcessList *jobs.ProcessList
+	ProcessList *pr.ProcessList
 }
 
 // Init initializes the API's configuration
@@ -57,7 +58,7 @@ func Init(processesDir string, cacheSize uint64) (*APIConfig, error) {
 	}
 	config.JobsCache = &jc
 
-	processList, err := jobs.LoadProcesses(processesDir)
+	processList, err := pr.LoadProcesses(processesDir)
 	if err != nil {
 		return nil, err
 	}
