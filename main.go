@@ -3,7 +3,7 @@ package main
 import (
 	"app/config"
 	_ "app/docs"
-	"app/jobs"
+	"app/handlers"
 
 	"context"
 	"flag"
@@ -24,16 +24,17 @@ import (
 
 var (
 	processesDir string
-	cacheSize    string // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
+	cacheSize    int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
 	port         string
 	envFP        string
 )
 
 func init() {
 
+	var cacheSizeString string
 	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
+	flag.StringVar(&cacheSizeString, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -41,6 +42,11 @@ func init() {
 	err := godotenv.Load(envFP)
 	if err != nil {
 		log.Warnf("no .env file is being used: %s", err.Error())
+	}
+
+	cacheSize, err = strconv.Atoi(cacheSizeString)
+	if err != nil {
+		log.Fatal()
 	}
 }
 
@@ -63,10 +69,14 @@ func init() {
 func main() {
 
 	// Initialize resources
-	appConfig := config.Init()
+	ac, err := config.Init(processesDir, uint64(cacheSize))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
+	// Set server configuration
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -76,46 +86,36 @@ func main() {
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
 	}))
-
 	e.Logger.SetLevel(log.DEBUG)
 	log.SetLevel(log.INFO)
-	e.Renderer = &appConfig.T
-
-	maxCacheSize, err := strconv.Atoi(cacheSize)
-	if err != nil {
-		log.Fatal()
-	}
-	rh, err := jobs.NewRESTHander(processesDir, uint64(maxCacheSize))
-	if err != nil {
-		e.Logger.Fatal(err)
-	}
+	e.Renderer = &ac.T
 
 	// Server
-	e.GET("/", rh.LandingPage)
+	e.GET("/", handlers.LandingPage)
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/conformance", rh.Conformance)
+	e.GET("/conformance", handlers.Conformance)
 
 	// Processes
-	e.GET("/processes", rh.ProcessListHandler)
-	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
-	e.POST("/processes/:processID/execution", rh.Execution)
+	e.GET("/processes", handlers.ProcessListHandler(ac.ProcessList))
+	e.GET("/processes/:processID", handlers.ProcessDescribeHandler(ac.ProcessList))
+	e.POST("/processes/:processID/execution", handlers.Execution(ac.ProcessList, ac.JobsCache, ac.S3Svc))
 
 	// TODO
-	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
-	// e.Delete("processes/:processID", rh.RegisterNewProcess)
+	// e.Post("processes/:processID/new, handlers.RegisterNewProcess)
+	// e.Delete("processes/:processID", handlers.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", rh.JobsCacheHandler)
-	e.GET("/jobs/:jobID", rh.JobStatusHandler)
-	e.GET("/jobs/:jobID/results", rh.JobResultsHandler) //requires cache
-	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)       //requires cache
-	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
+	e.GET("/jobs", handlers.JobsCacheHandler(ac.JobsCache))
+	e.GET("/jobs/:jobID", handlers.JobStatusHandler(ac.JobsCache))
+	e.GET("/jobs/:jobID/results", handlers.JobResultsHandler(ac.JobsCache, ac.S3Svc)) //requires cache
+	e.GET("/jobs/:jobID/logs", handlers.JobLogsHandler(ac.JobsCache))                 //requires cache
+	e.DELETE("/jobs/:jobID", handlers.JobDismissHandler(ac.JobsCache))
 
 	// JobCache Monitor
 	go func() {
 		for {
 			time.Sleep(60 * 60 * time.Second) // check cache once an hour
-			_ = rh.JobsCache.CheckCache()
+			_ = ac.JobsCache.CheckCache()
 		}
 	}()
 
@@ -136,14 +136,14 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	err = rh.JobsCache.KillAll()
+	err = ac.JobsCache.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
 	}
 	e.Logger.Info("killed and removed active containers")
 
 	// Dump cache to file
-	err = rh.JobsCache.DumpCacheToFile()
+	err = ac.JobsCache.DumpCacheToFile()
 	if err != nil {
 		e.Logger.Error(err)
 	}

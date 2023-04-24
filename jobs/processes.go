@@ -122,7 +122,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p Process) verifyInputs(inp map[string]interface{}) error {
+func (p Process) VerifyInputs(inp map[string]interface{}) error {
 
 	requestInp := make(map[string]*inpOccurance)
 
