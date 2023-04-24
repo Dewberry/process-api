@@ -184,7 +184,7 @@ func newProcess(f string) (process, error) {
 	}
 	err = yaml.Unmarshal(data, &p)
 	if err != nil {
-		return p, err
+		return process{}, err
 	}
 	return p, nil
 }
@@ -203,7 +203,7 @@ func LoadProcesses(dir string) (ProcessList, error) {
 	}
 
 	if err != nil {
-		return processes, err
+		return nil, err
 	}
 	return processes, err
 }
