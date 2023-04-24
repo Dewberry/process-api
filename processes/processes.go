@@ -95,7 +95,7 @@ type Provider struct {
 	Name          string `yaml:"name"`
 }
 
-func (p process) CreateLinks() []Link {
+func (p process) createLinks() []Link {
 	links := make([]Link, 0)
 	if p.Runtime.Repository != "" {
 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
@@ -105,7 +105,7 @@ func (p process) CreateLinks() []Link {
 
 func (p process) Describe() (processDescription, error) {
 	pd := processDescription{
-		Info: p.Info, Inputs: p.Inputs, Outputs: p.Outputs, Links: p.CreateLinks()}
+		Info: p.Info, Inputs: p.Inputs, Outputs: p.Outputs, Links: p.createLinks()}
 
 	return pd, nil
 }
@@ -155,12 +155,13 @@ func (p process) VerifyInputs(inp map[string]interface{}) error {
 	return nil
 }
 
+// ProcessList describes processes
 type ProcessList []process
 
+// ListAll returns all the processes' info
 func (ps *ProcessList) ListAll() ([]Info, error) {
 	var results []Info
 	for _, p := range *ps {
-		p.Info.Description += fmt.Sprintf(" called from docker image (%s:%s)", p.Runtime.Image, p.Runtime.Tag)
 		results = append(results, p.Info)
 	}
 	return results, nil
@@ -168,7 +169,6 @@ func (ps *ProcessList) ListAll() ([]Info, error) {
 
 func (ps *ProcessList) Get(processID string) (process, error) {
 	for _, p := range *ps {
-		p.Info.Description += fmt.Sprintf(" called from docker image (%s:%s)", p.Runtime.Image, p.Runtime.Tag)
 		if p.Info.ID == processID {
 			return p, nil
 		}
@@ -189,6 +189,7 @@ func newProcess(f string) (process, error) {
 	return p, nil
 }
 
+// Load all processes from yml files in the given directory and subdirectories
 func LoadProcesses(dir string) (ProcessList, error) {
 	processes := make(ProcessList, 0)
 	ymls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yml", dir))
