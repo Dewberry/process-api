@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+// Fields are exported so that gob can access it
 type DockerJob struct {
 	Ctx         context.Context
 	ctxCancel   context.CancelFunc

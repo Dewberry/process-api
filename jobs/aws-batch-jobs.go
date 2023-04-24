@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+// Fields are exported so that gob can access it
 type AWSBatchJob struct {
 	Ctx         context.Context
 	ctxCancel   context.CancelFunc

@@ -37,6 +37,7 @@ type Job interface {
 	GetSizeinCache() int
 }
 
+// JobStatus describes status of a job
 type JobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
@@ -46,22 +47,13 @@ type JobStatus struct {
 	Type       string    `default:"process" json:"type"`
 }
 
-type JobResponse struct {
-	Type       string      `default:"process" json:"type"`
-	JobID      string      `json:"jobID"`
-	LastUpdate time.Time   `json:"updated,omitempty"`
-	Status     string      `json:"status"`
-	ProcessID  string      `json:"processID,omitempty"`
-	Message    string      `json:"message,omitempty"`
-	Outputs    interface{} `json:"outputs,omitempty"`
-}
-
+// JobLogs describes logs for the job
 type JobLogs struct {
 	ContainerLog []string `json:"container_log"`
 	APILog       []string `json:"api_log"`
 }
 
-// OGCStatusCode
+// OGCStatusCodes
 const (
 	ACCEPTED   = "accepted"
 	RUNNING    = "running"

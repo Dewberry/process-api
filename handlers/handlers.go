@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
@@ -20,6 +21,17 @@ import (
 type errResponse struct {
 	HTTPStatus int    `json:"-"`
 	Message    string `json:"message"`
+}
+
+// jobResponse store response of different job endpoints
+type jobResponse struct {
+	Type       string      `default:"process" json:"type"`
+	JobID      string      `json:"jobID"`
+	LastUpdate time.Time   `json:"updated,omitempty"`
+	Status     string      `json:"status"`
+	ProcessID  string      `json:"processID,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	Outputs    interface{} `json:"outputs,omitempty"`
 }
 
 // StatusText returns a text for the HTTP status code. It returns the empty
@@ -175,7 +187,7 @@ func ProcessDescribeHandler(pl *jobs.ProcessList) echo.HandlerFunc {
 // @Tags processes
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobs.JobResponse
+// @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
 func Execution(pl *jobs.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
@@ -283,15 +295,15 @@ func Execution(pl *jobs.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.Handl
 				resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
 				return c.JSON(http.StatusOK, resp)
 			} else {
-				resp := jobs.JobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "Job Failed. Call logs route for details."}
+				resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "Job Failed. Call logs route for details."}
 				return c.JSON(http.StatusInternalServerError, resp)
 			}
 		case "async-execute":
 			go j.Run()
-			resp := jobs.JobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
+			resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
 			return c.JSON(http.StatusCreated, resp)
 		default:
-			resp := jobs.JobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "incorrect controller option defined in process configuration"}
+			resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "incorrect controller option defined in process configuration"}
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	}
@@ -302,7 +314,7 @@ func Execution(pl *jobs.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.Handl
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobs.JobResponse
+// @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [delete]
 // Does not produce HTML
 func JobDismissHandler(jc *jobs.JobsCache) echo.HandlerFunc {
@@ -314,7 +326,7 @@ func JobDismissHandler(jc *jobs.JobsCache) echo.HandlerFunc {
 			if err != nil {
 				return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 			}
-			return c.JSON(http.StatusOK, jobs.JobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: fmt.Sprintf("job %s dismissed", jobID)})
+			return c.JSON(http.StatusOK, jobResponse{ProcessID: (*j).ProcessID(), Type: "process", JobID: jobID, Status: (*j).CurrentStatus(), Message: fmt.Sprintf("job %s dismissed", jobID)})
 		}
 		return c.JSON(http.StatusNotFound, errResponse{Message: fmt.Sprintf("job %s not in the active jobs list", jobID)})
 	}
@@ -355,7 +367,7 @@ func JobStatusHandler(jc *jobs.JobsCache) echo.HandlerFunc {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobs.JobResponse
+// @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [get]
 // Does not produce HTML
 func JobResultsHandler(jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
@@ -367,12 +379,12 @@ func JobResultsHandler(jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
 				outputs, err := jobs.FetchResults(s3sv, (*job).JobID())
 				if err != nil {
 					if err.Error() == "not found" {
-						output := jobs.JobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
+						output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
 						return c.JSON(http.StatusNotFound, output)
 					}
 					return c.JSON(http.StatusInternalServerError, err.Error())
 				}
-				output := jobs.JobResponse{
+				output := jobResponse{
 					Type:       "process",
 					JobID:      jobID,
 					Status:     (*job).CurrentStatus(),
@@ -382,11 +394,11 @@ func JobResultsHandler(jc *jobs.JobsCache, s3sv *s3.S3) echo.HandlerFunc {
 				return c.JSON(http.StatusOK, output)
 
 			case jobs.FAILED, jobs.DISMISSED:
-				output := jobs.JobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
+				output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
 				return c.JSON(http.StatusOK, output)
 
 			default:
-				output := jobs.JobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+				output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
 				return c.JSON(http.StatusNotFound, output)
 			}
 
