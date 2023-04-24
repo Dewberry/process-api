@@ -96,7 +96,7 @@ type Provider struct {
 }
 
 func (p process) createLinks() []Link {
-	links := make([]Link, 0)
+	var links []Link
 	if p.Runtime.Repository != "" {
 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
 	}
@@ -160,9 +160,9 @@ type ProcessList []process
 
 // ListAll returns all the processes' info
 func (ps *ProcessList) ListAll() ([]Info, error) {
-	var results []Info
-	for _, p := range *ps {
-		results = append(results, p.Info)
+	results := make([]Info, len(*ps))
+	for i, p := range *ps {
+		results[i] = p.Info
 	}
 	return results, nil
 }
@@ -191,15 +191,15 @@ func newProcess(f string) (process, error) {
 
 // Load all processes from yml files in the given directory and subdirectories
 func LoadProcesses(dir string) (ProcessList, error) {
-	processes := make(ProcessList, 0)
 	ymls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yml", dir))
+	processes := make(ProcessList, len(ymls))
 
-	for _, y := range ymls {
+	for i, y := range ymls {
 		p, err := newProcess(y)
 		if err != nil {
 			return processes, err
 		}
-		processes = append(processes, p)
+		processes[i] = p
 	}
 
 	if err != nil {

@@ -36,21 +36,22 @@ func (c *DockerController) ContainerRun(ctx context.Context, image string, comma
 	log.Debug("Initialize Container run")
 	//	hostConfig.Mounts = make([]mount.Mount,0);
 
-	var mounts []mount.Mount
+	mounts := make([]mount.Mount, len(volumes))
 
-	for _, volume := range volumes {
+	for i, volume := range volumes {
 		mount := mount.Mount{
 			Type:   mount.TypeVolume,
 			Source: volume.Volume.Name,
 			Target: volume.HostPath,
 		}
-		mounts = append(mounts, mount)
+		mounts[i] = mount
 	}
 
 	hostConfig.Mounts = mounts
-	envs := make([]string, 0)
+	envs := make([]string, len(envVars))
+	var i int
 	for k, v := range envVars {
-		envs = append(envs, k+"="+v)
+		envs[i] = k + "=" + v
 	}
 
 	resp, err := c.cli.ContainerCreate(ctx, &container.Config{
