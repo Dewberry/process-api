@@ -282,13 +282,13 @@ func Execution(pl *pr.ProcessList, jc *jobs.JobsCache, s3sv *s3.S3) echo.Handler
 			return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
 		}
 
-		var outputs interface{}
-
 		switch p.Info.JobControlOptions[0] {
 		case "sync-execute":
 			j.Run()
 
 			if j.CurrentStatus() == "successful" {
+				var outputs interface{}
+
 				if p.Outputs != nil {
 					outputs, err = jobs.FetchResults(s3sv, j.JobID())
 					if err != nil {
