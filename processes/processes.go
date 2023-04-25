@@ -192,9 +192,11 @@ func newProcess(f string) (process, error) {
 // Load all processes from yml files in the given directory and subdirectories
 func LoadProcesses(dir string) (ProcessList, error) {
 	ymls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yml", dir))
-	processes := make(ProcessList, len(ymls))
+	yamls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yaml", dir))
+	y := append(ymls, yamls...)
+	processes := make(ProcessList, len(y))
 
-	for i, y := range ymls {
+	for i, y := range y {
 		p, err := newProcess(y)
 		if err != nil {
 			return processes, err
