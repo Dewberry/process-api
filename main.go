@@ -1,7 +1,6 @@
 package main
 
 import (
-	"app/config"
 	_ "app/docs"
 	"app/handlers"
 
@@ -69,7 +68,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	ac, err := config.Init(processesDir, uint64(cacheSize))
+	rh, err := handlers.NewRESTHander(processesDir, uint64(cacheSize))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,34 +87,34 @@ func main() {
 	}))
 	e.Logger.SetLevel(log.DEBUG)
 	log.SetLevel(log.INFO)
-	e.Renderer = &ac.T
+	e.Renderer = &rh.T
 
 	// Server
-	e.GET("/", handlers.LandingPage(ac.Title, ac.Description))
+	e.GET("/", rh.LandingPage)
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/conformance", handlers.Conformance(ac.ConformsTo))
+	e.GET("/conformance", rh.Conformance)
 
 	// Processes
-	e.GET("/processes", handlers.ProcessListHandler(ac.ProcessList))
-	e.GET("/processes/:processID", handlers.ProcessDescribeHandler(ac.ProcessList))
-	e.POST("/processes/:processID/execution", handlers.Execution(ac.ProcessList, ac.JobsCache, ac.S3Svc))
+	e.GET("/processes", rh.ProcessListHandler)
+	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
+	e.POST("/processes/:processID/execution", rh.Execution)
 
 	// TODO
-	// e.Post("processes/:processID/new, handlers.RegisterNewProcess)
-	// e.Delete("processes/:processID", handlers.RegisterNewProcess)
+	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
+	// e.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", handlers.JobsCacheHandler(ac.JobsCache))
-	e.GET("/jobs/:jobID", handlers.JobStatusHandler(ac.JobsCache))
-	e.GET("/jobs/:jobID/results", handlers.JobResultsHandler(ac.JobsCache, ac.S3Svc)) //requires cache
-	e.GET("/jobs/:jobID/logs", handlers.JobLogsHandler(ac.JobsCache))                 //requires cache
-	e.DELETE("/jobs/:jobID", handlers.JobDismissHandler(ac.JobsCache))
+	e.GET("/jobs", rh.JobsCacheHandler)
+	e.GET("/jobs/:jobID", rh.JobStatusHandler)
+	e.GET("/jobs/:jobID/results", rh.JobResultsHandler) //requires cache
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)       //requires cache
+	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// JobCache Monitor
 	go func() {
 		for {
 			time.Sleep(60 * 60 * time.Second) // check cache once an hour
-			_ = ac.JobsCache.CheckCache()
+			_ = rh.JobsCache.CheckCache()
 		}
 	}()
 
@@ -136,14 +135,14 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	err = ac.JobsCache.KillAll()
+	err = rh.JobsCache.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
 	}
 	e.Logger.Info("killed and removed active containers")
 
 	// Dump cache to file
-	err = ac.JobsCache.DumpCacheToFile()
+	err = rh.JobsCache.DumpCacheToFile()
 	if err != nil {
 		e.Logger.Error(err)
 	}

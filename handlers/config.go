@@ -1,4 +1,4 @@
-package config
+package handlers
 
 import (
 	"app/jobs"
@@ -22,8 +22,8 @@ func (t Template) Render(w io.Writer, name string, data interface{}, c echo.Cont
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-// Store configuration for the API
-type APIConfig struct {
+// Store configuration for the handler
+type RESTHandler struct {
 	Title       string
 	Description string
 	ConformsTo  []string
@@ -33,10 +33,10 @@ type APIConfig struct {
 	ProcessList *pr.ProcessList
 }
 
-// Init initializes the API's configuration
-func Init(processesDir string, cacheSize uint64) (*APIConfig, error) {
+// Initializes resources and return a new handler
+func NewRESTHander(processesDir string, cacheSize uint64) (*RESTHandler, error) {
 	// working with pointers here so as not to copy large templates, yamls, and job cache
-	config := APIConfig{
+	config := RESTHandler{
 		Title:       "process-api",
 		Description: "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
 		ConformsTo: []string{
