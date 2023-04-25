@@ -91,9 +91,9 @@ func main() {
 	e.Renderer = &ac.T
 
 	// Server
-	e.GET("/", handlers.LandingPage)
+	e.GET("/", handlers.LandingPage(ac.Title, ac.Description))
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/conformance", handlers.Conformance)
+	e.GET("/conformance", handlers.Conformance(ac.ConformsTo))
 
 	// Processes
 	e.GET("/processes", handlers.ProcessListHandler(ac.ProcessList))

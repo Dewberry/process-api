@@ -90,17 +90,19 @@ type runRequestBody struct {
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Router / [get]
-func LandingPage(c echo.Context) error {
-	err := validateFormat(c)
-	if err != nil {
-		return err
-	}
+func LandingPage(t string, desc string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		err := validateFormat(c)
+		if err != nil {
+			return err
+		}
 
-	output := map[string]string{
-		"title":       "process-api",
-		"description": "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
+		output := map[string]string{
+			"title":       t,
+			"description": desc,
+		}
+		return prepareResponse(c, http.StatusOK, "landing", output)
 	}
-	return prepareResponse(c, http.StatusOK, "landing", output)
 }
 
 // Conformance godoc
@@ -111,23 +113,19 @@ func LandingPage(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} map[string]interface{} "conformsTo:["http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/...."]"
 // @Router /conformance [get]
-func Conformance(c echo.Context) error {
-	err := validateFormat(c)
-	if err != nil {
-		return err
-	}
+func Conformance(ct []string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		err := validateFormat(c)
+		if err != nil {
+			return err
+		}
 
-	output := map[string][]string{
-		"conformsTo": {
-			"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/html",
-		},
-	}
+		output := map[string][]string{
+			"conformsTo": ct,
+		}
 
-	return prepareResponse(c, http.StatusOK, "conformance", output)
+		return prepareResponse(c, http.StatusOK, "conformance", output)
+	}
 }
 
 // ProcessListHandler godoc
