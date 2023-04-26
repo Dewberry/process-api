@@ -34,9 +34,11 @@ func (c *AWSBatchController) JobCreate(ctx context.Context,
 	jobDef, jobName, jobQueue string, commandOverride []string,
 	envVars map[string]string) (string, error) {
 
-	envs := make([]*batch.KeyValuePair, 0)
+	envs := make([]*batch.KeyValuePair, len(envVars))
+	var i int
 	for k, v := range envVars {
-		envs = append(envs, &batch.KeyValuePair{Name: aws.String(k), Value: aws.String(v)})
+		envs[i] = &batch.KeyValuePair{Name: aws.String(k), Value: aws.String(v)}
+		i++
 	}
 
 	overrides := &batch.ContainerOverrides{

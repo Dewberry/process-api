@@ -1,33 +1,38 @@
-package jobs
+// Package handlers implements echo handler functions.
+// It communicates with jobs and processes package to get required resources
+package handlers
 
 import (
+	"app/jobs"
 	"app/utils"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
-	"text/template"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
 
-type RESTHandler struct {
-	JobsCache   *JobsCache
-	ProcessList *ProcessList
-	S3Svc       *s3.S3
-}
-
 // base error
 type errResponse struct {
 	HTTPStatus int    `json:"-"`
 	Message    string `json:"message"`
+}
+
+// jobResponse store response of different job endpoints
+type jobResponse struct {
+	Type       string      `default:"process" json:"type"`
+	JobID      string      `json:"jobID"`
+	LastUpdate time.Time   `json:"updated,omitempty"`
+	Status     string      `json:"status"`
+	ProcessID  string      `json:"processID,omitempty"`
+	Message    string      `json:"message,omitempty"`
+	Outputs    interface{} `json:"outputs,omitempty"`
 }
 
 // StatusText returns a text for the HTTP status code. It returns the empty
@@ -69,38 +74,10 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	}
 }
 
-func NewRESTHander(processesDir string, maxCacheSize uint64) (*RESTHandler, error) {
-	processList, err := LoadProcesses(processesDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var jc JobsCache = JobsCache{MaxSizeBytes: uint64(maxCacheSize),
-		CurrentSizeBytes: 0, TrimThreshold: 0.80}
-
-	// load from previous snapshot if it exist
-	err = jc.LoadCacheFromFile()
-	if err != nil {
-		log.Errorf("Error loading snapshot: %s \n", err.Error())
-		log.Info("Starting with clean database.")
-		jc.Jobs = make(map[string]*Job)
-	}
-
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	svc := s3.New(sess)
-
-	return &RESTHandler{ProcessList: &processList, JobsCache: &jc, S3Svc: svc}, nil
-}
-
-type Template struct {
-	templates *template.Template
-}
-
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
+// runRequestBody provides the required inputs for containerized processes
+type runRequestBody struct {
+	Inputs  map[string]interface{} `json:"inputs"`
+	EnvVars map[string]string      `json:"environmentVariables"`
 }
 
 // LandingPage godoc
@@ -118,8 +95,8 @@ func (rh *RESTHandler) LandingPage(c echo.Context) error {
 	}
 
 	output := map[string]string{
-		"title":       "process-api",
-		"description": "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
+		"title":       rh.Title,
+		"description": rh.Description,
 	}
 	return prepareResponse(c, http.StatusOK, "landing", output)
 }
@@ -139,13 +116,7 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 	}
 
 	output := map[string][]string{
-		"conformsTo": {
-			"http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/ogc-process-description",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json",
-			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/html",
-		},
+		"conformsTo": rh.ConformsTo,
 	}
 
 	return prepareResponse(c, http.StatusOK, "conformance", output)
@@ -211,7 +182,6 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
 func (rh *RESTHandler) Execution(c echo.Context) error {
-
 	processID := c.Param("processID")
 
 	log.Debug("processID", processID)
@@ -224,7 +194,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
-	var params RunRequestBody
+	var params runRequestBody
 	err = c.Bind(&params)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
@@ -235,12 +205,12 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
 	}
 
-	err = p.verifyInputs(params.Inputs)
+	err = p.VerifyInputs(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	var j Job
+	var j jobs.Job
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
 
@@ -260,8 +230,8 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	if jobType == "sync-execute" {
-		j = &DockerJob{
-			ctx:         context.TODO(),
+		j = &jobs.DockerJob{
+			Ctx:         context.TODO(),
 			UUID:        jobID,
 			ProcessName: processID,
 			Repository:  p.Runtime.Repository,
@@ -274,8 +244,8 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
-			j = &AWSBatchJob{
-				ctx:         context.TODO(),
+			j = &jobs.AWSBatchJob{
+				Ctx:         context.TODO(),
 				UUID:        jobID,
 				ProcessName: processID,
 				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
@@ -298,15 +268,15 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
 	}
 
-	var outputs interface{}
-
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
 		j.Run()
 
 		if j.CurrentStatus() == "successful" {
+			var outputs interface{}
+
 			if p.Outputs != nil {
-				outputs, err = FetchResults(rh.S3Svc, j.JobID())
+				outputs, err = jobs.FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
 					return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 				}
@@ -336,6 +306,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 // @Router /jobs/{jobID} [delete]
 // Does not produce HTML
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
+
 	jobID := c.Param("jobID")
 	if j, ok := rh.JobsCache.Jobs[jobID]; ok {
 		err := (*j).Kill()
@@ -353,7 +324,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobStatus
+// @Success 200 {object} JobStatus
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -363,7 +334,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		resp := jobStatus{
+		resp := jobs.JobStatus{
 			ProcessID:  (*job).ProcessID(),
 			JobID:      (*job).JobID(),
 			LastUpdate: (*job).LastUpdate(),
@@ -387,8 +358,8 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
 		switch (*job).CurrentStatus() {
-		case SUCCESSFUL:
-			outputs, err := FetchResults(rh.S3Svc, (*job).JobID())
+		case jobs.SUCCESSFUL:
+			outputs, err := jobs.FetchResults(rh.S3Svc, (*job).JobID())
 			if err != nil {
 				if err.Error() == "not found" {
 					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
@@ -405,7 +376,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			}
 			return c.JSON(http.StatusOK, output)
 
-		case FAILED, DISMISSED:
+		case jobs.FAILED, jobs.DISMISSED:
 			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
 			return c.JSON(http.StatusOK, output)
 
@@ -457,16 +428,14 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []jobStatus
+// @Success 200 {object} []JobStatus
 // @Router /jobs [get]
 func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
-
 	err := validateFormat(c)
 	if err != nil {
 		return err
 	}
 
 	jobsList := rh.JobsCache.ListJobs()
-
 	return prepareResponse(c, http.StatusOK, "jobs", jobsList)
 }

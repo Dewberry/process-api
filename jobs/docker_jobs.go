@@ -16,8 +16,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+// Fields are exported so that gob can access it
 type DockerJob struct {
-	ctx         context.Context
+	Ctx         context.Context
 	ctxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	ContainerID string
@@ -29,7 +30,6 @@ type DockerJob struct {
 	UpdateTime  time.Time
 	Status      string `json:"status"`
 	APILogs     []string
-	Links       []Link `json:"links"`
 }
 
 func (j *DockerJob) JobID() string {
@@ -94,15 +94,15 @@ func (j *DockerJob) ProviderID() string {
 func (j *DockerJob) Equals(job Job) bool {
 	switch jj := job.(type) {
 	case *DockerJob:
-		return j.ctx == jj.ctx
+		return j.Ctx == jj.Ctx
 	default:
 		return false
 	}
 }
 
 func (j *DockerJob) Create() error {
-	ctx, cancelFunc := context.WithCancel(j.ctx)
-	j.ctx = ctx
+	ctx, cancelFunc := context.WithCancel(j.Ctx)
+	j.Ctx = ctx
 	j.ctxCancel = cancelFunc
 
 	c, err := controllers.NewDockerController()
@@ -145,7 +145,7 @@ func (j *DockerJob) Run() {
 
 	// start container
 	j.NewStatusUpdate(RUNNING)
-	containerID, err := c.ContainerRun(j.ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
+	containerID, err := c.ContainerRun(j.Ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
 	if err != nil {
 		j.HandleError(err.Error())
 		return
@@ -154,8 +154,8 @@ func (j *DockerJob) Run() {
 	j.ContainerID = containerID
 
 	// wait for process to finish
-	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
-	logs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
+	statusCode, errWait := c.ContainerWait(j.Ctx, j.ContainerID)
+	logs, errLog := c.ContainerLog(j.Ctx, j.ContainerID)
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
 	// This function does not panic
@@ -164,7 +164,7 @@ func (j *DockerJob) Run() {
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
 		if err != nil {
-			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
+			errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
 			if errRem != nil {
 				j.HandleError(err.Error() + " " + errRem.Error())
 				return
@@ -175,7 +175,7 @@ func (j *DockerJob) Run() {
 	}
 
 	if statusCode != 0 {
-		errRem := c.ContainerRemove(j.ctx, j.ContainerID)
+		errRem := c.ContainerRemove(j.Ctx, j.ContainerID)
 		if errRem != nil {
 			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
 			return
@@ -187,7 +187,7 @@ func (j *DockerJob) Run() {
 	}
 
 	// clean up the finished job
-	err = c.ContainerRemove(j.ctx, j.ContainerID)
+	err = c.ContainerRemove(j.Ctx, j.ContainerID)
 	if err != nil {
 		j.HandleError(err.Error())
 		return
@@ -209,7 +209,7 @@ func (j *DockerJob) Kill() error {
 		j.NewMessage(err.Error())
 	}
 
-	err = c.ContainerKillAndRemove(j.ctx, j.ContainerID, "KILL")
+	err = c.ContainerKillAndRemove(j.Ctx, j.ContainerID, "KILL")
 	if err != nil {
 		j.HandleError(err.Error())
 	}
@@ -230,11 +230,8 @@ func (j *DockerJob) GetSizeinCache() int {
 		messageData += len(item)
 	}
 
-	// not calculated appropriately, add method...
-	linkData := int(unsafe.Sizeof(j.Links))
-
-	totalMemory := cmdData + messageData + linkData +
-		int(unsafe.Sizeof(j.ctx)) +
+	totalMemory := cmdData + messageData +
+		int(unsafe.Sizeof(j.Ctx)) +
 		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.ContainerID)) + len(j.ContainerID) +

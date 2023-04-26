@@ -316,7 +316,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.jobStatus": {
+        "jobs.JobStatus": {
             "type": "object",
             "properties": {
                 "commands": {

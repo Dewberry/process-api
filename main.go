@@ -2,9 +2,7 @@ package main
 
 import (
 	_ "app/docs"
-	"app/jobs"
-	"io"
-	"text/template"
+	"app/handlers"
 
 	"context"
 	"flag"
@@ -25,16 +23,17 @@ import (
 
 var (
 	processesDir string
-	cacheSize    string // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
+	cacheSize    int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
 	port         string
 	envFP        string
 )
 
 func init() {
 
+	var cacheSizeString string
 	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&cacheSize, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
+	flag.StringVar(&cacheSizeString, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -43,14 +42,11 @@ func init() {
 	if err != nil {
 		log.Warnf("no .env file is being used: %s", err.Error())
 	}
-}
 
-type Template struct {
-	templates *template.Template
-}
-
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
+	cacheSize, err = strconv.Atoi(cacheSizeString)
+	if err != nil {
+		log.Fatal()
+	}
 }
 
 // @title Process-API Server
@@ -71,8 +67,15 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+	// Initialize resources
+	rh, err := handlers.NewRESTHander(processesDir, uint64(cacheSize))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
+	// Set server configuration
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -82,22 +85,9 @@ func main() {
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
 	}))
-
-	t := &Template{
-		templates: template.Must(template.ParseGlob("public/views/*.html")),
-	}
 	e.Logger.SetLevel(log.DEBUG)
 	log.SetLevel(log.INFO)
-	e.Renderer = t
-
-	maxCacheSize, err := strconv.Atoi(cacheSize)
-	if err != nil {
-		log.Fatal()
-	}
-	rh, err := jobs.NewRESTHander(processesDir, uint64(maxCacheSize))
-	if err != nil {
-		e.Logger.Fatal(err)
-	}
+	e.Renderer = &rh.T
 
 	// Server
 	e.GET("/", rh.LandingPage)
