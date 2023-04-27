@@ -18,7 +18,7 @@ runtime:
     - aep_blocks.py
   provider:
     type: aws-batch
-    jobDefinition: process-sandbox:1
+    jobDefinition: process-sandbox:2
     jobQueue: micro-test
     name: aepGrid
   envVars:
