@@ -145,8 +145,9 @@ func main() {
 	err = rh.JobsCache.DumpCacheToFile()
 	if err != nil {
 		e.Logger.Error(err)
+	} else {
+		e.Logger.Info("snapshot created at .data/snapshot.gob")
 	}
-	e.Logger.Info("snapshot created at .data/snapshot.gob")
 
 	// Shutdown the server
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
