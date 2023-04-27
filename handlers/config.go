@@ -63,11 +63,18 @@ func NewRESTHander(processesDir string, cacheSize uint64) (*RESTHandler, error) 
 	jc := jobs.JobsCache{MaxSizeBytes: uint64(cacheSize),
 		CurrentSizeBytes: 0, TrimThreshold: 0.80}
 	// load from previous snapshot if it exist
+	jc.Jobs = make(map[string]*jobs.Job)
 	err := jc.LoadCacheFromFile()
 	if err != nil {
-		log.Errorf("Error loading snapshot: %s \n", err.Error())
-		log.Info("Starting with clean database.")
-		jc.Jobs = make(map[string]*jobs.Job)
+		if err.Error() == "not found" {
+			log.Info("Starting with clean Jobs cache.")
+		} else {
+			// if file exists and there is an error in loading, we do not want to start from clean cache
+			// as this will overwrite the old file when the server is shutdown
+			log.Fatalf("Error loading snapshot: %s", err.Error())
+		}
+	} else {
+		log.Info("Starting from snapshot saved at .data/snapshot.gob")
 	}
 	config.JobsCache = &jc
 

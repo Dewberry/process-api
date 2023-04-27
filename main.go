@@ -45,7 +45,7 @@ func init() {
 
 	cacheSize, err = strconv.Atoi(cacheSizeString)
 	if err != nil {
-		log.Fatal()
+		log.Fatal(err.Error())
 	}
 }
 
