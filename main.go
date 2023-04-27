@@ -138,8 +138,9 @@ func main() {
 	err = rh.JobsCache.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
+	} else {
+		e.Logger.Info("killed and removed active containers")
 	}
-	e.Logger.Info("killed and removed active containers")
 
 	// Dump cache to file
 	err = rh.JobsCache.DumpCacheToFile()
