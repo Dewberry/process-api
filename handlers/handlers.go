@@ -5,7 +5,6 @@ package handlers
 import (
 	"app/jobs"
 	"app/utils"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -231,7 +230,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	if jobType == "sync-execute" {
 		j = &jobs.DockerJob{
-			Ctx:         context.TODO(),
 			UUID:        jobID,
 			ProcessName: processID,
 			Repository:  p.Runtime.Repository,
@@ -245,7 +243,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		switch runtime {
 		case "aws-batch":
 			j = &jobs.AWSBatchJob{
-				Ctx:         context.TODO(),
 				UUID:        jobID,
 				ProcessName: processID,
 				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
