@@ -14,12 +14,12 @@ https://developer.ogc.org/api/processes/index.html
 ## Build and run
 
 1. Create a `.env` file (example below)
-2. Add process configuration files (yaml) to the [plugins](plugins/) directory
+2. Add process configuration files (yaml) to the [plugins](plugins/) directory or use -d flag to specify path of the directory with process configuration files
 3. Update swagger documents and compile the server: `swag init && go build main.go`.
 4. Run the server: `./main`, with the following available flags:
    ```
       `-c [type int] specify the path of the max cache size for storing jobs (default 11073741824 (1GB))`
-      `-o [type bool] specify the if cache should be overwritten`
+      `-o [type bool] specify if cache should be overwritten`
       `-d [type string] specify the path of the processes directory to load (default "plugins" assuming program called from inside repo)`
       `-e [type string] specify the path of the dot env file to load (default ".env")`
       `-p [type string] specify the port to run the api on (default "5050")`
@@ -32,7 +32,7 @@ Once the server is up and running, go to http://localhost:5050/swagger/ for docu
 
 ## Design
 
-The system design consists of four major system components
+The system design consists of four major system components:
 
 ### API
 The API is the main orchestrator for all the downstream functionality and a single point of communication with the system.
