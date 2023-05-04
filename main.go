@@ -21,16 +21,16 @@ import (
 )
 
 var (
-	processesDir string
-	cacheSize    int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
-	overwrite    bool
-	port         string
-	envFP        string
+	pluginsDir string
+	cacheSize  int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
+	overwrite  bool
+	port       string
+	envFP      string
 )
 
 func init() {
 
-	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
+	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
 	flag.IntVar(&cacheSize, "c", 11073741824, "specify the max cache size in bytes (default= 1GB)")
 	flag.BoolVar(&overwrite, "o", false, "overwrite cache snapshot if exist")
@@ -63,7 +63,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(processesDir, uint64(cacheSize), overwrite)
+	rh, err := handlers.NewRESTHander(pluginsDir, uint64(cacheSize), overwrite)
 	if err != nil {
 		log.Fatal(err)
 	}

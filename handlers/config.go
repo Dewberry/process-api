@@ -34,7 +34,7 @@ type RESTHandler struct {
 }
 
 // Initializes resources and return a new handler
-func NewRESTHander(processesDir string, cacheSize uint64, o bool) (*RESTHandler, error) {
+func NewRESTHander(pluginsDir string, cacheSize uint64, o bool) (*RESTHandler, error) {
 	// working with pointers here so as not to copy large templates, yamls, and job cache
 	config := RESTHandler{
 		Title:       "process-api",
@@ -82,7 +82,7 @@ func NewRESTHander(processesDir string, cacheSize uint64, o bool) (*RESTHandler,
 	}
 	config.JobsCache = &jc
 
-	processList, err := pr.LoadProcesses(processesDir)
+	processList, err := pr.LoadProcesses(pluginsDir)
 	if err != nil {
 		return nil, err
 	}
