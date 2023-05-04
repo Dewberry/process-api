@@ -30,7 +30,7 @@ Once the server is up and running, go to http://localhost:5050/swagger/ for docu
 
 ---
 
-## Design
+## System Components
 
 The system design consists of four major system components:
 
@@ -51,7 +51,9 @@ Each execution of a process is called a job. A job can be synchronous or asynchr
 *On the other hand, processes that take a long time to execute and their results are files, for example clipping a raster, must be registered to run on the cloud so that they are asynchronous. These processes should contain links to file resources in their results.*
 
 
-## Behavior
+## Behaviour
+
+![](/design.svg)
 
 At the start of the app, all the `.yaml` `.yml` (configuration) files are read and processes are registered. Each file describes what resources the process requires and where it wants to be executed. There are two execution platforms available; local processes run in a docker container, hence they must specify a docker image and the tag. The API will download these images from the repository and then run them on the host machine. Commands specified will be appended to the entrypoint of the container. The API responds to the request of local processes synchronously.
 
@@ -64,7 +66,6 @@ When a job is submitted, a local container is fired up immediately for sync jobs
 The API responds to all GET requests (except `/jobs/<jobID>/results`) as HTML or JSON depending upon if the request is being originated from Browser or not or if it specifies the format using query parameter ‘f’.
 
 The app maintains a cache of all jobs submitted, a snapshot of this cache is saved to disk at `./.data/snapshot.gob` every 60 minutes and at the graceful shutdown of the server. If during the restart the snapshot is found at the above location, the cache is repopulated with the snapshot data.
-
 
 ## Example .env file
 
