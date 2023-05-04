@@ -34,7 +34,7 @@ type RESTHandler struct {
 }
 
 // Initializes resources and return a new handler
-func NewRESTHander(processesDir string, cacheSize uint64) (*RESTHandler, error) {
+func NewRESTHander(processesDir string, cacheSize uint64, o bool) (*RESTHandler, error) {
 	// working with pointers here so as not to copy large templates, yamls, and job cache
 	config := RESTHandler{
 		Title:       "process-api",
@@ -62,12 +62,23 @@ func NewRESTHander(processesDir string, cacheSize uint64) (*RESTHandler, error) 
 	// Setup Job Cache that will store all jobs
 	jc := jobs.JobsCache{MaxSizeBytes: uint64(cacheSize),
 		CurrentSizeBytes: 0, TrimThreshold: 0.80}
-	// load from previous snapshot if it exist
-	err := jc.LoadCacheFromFile()
-	if err != nil {
-		log.Errorf("Error loading snapshot: %s \n", err.Error())
-		log.Info("Starting with clean database.")
-		jc.Jobs = make(map[string]*jobs.Job)
+	jc.Jobs = make(map[string]*jobs.Job)
+	if !o {
+		// load from previous snapshot if it exist
+		err := jc.LoadCacheFromFile()
+		if err != nil {
+			if err.Error() == "not found" {
+				log.Info("Starting with clean Jobs cache.")
+			} else {
+				// if file exists and there is an error in loading, we do not want to start from clean cache
+				// as this will overwrite the old file when the server is shutdown
+				log.Fatalf("Error loading snapshot: %s\nSet -o flag to true to overwrite snapshot", err.Error())
+			}
+		} else {
+			log.Info("Starting from snapshot saved at .data/snapshot.gob")
+		}
+	} else {
+		log.Info("Starting with clean Jobs cache.")
 	}
 	config.JobsCache = &jc
 

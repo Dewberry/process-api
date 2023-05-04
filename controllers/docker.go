@@ -52,6 +52,7 @@ func (c *DockerController) ContainerRun(ctx context.Context, image string, comma
 	var i int
 	for k, v := range envVars {
 		envs[i] = k + "=" + v
+		i++
 	}
 
 	resp, err := c.cli.ContainerCreate(ctx, &container.Config{

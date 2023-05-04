@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -24,16 +23,17 @@ import (
 var (
 	processesDir string
 	cacheSize    int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
+	overwrite    bool
 	port         string
 	envFP        string
 )
 
 func init() {
 
-	var cacheSizeString string
 	flag.StringVar(&processesDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&cacheSizeString, "c", "11073741824", "specify the max cache size in bytes (default= 1GB)")
+	flag.IntVar(&cacheSize, "c", 11073741824, "specify the max cache size in bytes (default= 1GB)")
+	flag.BoolVar(&overwrite, "o", false, "overwrite cache snapshot if exist")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -41,11 +41,6 @@ func init() {
 	err := godotenv.Load(envFP)
 	if err != nil {
 		log.Warnf("no .env file is being used: %s", err.Error())
-	}
-
-	cacheSize, err = strconv.Atoi(cacheSizeString)
-	if err != nil {
-		log.Fatal()
 	}
 }
 
@@ -68,7 +63,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(processesDir, uint64(cacheSize))
+	rh, err := handlers.NewRESTHander(processesDir, uint64(cacheSize), overwrite)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,8 +140,9 @@ func main() {
 	err = rh.JobsCache.DumpCacheToFile()
 	if err != nil {
 		e.Logger.Error(err)
+	} else {
+		e.Logger.Info("snapshot created at .data/snapshot.gob")
 	}
-	e.Logger.Info("snapshot created at .data/snapshot.gob")
 
 	// Shutdown the server
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

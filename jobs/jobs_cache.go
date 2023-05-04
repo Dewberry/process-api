@@ -65,15 +65,18 @@ func (jc *JobsCache) DumpCacheToFile() error {
 	return nil
 }
 
+// LoadCacheFromFile loads snapshot if it exists.
+// Returns error if file could not be desearilized or not found.
+// Only modifies the JobsCache if file is read and parsed correctly.
 func (jc *JobsCache) LoadCacheFromFile() error {
-
-	jc.Jobs = make(map[string]*Job)
 
 	// create a file to read the serialized data from
 	file, err := os.Open(".data/snapshot.gob")
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return fmt.Errorf("not found")
 	}
+
+	js := make(map[string]*Job) //
 
 	defer file.Close()
 
@@ -82,11 +85,11 @@ func (jc *JobsCache) LoadCacheFromFile() error {
 
 	// create a decoder and use it to deserialize the people map from the file
 	decoder := gob.NewDecoder(file)
-	err = decoder.Decode(&jc.Jobs)
+	err = decoder.Decode(&js)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
-	log.Info("Starting from snapshot saved at .data/snapshot.gob")
+	jc.Jobs = *&js
 	return nil
 }
 

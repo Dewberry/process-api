@@ -352,7 +352,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Accept */*
 // @Produce json
 // @Success 200 {object} jobResponse
-// @Router /jobs/{jobID} [get]
+// @Router /jobs/{jobID}/results [get]
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
