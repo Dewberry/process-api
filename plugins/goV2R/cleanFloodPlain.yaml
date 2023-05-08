@@ -1,0 +1,105 @@
+info:
+  version: '2023.2.1'
+  id: cleanFloodPlain
+  title: cleanFloodPlain
+  description: Fill in islands and voids on a wet-dry grid.
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+    - reference
+
+runtime:
+  repository:
+  image: v2r-processes
+  tag: latest
+  description: v2r image with go processes
+  command:
+    - clean
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE
+    - S3_BUCKET
+    - AWS_DEFAULT_REGION
+    - EXPIRY_DAYS
+
+inputs:
+  - id: inputFile
+    title: inputFile
+    input:
+      literalDataDomain:
+        dataType: string
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: outputFile
+    title: outputFile
+    input:
+      literalDataDomain:
+        dataType: string
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: concurrent
+    title: concurrent
+    input:
+      literalDataDomain:
+        dataType: bool
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: cx
+    title: cx
+    input:
+      literalDataDomain:
+        dataType: float
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: cy
+    title: cy
+    input:
+      literalDataDomain:
+        dataType: float
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: adjacent
+    title: adjacent
+    input:
+      literalDataDomain:
+        dataType: int
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: ti
+    title: ti
+    input:
+      literalDataDomain:
+        dataType: float
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: tv
+    title: tv
+    input:
+      literalDataDomain:
+        dataType: float
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+outputs:
+  - id: outputFile
+    title: outputFile
+    output:
+      transmissionMode:
+      - reference
+

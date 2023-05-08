@@ -275,7 +275,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			if p.Outputs != nil {
 				outputs, err = jobs.FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
+					return c.JSON(http.StatusInternalServerError, jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "succesful", Message: "fetching results: " + err.Error()})
 				}
 			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
