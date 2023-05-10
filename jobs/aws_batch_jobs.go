@@ -16,7 +16,7 @@ import (
 
 // Fields are exported so that gob can access it
 type AWSBatchJob struct {
-	Ctx         context.Context
+	ctx         context.Context // not exported because unsupported by gob
 	ctxCancel   context.CancelFunc
 	UUID        string `json:"jobID"`
 	AWSBatchID  string
@@ -101,15 +101,15 @@ func (j *AWSBatchJob) ProviderID() string {
 func (j *AWSBatchJob) Equals(job Job) bool {
 	switch jj := job.(type) {
 	case *AWSBatchJob:
-		return j.Ctx == jj.Ctx
+		return j.ctx == jj.ctx
 	default:
 		return false
 	}
 }
 
 func (j *AWSBatchJob) Create() error {
-	ctx, cancelFunc := context.WithCancel(j.Ctx)
-	j.Ctx = ctx
+	ctx, cancelFunc := context.WithCancel(context.TODO())
+	j.ctx = ctx
 	j.ctxCancel = cancelFunc
 
 	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
@@ -121,7 +121,7 @@ func (j *AWSBatchJob) Create() error {
 	log.Debug("j.JobDef | ", j.JobDef)
 	log.Debug("j.JobQueue | ", j.JobQueue)
 	log.Debug("j.JobName  | ", j.JobName)
-	aWSBatchID, err := batchContext.JobCreate(j.Ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
+	aWSBatchID, err := batchContext.JobCreate(j.ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
 	if err != nil {
 		j.HandleError(err.Error())
 		return err
@@ -223,7 +223,7 @@ func (j *AWSBatchJob) GetSizeinCache() int {
 	}
 
 	totalMemory := cmdData + messageData +
-		int(unsafe.Sizeof(j.Ctx)) +
+		int(unsafe.Sizeof(j.ctx)) +
 		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.AWSBatchID)) + len(j.AWSBatchID) +
