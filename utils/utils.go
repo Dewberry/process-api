@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,10 +12,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// Given text and an S3 location write a file on S3 with expiration policy
+// Given bytes and an S3 location write a file on S3 with expiration policy
+// 0 value for expDays means no expiry
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(text string, key string, logs *[]string, contType string) {
+func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays int) {
 
 	defer func(logs *[]string) {
 		if r := recover(); r != nil {
@@ -31,18 +31,18 @@ func WriteToS3(text string, key string, logs *[]string, contType string) {
 	}))
 	svc := s3.New(sess)
 
-	textBytes := []byte(text)
-
-	expDays, _ := strconv.Atoi(os.Getenv("EXPIRY_DAYS"))
-
-	expirationDate := time.Now().AddDate(0, 0, expDays)
+	var expirationDate *time.Time
+	if expDays != 0 {
+		expDate := time.Now().AddDate(0, 0, expDays)
+		expirationDate = &expDate
+	}
 
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
 		Key:         aws.String(key),
-		Body:        bytes.NewReader(textBytes),
-		Expires:     aws.Time(expirationDate),
+		Body:        bytes.NewReader(b),
+		Expires:     expirationDate,
 		ContentType: &contType,
 	})
 

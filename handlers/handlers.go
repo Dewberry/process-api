@@ -242,14 +242,28 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
+			messages := []string{}
+			var md string
+			if val, ok := params.Inputs["metaDataLocation"]; ok {
+				if strVal, ok := val.(string); ok {
+					md = strVal
+				} else {
+					messages = append(messages, "jobId: %s metadata location not a valid string")
+				}
+			} else {
+				md = fmt.Sprintf("%s/%s.json", os.Getenv("S3_DEFAULT_META_DIR"), jobID)
+			}
+
 			j = &jobs.AWSBatchJob{
-				UUID:        jobID,
-				ProcessName: processID,
-				ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
-				Cmd:         cmd,
-				JobDef:      p.Runtime.Provider.JobDefinition,
-				JobQueue:    p.Runtime.Provider.JobQueue,
-				JobName:     p.Runtime.Provider.Name,
+				UUID:             jobID,
+				ProcessName:      processID,
+				ImgTag:           fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+				Cmd:              cmd,
+				JobDef:           p.Runtime.Provider.JobDefinition,
+				JobQueue:         p.Runtime.Provider.JobQueue,
+				JobName:          p.Runtime.Provider.Name,
+				MetaDataLocation: md,
+				APILogs:          messages,
 			}
 		default:
 			return c.JSON(http.StatusBadRequest, errResponse{Message: fmt.Sprintf("unsupported type %s", jobType)})

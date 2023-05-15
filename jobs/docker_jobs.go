@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -159,7 +160,9 @@ func (j *DockerJob) Run() {
 
 	// Creating new routine so that failure of writing logs does not mean failure of job
 	// This function does not panic
-	go utils.WriteToS3(strings.Join(logs, "\n"), fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs, "text/plain")
+	expDays, _ := strconv.Atoi(os.Getenv("EXPIRY_DAYS"))
+	textBytes := []byte(strings.Join(logs, "\n"))
+	go utils.WriteToS3(textBytes, fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs, "text/plain", expDays)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
