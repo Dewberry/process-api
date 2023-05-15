@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"app/controllers"
 	"app/utils"
 	"encoding/json"
 	"fmt"
@@ -14,17 +15,35 @@ type metaData struct {
 	User                     string
 	ProcessID                string `json:"apiProcessId"`
 	ProcessVersion           string
-	ImageDigest              string `json:"imageDigest"`
 	ImageURI                 string `json:"imageURI"`
+	ImageDigest              string `json:"imageDigest"`
 	ComputeEnvironmentURI    string // ARN
 	ComputeEnvironmentDigest string // required for reproducibility, will need to be custom implemented
 	Commands                 []string
 	TimeCompleted            time.Time
 }
 
-func (j *AWSBatchJob) WriteMeta(imgDgst string) {
+func (j *AWSBatchJob) WriteMeta(cAws *controllers.AWSBatchController) {
 
 	if j.MetaDataLocation == "" {
+		return
+	}
+
+	imgURI, err := cAws.GetImageURI(j.JobDef)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	cD, err := controllers.NewDockerController()
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	imgDgst, err := cD.GetImageDigest(imgURI)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
 		return
 	}
 
@@ -32,6 +51,7 @@ func (j *AWSBatchJob) WriteMeta(imgDgst string) {
 		Context:       "http://schema.org/",
 		JobID:         j.UUID,
 		ProcessID:     j.ProcessID(),
+		ImageURI:      imgURI,
 		ImageDigest:   imgDgst,
 		TimeCompleted: j.UpdateTime,
 		Commands:      j.Cmd,

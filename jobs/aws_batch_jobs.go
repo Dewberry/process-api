@@ -27,13 +27,15 @@ type AWSBatchJob struct {
 	Status      string `json:"status"`
 	APILogs     []string
 
-	JobDef           string `json:"jobDefinition"`
-	JobQueue         string `json:"jobQueue"`
-	JobName          string `json:"jobName"`
-	EnvVars          map[string]string
-	batchContext     *controllers.AWSBatchController
-	LogStreamName    string
+	JobDef        string `json:"jobDefinition"`
+	JobQueue      string `json:"jobQueue"`
+	JobName       string `json:"jobName"`
+	EnvVars       map[string]string
+	batchContext  *controllers.AWSBatchController
+	LogStreamName string
+	// MetaData
 	MetaDataLocation string
+	ProcessVersion   string
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -156,7 +158,7 @@ func (j *AWSBatchJob) Run() {
 
 	var oldStatus string
 	for {
-		status, logStreamName, imgDgst, err := c.JobMonitor(j.AWSBatchID)
+		status, logStreamName, err := c.JobMonitor(j.AWSBatchID)
 		if err != nil {
 			j.HandleError(err.Error())
 			return
@@ -173,7 +175,7 @@ func (j *AWSBatchJob) Run() {
 				// fetch results here // todo
 				j.NewStatusUpdate(SUCCESSFUL)
 				j.ctxCancel()
-				go j.WriteMeta(imgDgst)
+				go j.WriteMeta(c)
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)

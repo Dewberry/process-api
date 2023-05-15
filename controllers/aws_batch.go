@@ -61,47 +61,46 @@ func (c *AWSBatchController) JobCreate(ctx context.Context,
 	return aws.StringValue(output.JobId), nil
 }
 
-// Get current status of the job from Batch and formats it according to OGC Specs, also get LogStreamName, imageDigest
-func (c *AWSBatchController) JobMonitor(batchID string) (string, string, string, error) {
+// Get current status of the job from Batch and formats it according to OGC Specs, also get LogStreamName
+func (c *AWSBatchController) JobMonitor(batchID string) (string, string, error) {
 	input := &batch.DescribeJobsInput{Jobs: aws.StringSlice([]string{batchID})}
 	output, err := c.client.DescribeJobs(input)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 	if len(output.Jobs) == 0 {
-		return "", "", "", fmt.Errorf("no such job: %s", batchID)
+		return "", "", fmt.Errorf("no such job: %s", batchID)
 	}
 
 	status := aws.StringValue(output.Jobs[0].Status)
 	lsn := aws.StringValue(output.Jobs[0].Container.LogStreamName)
-	imgDgst := aws.StringValue(output.Jobs[0].Container.Image)
 
 	if status == "FAILED" {
 		reason := aws.StringValue(output.Jobs[0].StatusReason)
 		// Non-standard reason used here to facilitate ogc implementation
 		if reason == "DISMISSED" {
-			return reason, lsn, "", nil
+			return reason, lsn, nil
 		} else {
-			return status, lsn, "", fmt.Errorf("aws provided StatusReason for failure: %s", reason)
+			return status, lsn, fmt.Errorf("aws provided StatusReason for failure: %s", reason)
 		}
 	}
 
 	switch status {
 	case "SUBMITTED":
-		return "ACCCEPTED", lsn, "", nil
+		return "ACCCEPTED", lsn, nil
 	case "PENDING":
-		return "ACCCEPTED", lsn, "", nil
+		return "ACCCEPTED", lsn, nil
 	case "RUNNABLE":
-		return "ACCCEPTED", lsn, "", nil
+		return "ACCCEPTED", lsn, nil
 	case "STARTING":
-		return "RUNNING", lsn, "", nil
+		return "RUNNING", lsn, nil
 	case "RUNNING":
-		return "RUNNING", lsn, "", nil
+		return "RUNNING", lsn, nil
 	case "SUCCEEDED":
-		return "SUCCEEDED", lsn, imgDgst, nil
+		return "SUCCEEDED", lsn, nil
 
 	default:
-		return status, lsn, "", fmt.Errorf("unrecognized status  %s", status)
+		return status, lsn, fmt.Errorf("unrecognized status  %s", status)
 	}
 }
 
@@ -175,4 +174,26 @@ func (c *AWSBatchController) JobCancel(jobID, reason string) (string, error) {
 	}
 
 	return output.String(), nil
+}
+
+// Get Image URI from Job Definition
+func (c *AWSBatchController) GetImageURI(jobDef string) (string, error) {
+
+	resp, err := c.client.DescribeJobDefinitions(&batch.DescribeJobDefinitionsInput{
+		JobDefinitions: []*string{aws.String(jobDef)},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	// Check if any job definitions were returned
+	if len(resp.JobDefinitions) != 1 {
+		return "", fmt.Errorf("Did not get an exact match for job definitions")
+	}
+
+	// Retrieve the ImageDigest from the first job definition in the response
+	imageURI := aws.StringValue(resp.JobDefinitions[0].ContainerProperties.Image)
+
+	return imageURI, nil
 }

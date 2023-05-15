@@ -248,7 +248,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				if strVal, ok := val.(string); ok {
 					md = strVal
 				} else {
-					messages = append(messages, "jobId: %s metadata location not a valid string")
+					messages = append(messages, "metadata location not a valid string")
 				}
 			} else {
 				md = fmt.Sprintf("%s/%s.json", os.Getenv("S3_DEFAULT_META_DIR"), jobID)
@@ -263,6 +263,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				JobQueue:         p.Runtime.Provider.JobQueue,
 				JobName:          p.Runtime.Provider.Name,
 				MetaDataLocation: md,
+				ProcessVersion:   p.Info.Version,
 				APILogs:          messages,
 			}
 		default:

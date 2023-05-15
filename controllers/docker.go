@@ -209,3 +209,16 @@ func (c *DockerController) RemoveVolume(name string) error {
 
 	return nil
 }
+
+// Get Image Digest from Image URI
+func (c *DockerController) GetImageDigest(imageURI string) (string, error) {
+	ctx := context.Background()
+	imageInspect, _, err := c.cli.ImageInspectWithRaw(ctx, imageURI)
+	if err != nil {
+		return "", err
+	}
+
+	// Get the digest from the image inspect response
+	imageDigest := imageInspect.ID
+	return imageDigest, nil
+}
