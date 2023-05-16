@@ -5,13 +5,14 @@ import (
 	"app/utils"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/labstack/gommon/log"
 )
 
 // Define a metaData object
@@ -41,10 +42,19 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
-	imgDgst, err := getImageDigest(imgURI)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
+	var imgDgst string
+	if strings.Contains(imgURI, "amazonaws.com/") {
+		imgDgst, err = getECRImageDigest(imgURI)
+		if err != nil {
+			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			return
+		}
+	} else {
+		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
+		if err != nil {
+			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			return
+		}
 	}
 
 	md := metaData{
@@ -68,66 +78,51 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 	return
 }
 
-// Get image digest
-func getImageDigest(imgURI string) (string, error) {
+// Get image digest from ecr
+func getECRImageDigest(imgURI string) (string, error) {
 	var imgDgst string
-	if strings.Contains(imgURI, "amazonaws.com/") {
 
-		sess, err := session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-		})
-		if err != nil {
-			return "", err
-		}
-		ecrClient := ecr.New(sess)
-
-		accountID, repositoryName, imgTag, err := parseImgURI(imgURI)
-		if err != nil {
-			return "", err
-		}
-
-		// Retrieve the image details from ECR
-		log.Warn(accountID)
-		log.Warn(repositoryName)
-		log.Warn(imgTag)
-		describeImagesInput := &ecr.DescribeImagesInput{
-			RegistryId:     aws.String(accountID),
-			RepositoryName: aws.String(repositoryName),
-			ImageIds: []*ecr.ImageIdentifier{
-				{
-					ImageTag: aws.String(imgTag),
-				},
-			},
-		}
-
-		describeImagesOutput, err := ecrClient.DescribeImages(describeImagesInput)
-		if err != nil {
-			return "", err
-		}
-
-		// Get the digest from the image details
-		if len(describeImagesOutput.ImageDetails) > 0 {
-			imgDgst = aws.StringValue(describeImagesOutput.ImageDetails[0].ImageDigest)
-		} else {
-			return "", fmt.Errorf("image not found in ECR")
-		}
-	} else { // dockerHub image
-		// this only works with pulled images
-		cD, err := controllers.NewDockerController()
-		if err != nil {
-			return "", err
-		}
-
-		imgDgst, err = cD.GetImageDigest(imgURI)
-		if err != nil {
-			return "", err
-		}
+	sess, err := session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
+	if err != nil {
+		return "", err
 	}
+	ecrClient := ecr.New(sess)
+
+	accountID, repositoryName, imgTag, err := parseECRImgURI(imgURI)
+	if err != nil {
+		return "", err
+	}
+
+	// Retrieve the image details from ECR
+	describeImagesInput := &ecr.DescribeImagesInput{
+		RegistryId:     aws.String(accountID),
+		RepositoryName: aws.String(repositoryName),
+		ImageIds: []*ecr.ImageIdentifier{
+			{
+				ImageTag: aws.String(imgTag),
+			},
+		},
+	}
+
+	describeImagesOutput, err := ecrClient.DescribeImages(describeImagesInput)
+	if err != nil {
+		return "", err
+	}
+
+	// Get the digest from the image details
+	if len(describeImagesOutput.ImageDetails) > 0 {
+		imgDgst = aws.StringValue(describeImagesOutput.ImageDetails[0].ImageDigest)
+	} else {
+		return "", fmt.Errorf("image not found in ECR")
+	}
+
 	return imgDgst, nil
 }
 
-// Helper function to parse the ECR repository URI
-func parseImgURI(imgURI string) (string, string, string, error) {
+// Helper function to parse the ECR Image URI
+func parseECRImgURI(imgURI string) (string, string, string, error) {
 	// Split the repository URI into account ID, repository name, and image tag
 	parts := strings.Split(imgURI, "/")
 	if len(parts) != 2 {
@@ -146,4 +141,42 @@ func parseImgURI(imgURI string) (string, string, string, error) {
 	imageTag := imageParts[1]
 
 	return accountID, repositoryName, imageTag, nil
+}
+
+// Get Image Digest from Docker Hub
+func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
+	parts := strings.Split(imgURI, ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid image Name: %s", imgURI)
+	}
+
+	imageName := parts[0]
+	imageTag := parts[1]
+
+	url := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/%s/images", imageName, imageTag)
+
+	response, err := http.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("Error sending request: %s\n", err)
+
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("Error reading response: %s\n", err)
+	}
+
+	var result []interface{}
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return "", fmt.Errorf("Error parsing JSON: %s\n", err)
+	}
+
+	digest, ok := result[0].(map[string]interface{})["digest"].(string)
+	if !ok {
+		return "", fmt.Errorf("Error retrieving image digest")
+	}
+
+	return digest, nil
 }
