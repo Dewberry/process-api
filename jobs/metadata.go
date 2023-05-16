@@ -17,19 +17,20 @@ import (
 
 // Define a metaData object
 type metaData struct {
-	Context                  string `json:"@context"`
-	JobID                    string `json:"apiJobId"`
-	User                     string
-	ProcessID                string `json:"apiProcessId"`
-	ProcessVersion           string
-	ImageURI                 string `json:"imageURI"`
-	ImageDigest              string `json:"imageDigest"`
-	ComputeEnvironmentURI    string // ARN
-	ComputeEnvironmentDigest string // required for reproducibility, will need to be custom implemented
-	Commands                 []string
-	TimeCompleted            time.Time
+	Context                  string    `json:"@context"`
+	JobID                    string    `json:"apiJobId"`
+	User                     string    `json:"apiUser"`
+	ProcessID                string    `json:"apiProcessId"`
+	ProcessVersion           string    `json:"apiProcessVersion"`
+	ImageURI                 string    `json:"imageURI"`
+	ImageDigest              string    `json:"imageDigest"`
+	ComputeEnvironmentURI    string    // ARN
+	ComputeEnvironmentDigest string    // required for reproducibility, will need to be custom implemented
+	Commands                 []string  `json:"containerCommands"`
+	TimeCompleted            time.Time `json:"timeJobFinished"`
 }
 
+// Write metadata at the job's metadata location
 func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 
 	if j.MetaDataLocation == "" {
@@ -173,6 +174,7 @@ func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
 		return "", fmt.Errorf("Error parsing JSON: %s\n", err)
 	}
 
+	// Currently it gets just the first image, while there can be more than 1. This is incorrect
 	digest, ok := result[0].(map[string]interface{})["digest"].(string)
 	if !ok {
 		return "", fmt.Errorf("Error retrieving image digest")
