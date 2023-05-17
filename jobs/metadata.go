@@ -59,13 +59,14 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 	}
 
 	md := metaData{
-		Context:       "http://schema.org/",
-		JobID:         j.UUID,
-		ProcessID:     j.ProcessID(),
-		ImageURI:      imgURI,
-		ImageDigest:   imgDgst,
-		TimeCompleted: j.UpdateTime,
-		Commands:      j.Cmd,
+		Context:        "http://schema.org/",
+		JobID:          j.UUID,
+		ProcessID:      j.ProcessID(),
+		ProcessVersion: j.ProcessVersion,
+		ImageURI:       imgURI,
+		ImageDigest:    imgDgst,
+		TimeCompleted:  j.UpdateTime,
+		Commands:       j.Cmd,
 	}
 
 	jsonBytes, err := json.Marshal(md)
