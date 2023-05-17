@@ -15,19 +15,29 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 )
 
+type process struct {
+	ProcessID      string `json:"processId"`
+	ProcessVersion string `json:"processVersion"`
+}
+
+type image struct {
+	ImageURI    string `json:"imageURI"`
+	ImageDigest string `json:"imageDigest"`
+}
+
 // Define a metaData object
 type metaData struct {
-	Context                  string    `json:"@context"`
-	JobID                    string    `json:"apiJobId"`
-	User                     string    `json:"apiUser"`
-	ProcessID                string    `json:"apiProcessId"`
-	ProcessVersion           string    `json:"apiProcessVersion"`
-	ImageURI                 string    `json:"imageURI"`
-	ImageDigest              string    `json:"imageDigest"`
-	ComputeEnvironmentURI    string    // ARN
-	ComputeEnvironmentDigest string    // required for reproducibility, will need to be custom implemented
-	Commands                 []string  `json:"containerCommands"`
-	TimeCompleted            time.Time `json:"timeJobFinished"`
+	Context string  `json:"@context"`
+	JobID   string  `json:"apiJobId"`
+	User    string  `json:"apiUser"`
+	Process process `json:"process"`
+	Image   image   `json:"image"`
+	// ComputeEnvironmentURI    string    // ARN
+	// ComputeEnvironmentDigest string    // required for reproducibility, will need to be custom implemented
+	Commands        []string  `json:"containerCommands"`
+	GeneratedAtTime time.Time `json:"generatedAtTime"`
+	StartedAtTime   time.Time `json:"startedAtTime"`
+	EndedAtTime     time.Time `json:"endedAtTime"`
 }
 
 // Write metadata at the job's metadata location
@@ -43,6 +53,8 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
+	// imgDgst would be incorrect if tag has been updated in between
+	// if there are multiple architechture available for same image tag
 	var imgDgst string
 	if strings.Contains(imgURI, "amazonaws.com/") {
 		imgDgst, err = getECRImageDigest(imgURI)
@@ -58,15 +70,20 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		}
 	}
 
+	p := process{j.ProcessID(), j.ProcessVersion}
+	i := image{imgURI, imgDgst}
+
+	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
+
 	md := metaData{
-		Context:        "http://schema.org/",
-		JobID:          j.UUID,
-		ProcessID:      j.ProcessID(),
-		ProcessVersion: j.ProcessVersion,
-		ImageURI:       imgURI,
-		ImageDigest:    imgDgst,
-		TimeCompleted:  j.UpdateTime,
-		Commands:       j.Cmd,
+		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
+		JobID:           j.UUID,
+		Process:         p,
+		Image:           i,
+		Commands:        j.Cmd,
+		GeneratedAtTime: g,
+		StartedAtTime:   s,
+		EndedAtTime:     e,
 	}
 
 	jsonBytes, err := json.Marshal(md)
@@ -146,6 +163,7 @@ func parseECRImgURI(imgURI string) (string, string, string, error) {
 }
 
 // Get Image Digest from Docker Hub
+// arch based digest not yet implemented, arch is not used
 func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
 	parts := strings.Split(imgURI, ":")
 	if len(parts) != 2 {
@@ -157,7 +175,11 @@ func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
 
 	url := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/%s/images", imageName, imageTag)
 
-	response, err := http.Get(url)
+	client := http.Client{
+		Timeout: 10 * time.Second, // Set a timeout for the request
+	}
+
+	response, err := client.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("Error sending request: %s\n", err)
 
