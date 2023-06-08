@@ -24,7 +24,7 @@ type DockerJob struct {
 	UUID        string `json:"jobID"`
 	ContainerID string
 	Repository  string `json:"repository"` // for local repositories leave empty
-	ImgTag      string `json:"imageAndTag"`
+	Image       string `json:"image"`
 	ProcessName string `json:"processID"`
 	EnvVars     []string
 	Cmd         []string `json:"commandOverride"`
@@ -45,8 +45,8 @@ func (j *DockerJob) CMD() []string {
 	return j.Cmd
 }
 
-func (j *DockerJob) IMGTAG() string {
-	return j.ImgTag
+func (j *DockerJob) IMAGE() string {
+	return j.Image
 }
 
 // Fetches Container logs from S3 and API logs from cache
@@ -120,7 +120,7 @@ func (j *DockerJob) Create() error {
 
 	// pull image
 	if j.Repository != "" {
-		err = c.EnsureImage(ctx, j.ImgTag, false)
+		err = c.EnsureImage(ctx, j.Image, false)
 		if err != nil {
 			j.HandleError(err.Error())
 			return err
@@ -146,7 +146,7 @@ func (j *DockerJob) Run() {
 
 	// start container
 	j.NewStatusUpdate(RUNNING)
-	containerID, err := c.ContainerRun(j.ctx, j.ImgTag, j.Cmd, []controllers.VolumeMount{}, envVars)
+	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars)
 	if err != nil {
 		j.HandleError(err.Error())
 		return
@@ -238,7 +238,7 @@ func (j *DockerJob) GetSizeinCache() int {
 		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.ContainerID)) + len(j.ContainerID) +
-		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +
+		int(unsafe.Sizeof(j.Image)) + len(j.Image) +
 		int(unsafe.Sizeof(j.UpdateTime)) +
 		int(unsafe.Sizeof(j.Status))
 	return totalMemory

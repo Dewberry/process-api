@@ -19,7 +19,7 @@ type Job interface {
 	CMD() []string
 	CurrentStatus() string
 	Equals(Job) bool
-	IMGTAG() string
+	IMAGE() string
 	JobID() string
 	ProcessID() string
 	Logs() (JobLogs, error)

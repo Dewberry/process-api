@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
-	"github.com/labstack/gommon/log"
 )
 
 // Fields are exported so that gob can access it
@@ -21,14 +20,16 @@ type AWSBatchJob struct {
 	UUID        string `json:"jobID"`
 	AWSBatchID  string
 	ProcessName string   `json:"processID"`
-	ImgTag      string   `json:"imageAndTag"`
+	Image       string   `json:"image"`
 	Cmd         []string `json:"commandOverride"`
 	UpdateTime  time.Time
 	Status      string `json:"status"`
 	APILogs     []string
 
-	JobDef        string `json:"jobDefinition"`
-	JobQueue      string `json:"jobQueue"`
+	JobDef   string `json:"jobDefinition"`
+	JobQueue string `json:"jobQueue"`
+
+	// Job Name in Batch for this job
 	JobName       string `json:"jobName"`
 	EnvVars       map[string]string
 	batchContext  *controllers.AWSBatchController
@@ -50,8 +51,8 @@ func (j *AWSBatchJob) CMD() []string {
 	return j.Cmd
 }
 
-func (j *AWSBatchJob) IMGTAG() string {
-	return j.ImgTag
+func (j *AWSBatchJob) IMAGE() string {
+	return j.Image
 }
 
 // Fetches Container logs from CloudWatch and API logs from cache
@@ -121,9 +122,6 @@ func (j *AWSBatchJob) Create() error {
 		return err
 	}
 
-	log.Debug("j.JobDef | ", j.JobDef)
-	log.Debug("j.JobQueue | ", j.JobQueue)
-	log.Debug("j.JobName  | ", j.JobName)
 	aWSBatchID, err := batchContext.JobCreate(j.ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
 	if err != nil {
 		j.HandleError(err.Error())
@@ -232,7 +230,7 @@ func (j *AWSBatchJob) GetSizeinCache() int {
 		int(unsafe.Sizeof(j.ctxCancel)) +
 		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
 		int(unsafe.Sizeof(j.AWSBatchID)) + len(j.AWSBatchID) +
-		int(unsafe.Sizeof(j.ImgTag)) + len(j.ImgTag) +
+		int(unsafe.Sizeof(j.Image)) + len(j.Image) +
 		int(unsafe.Sizeof(j.UpdateTime)) +
 		int(unsafe.Sizeof(j.Status)) +
 		int(unsafe.Sizeof(j.LogStreamName)) + len(j.LogStreamName) +
