@@ -232,15 +232,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		j = &jobs.DockerJob{
 			UUID:        jobID,
 			ProcessName: processID,
-			Repository:  p.Runtime.Repository,
+			Image:       p.Runtime.Image,
 			EnvVars:     p.Runtime.EnvVars,
-			ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
 			Cmd:         cmd,
 		}
 
 	} else {
-		runtime := p.Runtime.Provider.Type
-		switch runtime {
+		host := p.Host.Type
+		switch host {
 		case "aws-batch":
 			var md string
 			if val, ok := params.Inputs["metaDataLocation"]; ok {
@@ -256,11 +255,11 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			j = &jobs.AWSBatchJob{
 				UUID:             jobID,
 				ProcessName:      processID,
-				ImgTag:           fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+				Image:            p.Runtime.Image,
 				Cmd:              cmd,
-				JobDef:           p.Runtime.Provider.JobDefinition,
-				JobQueue:         p.Runtime.Provider.JobQueue,
-				JobName:          p.Runtime.Provider.Name,
+				JobDef:           p.Host.JobDefinition,
+				JobQueue:         p.Host.JobQueue,
+				JobName:          "ogc-api-id-" + jobID,
 				MetaDataLocation: md,
 				ProcessVersion:   p.Info.Version,
 			}

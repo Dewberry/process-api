@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,8 +12,54 @@ import (
 	"github.com/aws/aws-sdk-go/service/batch"
 )
 
+// Describe Job Definition
+type JobDefinitionInfo struct {
+	VCPUs  float32
+	Memory int
+	Image  string
+}
+
 type AWSBatchController struct {
 	client *batch.Batch
+}
+
+// Get job def info from batch
+func (c *AWSBatchController) GetJobDefInfo(jobDef string) (JobDefinitionInfo, error) {
+
+	var jdi JobDefinitionInfo
+	resp, err := c.client.DescribeJobDefinitions(&batch.DescribeJobDefinitionsInput{
+		JobDefinitions: []*string{aws.String(jobDef)},
+	})
+
+	if err != nil {
+		return jdi, err
+	}
+
+	// Check if any job definitions were returned
+	if len(resp.JobDefinitions) != 1 {
+		return jdi, fmt.Errorf("Did not get an exact match for job definitions")
+	}
+
+	// Retrieve the Image URI from the first job definition in the response
+	jdi.Image = aws.StringValue(resp.JobDefinitions[0].ContainerProperties.Image)
+	resourceRequirements := resp.JobDefinitions[0].ContainerProperties.ResourceRequirements
+
+	// Extract vCPU and memory requirements
+	f64, err := strconv.ParseFloat(getResourceRequirement(resourceRequirements, "VCPU"), 32)
+	jdi.VCPUs = float32(f64)
+	jdi.Memory, err = strconv.Atoi(getResourceRequirement(resourceRequirements, "MEMORY"))
+
+	return jdi, nil
+}
+
+// Helper function to extract the resource requirement value
+func getResourceRequirement(resourceRequirements []*batch.ResourceRequirement, name string) string {
+	for _, requirement := range resourceRequirements {
+		if *requirement.Type == name {
+			return *requirement.Value
+		}
+	}
+	return ""
 }
 
 func NewAWSBatchController(accessKey, secretAccessKey, region string) (*AWSBatchController, error) {

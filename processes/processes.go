@@ -3,6 +3,7 @@
 package processes
 
 import (
+	"app/controllers"
 	"errors"
 	"fmt"
 	"os"
@@ -13,16 +14,18 @@ import (
 
 type process struct {
 	Info    Info      `yaml:"info"`
+	Host    Host      `yaml:"host"`
 	Runtime Runtime   `yaml:"runtime"`
 	Inputs  []Inputs  `yaml:"inputs"`
 	Outputs []Outputs `yaml:"outputs"`
 }
 
 type processDescription struct {
-	Info    `json:"info"`
-	Inputs  []Inputs  `json:"inputs"`
-	Outputs []Outputs `json:"outputs"`
-	Links   []Link    `json:"links"`
+	Info      `json:"info"`
+	Resources `json:"maxResources,omitempty"`
+	Inputs    []Inputs  `json:"inputs"`
+	Outputs   []Outputs `json:"outputs"`
+	Links     []Link    `json:"links"`
 }
 
 type Link struct {
@@ -74,48 +77,54 @@ type Outputs struct {
 	InputID string `yaml:"inputId"` //json omit
 }
 
-// Non-OGC types used for this API's implementation of the standard
-// Runtime provides information on the host calling the container
-type Runtime struct {
-	Repository  string   `yaml:"repository"`
-	Image       string   `yaml:"image"`
-	Tag         string   `yaml:"tag"`
-	Provider    Provider `yaml:"provider"`
-	Description string   `yaml:"description"`
-	EnvVars     []string `yaml:"envVars"`
-	Command     []string `yaml:"command"`
+// Resources
+type Resources struct {
+	VCPUs  float32 `yaml:"vCPUs" json:"vCPUs,omitempty"`
+	Memory int     `yaml:"memory" json:"memory,omitempty"`
 }
 
-// Provider is currently limited to AWS Batch, will require changes
+// Host is currently limited to "local" or "aws-batch", will require changes
 // for extending to additional cloud services (e.g. lambda) or controllers (e.g. Azure)
-type Provider struct {
-	Type          string `yaml:"type"`
+type Host struct {
+	// Type should be one of "local", "aws-batch"
+	Type string `yaml:"type"`
+
+	// Host specific jargon
+	// AWS
 	JobDefinition string `yaml:"jobDefinition"`
 	JobQueue      string `yaml:"jobQueue"`
-	Name          string `yaml:"name"`
 }
 
-func (p process) createLinks() []Link {
-	var links []Link
-	if p.Runtime.Repository != "" {
-		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
-	}
-	return links
+// Non-OGC types used for this API's implementation of the standard
+
+// Runtime provides information with which to call the container/job
+type Runtime struct {
+	// Image is the exact string which docker can use to pull an image
+	// Image will be overwritten for batch jobs defined by job defitions
+	Image string `yaml:"image"`
+
+	EnvVars   []string  `yaml:"envVars"`
+	Command   []string  `yaml:"command"`
+	Resources Resources `yaml:"maxResources"` // max resources this process can use
 }
+
+// func (p process) createLinks() []Link {
+// 	var links []Link
+// 	if p.Runtime.Image != "" {
+// 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+// 	}
+// 	return links
+// }
 
 func (p process) Describe() (processDescription, error) {
 	pd := processDescription{
-		Info: p.Info, Inputs: p.Inputs, Outputs: p.Outputs, Links: p.createLinks()}
+		Info: p.Info, Resources: p.Runtime.Resources, Inputs: p.Inputs, Outputs: p.Outputs} // Links: p.createLinks()
 
 	return pd, nil
 }
 
 func (p process) Type() string {
-	return p.Runtime.Provider.Type
-}
-
-func (p process) ImgTag() string {
-	return fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag)
+	return p.Host.Type
 }
 
 type inpOccurance struct {
@@ -186,6 +195,24 @@ func newProcess(f string) (process, error) {
 	if err != nil {
 		return process{}, err
 	}
+
+	// if processes is AWS Batch process get its resources, image, etc
+	// the problem with doing this here is that if the job definition is updated while we are doing this, our process info will not update
+	switch p.Host.Type {
+	case "aws-batch":
+		c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+		if err != nil {
+			return process{}, err
+		}
+		jdi, err := c.GetJobDefInfo(p.Host.JobDefinition)
+		if err != nil {
+			return process{}, err
+		}
+		p.Runtime.Image = jdi.Image
+		p.Runtime.Resources.Memory = jdi.Memory
+		p.Runtime.Resources.VCPUs = jdi.VCPUs
+	}
+
 	return p, nil
 }
 
