@@ -193,13 +193,13 @@ func (c *AWSBatchController) GetImageURI(jobDef string) (string, error) {
 		return "", fmt.Errorf("Did not get an exact match for job definitions")
 	}
 
-	// Retrieve the ImageDigest from the first job definition in the response
+	// Retrieve the Image URI from the first job definition in the response
 	imageURI := aws.StringValue(resp.JobDefinitions[0].ContainerProperties.Image)
 
 	return imageURI, nil
 }
 
-// Get Image URI from Job Definition
+// Get job execution times
 func (c *AWSBatchController) GetJobTimes(batchID string) (cp time.Time, cr time.Time, st time.Time, err error) {
 
 	describeJobsInput := &batch.DescribeJobsInput{
