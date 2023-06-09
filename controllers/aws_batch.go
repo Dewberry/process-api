@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -174,4 +175,53 @@ func (c *AWSBatchController) JobCancel(jobID, reason string) (string, error) {
 	}
 
 	return output.String(), nil
+}
+
+// Get Image URI from Job Definition
+func (c *AWSBatchController) GetImageURI(jobDef string) (string, error) {
+
+	resp, err := c.client.DescribeJobDefinitions(&batch.DescribeJobDefinitionsInput{
+		JobDefinitions: []*string{aws.String(jobDef)},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	// Check if any job definitions were returned
+	if len(resp.JobDefinitions) != 1 {
+		return "", fmt.Errorf("Did not get an exact match for job definitions")
+	}
+
+	// Retrieve the Image URI from the first job definition in the response
+	imageURI := aws.StringValue(resp.JobDefinitions[0].ContainerProperties.Image)
+
+	return imageURI, nil
+}
+
+// Get job execution times
+func (c *AWSBatchController) GetJobTimes(batchID string) (cp time.Time, cr time.Time, st time.Time, err error) {
+
+	describeJobsInput := &batch.DescribeJobsInput{
+		Jobs: []*string{aws.String(batchID)},
+	}
+
+	describeJobsOutput, err := c.client.DescribeJobs(describeJobsInput)
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error describing jobs: %s", err)
+	}
+
+	if len(describeJobsOutput.Jobs) > 0 {
+		job := describeJobsOutput.Jobs[0] // Assuming only one job is returned
+
+		// Extract createdAt, startedAt, and completedAt times
+		cr = time.UnixMilli(*job.CreatedAt)
+		st = time.UnixMilli(*job.StartedAt)
+		cp = time.UnixMilli(*job.StoppedAt)
+
+	} else {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("no job information found")
+	}
+
+	return cr, st, cp, nil
 }

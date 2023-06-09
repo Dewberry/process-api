@@ -2,9 +2,10 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,10 +14,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// Given text and an S3 location write a file on S3 with expiration policy
+// Given bytes and an S3 location write a file on S3 with expiration policy
+// 0 value for expDays means no expiry
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(text string, key string, logs *[]string, contType string) {
+func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays int) {
 
 	defer func(logs *[]string) {
 		if r := recover(); r != nil {
@@ -31,18 +33,18 @@ func WriteToS3(text string, key string, logs *[]string, contType string) {
 	}))
 	svc := s3.New(sess)
 
-	textBytes := []byte(text)
-
-	expDays, _ := strconv.Atoi(os.Getenv("EXPIRY_DAYS"))
-
-	expirationDate := time.Now().AddDate(0, 0, expDays)
+	var expirationDate *time.Time
+	if expDays != 0 {
+		expDate := time.Now().AddDate(0, 0, expDays)
+		expirationDate = &expDate
+	}
 
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
 		Key:         aws.String(key),
-		Body:        bytes.NewReader(textBytes),
-		Expires:     aws.Time(expirationDate),
+		Body:        bytes.NewReader(b),
+		Expires:     expirationDate,
 		ContentType: &contType,
 	})
 
@@ -54,7 +56,6 @@ func WriteToS3(text string, key string, logs *[]string, contType string) {
 // Check if an S3 Key exists
 func KeyExists(key string, svc *s3.S3) (bool, error) {
 
-	// it should be HeadObject here, but headbject is giving 403 forbidden error for some reason
 	_, err := svc.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(os.Getenv("S3_BUCKET")),
 		Key:    aws.String(key),
@@ -83,4 +84,37 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// Assumes file exist
+func GetS3JsonData(key string, svc *s3.S3) (interface{}, error) {
+	// Create a new S3GetObjectInput object to specify the file you want to read
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Key:    aws.String(key),
+	}
+
+	// Use the S3 service object to download the file into a byte slice
+	resp, err := svc.GetObject(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the file contents into a byte slice
+	jsonBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Declare an empty interface{} value to hold the unmarshalled data
+	var data interface{}
+
+	// Unmarshal the JSON data into the interface{} value
+	err = json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

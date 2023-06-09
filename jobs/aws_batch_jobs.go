@@ -33,6 +33,9 @@ type AWSBatchJob struct {
 	EnvVars       map[string]string
 	batchContext  *controllers.AWSBatchController
 	LogStreamName string
+	// MetaData
+	MetaDataLocation string
+	ProcessVersion   string
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -140,6 +143,7 @@ func (j *AWSBatchJob) Create() error {
 	return nil
 }
 
+// Thid actually does not run a job but only monitors it
 func (j *AWSBatchJob) Run() {
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
 	if err != nil {
@@ -171,6 +175,7 @@ func (j *AWSBatchJob) Run() {
 				// fetch results here // todo
 				j.NewStatusUpdate(SUCCESSFUL)
 				j.ctxCancel()
+				go j.WriteMeta(c)
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)

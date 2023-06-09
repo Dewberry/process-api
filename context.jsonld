@@ -1,0 +1,32 @@
+{
+    "@context": {
+        "aorc": "https://ckan.dewberryanalytics.com/dataset/49c0ed12-9efa-4da2-bbb8-cc249a63a06e/resource/cb78eea5-95c7-4551-afb6-fbf824c948b8/download/aorc.ttl",
+        "dct": "http://purl.org/dc/terms/",
+        "prov": "https://www.w3.org/ns/prov#",
+        "schema": "https://schema.org/",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "apiUser": {
+            "@id": "schema:email",
+            "@type": "xsd:string"
+        },
+        "apiJobId": {
+            "@id": "schema:identifier",
+            "@type": "xsd:string"
+        },
+        "startedAtTime": "prov:startedAtTime",
+        "endedAtTime": "prov:endedAtTime",
+        "generatedAtTime": "prov:generatedAtTime",
+        "process": {
+            "@type": "schema:SoftwareApplication*",
+            "@id": "@type"
+        },
+        "processID": "schema:name",
+        "processVersion": "schema:version",
+        "image": {
+            "@type": "aorc:DockerImgae*",
+            "@id": "@type"
+        },
+        "imageDigest": "aorc:hash",
+        "containerCommands": "aorc:commands"
+    }
+}

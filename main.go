@@ -101,8 +101,9 @@ func main() {
 	// Jobs
 	e.GET("/jobs", rh.JobsCacheHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
-	e.GET("/jobs/:jobID/results", rh.JobResultsHandler) //requires cache
-	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)       //requires cache
+	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)   //requires cache
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)         //requires cache
+	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler) //requires cache
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// JobCache Monitor
