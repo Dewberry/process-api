@@ -2,14 +2,11 @@ package jobs
 
 import (
 	"app/utils"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -90,7 +87,6 @@ func (jc *JobsCache) ListJobs() []JobStatus {
 // If JobID exists but results file doesn't then it raises an error
 // Assumes jobID is valid
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
-	bucket := os.Getenv("S3_BUCKET")
 	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_RESULTS_DIR"), jid)
 
 	exist, err := utils.KeyExists(key, svc)
@@ -102,30 +98,29 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 		return nil, fmt.Errorf("not found")
 	}
 
-	// Create a new S3GetObjectInput object to specify the file you want to read
-	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}
-
-	// Use the S3 service object to download the file into a byte slice
-	resp, err := svc.GetObject(params)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Read the file contents into a byte slice
-	jsonBytes, err := io.ReadAll(resp.Body)
+	data, err := utils.GetS3JsonData(key, svc)
 	if err != nil {
 		return nil, err
 	}
 
-	// Declare an empty interface{} value to hold the unmarshalled data
-	var data interface{}
+	return data, nil
+}
 
-	// Unmarshal the JSON data into the interface{} value
-	err = json.Unmarshal(jsonBytes, &data)
+// If JobID exists but metadata file doesn't then it raises an error
+// Assumes jobID is valid
+func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
+	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jid)
+
+	exist, err := utils.KeyExists(key, svc)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, fmt.Errorf("not found")
+	}
+
+	data, err := utils.GetS3JsonData(key, svc)
 	if err != nil {
 		return nil, err
 	}
