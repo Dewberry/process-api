@@ -79,7 +79,7 @@ type Outputs struct {
 
 // Resources
 type Resources struct {
-	VCPUs  float32 `yaml:"vCPUs" json:"vCPUs,omitempty"`
+	CPUs   float32 `yaml:"cpus" json:"cpus,omitempty"`
 	Memory int     `yaml:"memory" json:"memory,omitempty"`
 }
 
@@ -210,7 +210,7 @@ func newProcess(f string) (process, error) {
 		}
 		p.Runtime.Image = jdi.Image
 		p.Runtime.Resources.Memory = jdi.Memory
-		p.Runtime.Resources.VCPUs = jdi.VCPUs
+		p.Runtime.Resources.CPUs = jdi.VCPUs
 	}
 
 	return p, nil

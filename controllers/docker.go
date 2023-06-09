@@ -19,6 +19,8 @@ type DockerController struct {
 	cli *client.Client
 }
 
+type DockerResources container.Resources
+
 func NewDockerController() (*DockerController, error) {
 	c := new(DockerController)
 	var err error
@@ -31,8 +33,11 @@ func NewDockerController() (*DockerController, error) {
 }
 
 // returns container id, error
-func (c *DockerController) ContainerRun(ctx context.Context, image string, command []string, volumes []VolumeMount, envVars map[string]string) (string, error) {
-	hostConfig := container.HostConfig{}
+func (c *DockerController) ContainerRun(ctx context.Context, image string, command []string, volumes []VolumeMount, envVars map[string]string, resources DockerResources) (string, error) {
+	hostConfig := container.HostConfig{
+		Resources: container.Resources(resources),
+	}
+
 	log.Debug("Initialize Container run")
 	//	hostConfig.Mounts = make([]mount.Mount,0);
 

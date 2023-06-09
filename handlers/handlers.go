@@ -234,6 +234,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			ProcessName: processID,
 			Image:       p.Runtime.Image,
 			EnvVars:     p.Runtime.EnvVars,
+			Resources:   jobs.Resources(p.Runtime.Resources),
 			Cmd:         cmd,
 		}
 

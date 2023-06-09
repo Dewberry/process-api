@@ -31,6 +31,7 @@ type DockerJob struct {
 	UpdateTime  time.Time
 	Status      string `json:"status"`
 	APILogs     []string
+	Resources
 }
 
 func (j *DockerJob) JobID() string {
@@ -144,9 +145,13 @@ func (j *DockerJob) Run() {
 		envVars[eVar] = os.Getenv(eVar)
 	}
 
+	resources := controllers.DockerResources{}
+	resources.NanoCPUs = int64(j.Resources.CPUs * 1e9)         // Docker controller needs cpu in nano ints
+	resources.Memory = int64(j.Resources.Memory * 1024 * 1024) // Docker controller needs memory in bytes
+
 	// start container
 	j.NewStatusUpdate(RUNNING)
-	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars)
+	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
 		j.HandleError(err.Error())
 		return

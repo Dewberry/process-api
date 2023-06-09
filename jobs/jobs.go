@@ -10,6 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+type Resources struct {
+	CPUs   float32
+	Memory int
+}
+
 // Job refers to any process that has been created through
 // the processes/{processID}/execution endpoint
 type Job interface {
