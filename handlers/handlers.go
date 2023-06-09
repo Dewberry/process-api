@@ -241,16 +241,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		host := p.Host.Type
 		switch host {
 		case "aws-batch":
-			var md string
-			if val, ok := params.Inputs["metaDataLocation"]; ok {
-				if strVal, ok := val.(string); ok {
-					md = strVal
-				} else {
-					return c.JSON(http.StatusBadRequest, errResponse{Message: "metadata location not a valid string"})
-				}
-			} else {
-				md = fmt.Sprintf("%s/%s.json", os.Getenv("S3_DEFAULT_META_DIR"), jobID)
-			}
+			md := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jobID)
 
 			j = &jobs.AWSBatchJob{
 				UUID:             jobID,
@@ -391,6 +382,41 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 
 		default:
 			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+			return c.JSON(http.StatusNotFound, output)
+		}
+
+	}
+	output := errResponse{Message: "jobID not found"}
+	return c.JSON(http.StatusNotFound, output)
+}
+
+func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
+	jobID := c.Param("jobID")
+	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+		switch (*job).(type) {
+		case *jobs.DockerJob:
+			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not exist for sync jobs."}
+			return c.JSON(http.StatusBadRequest, output)
+		}
+
+		switch (*job).CurrentStatus() {
+		case jobs.SUCCESSFUL:
+			md, err := jobs.FetchMeta(rh.S3Svc, (*job).JobID())
+			if err != nil {
+				if err.Error() == "not found" {
+					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not found."}
+					return c.JSON(http.StatusInternalServerError, output)
+				}
+				return c.JSON(http.StatusInternalServerError, err.Error())
+			}
+			return c.JSON(http.StatusOK, md)
+
+		case jobs.FAILED, jobs.DISMISSED:
+			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Metadata only available for successful jobs.", LastUpdate: (*job).LastUpdate()}
+			return c.JSON(http.StatusOK, output)
+
+		default:
+			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
 			return c.JSON(http.StatusNotFound, output)
 		}
 

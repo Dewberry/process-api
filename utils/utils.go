@@ -2,7 +2,9 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -54,7 +56,6 @@ func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays in
 // Check if an S3 Key exists
 func KeyExists(key string, svc *s3.S3) (bool, error) {
 
-	// it should be HeadObject here, but headbject is giving 403 forbidden error for some reason
 	_, err := svc.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(os.Getenv("S3_BUCKET")),
 		Key:    aws.String(key),
@@ -83,4 +84,37 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+// Assumes file exist
+func GetS3JsonData(key string, svc *s3.S3) (interface{}, error) {
+	// Create a new S3GetObjectInput object to specify the file you want to read
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Key:    aws.String(key),
+	}
+
+	// Use the S3 service object to download the file into a byte slice
+	resp, err := svc.GetObject(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the file contents into a byte slice
+	jsonBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Declare an empty interface{} value to hold the unmarshalled data
+	var data interface{}
+
+	// Unmarshal the JSON data into the interface{} value
+	err = json.Unmarshal(jsonBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
