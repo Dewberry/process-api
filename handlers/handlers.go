@@ -242,16 +242,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		runtime := p.Runtime.Provider.Type
 		switch runtime {
 		case "aws-batch":
-			var md string
-			if val, ok := params.Inputs["metaDataLocation"]; ok {
-				if strVal, ok := val.(string); ok {
-					md = strVal
-				} else {
-					return c.JSON(http.StatusBadRequest, errResponse{Message: "metadata location not a valid string"})
-				}
-			} else {
-				md = fmt.Sprintf("%s/%s.json", os.Getenv("S3_DEFAULT_META_DIR"), jobID)
-			}
+			md := fmt.Sprintf("%s/%s.json", os.Getenv("S3_DEFAULT_META_DIR"), jobID)
 
 			j = &jobs.AWSBatchJob{
 				UUID:             jobID,
