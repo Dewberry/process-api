@@ -30,6 +30,14 @@ runtime:
   command:
     - python
     - aep_blocks.py
+  # max resources this container can use
+  # should be left empty for cloud processes where this information is defined in cloud job configuration
+  # in that case the, the API will fetch this information at the startup and overwrite these properties
+  maxResources:
+    # cpus in fraction for example, 0.5 would mean use 0.5 CPUs
+    cpus: 0.1
+    # memory in megabytes
+    memory: 1024
   # env variable keys that need to be passed to container, for AWS_ACCESS_KEY_ID etc
   # should be left empty for cloud processes and defined in jobDefinition
   envVars:
