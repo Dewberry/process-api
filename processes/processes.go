@@ -20,14 +20,6 @@ type process struct {
 	Outputs []Outputs `yaml:"outputs"`
 }
 
-type processDescription struct {
-	Info      `json:"info"`
-	Resources `json:"maxResources,omitempty"`
-	Inputs    []Inputs  `json:"inputs"`
-	Outputs   []Outputs `json:"outputs"`
-	Links     []Link    `json:"links"`
-}
-
 type Link struct {
 	Href  string `yaml:"href" json:"href"`
 	Rel   string `yaml:"rel,omitempty" json:"rel,omitempty"`
@@ -115,13 +107,6 @@ type Runtime struct {
 // 	}
 // 	return links
 // }
-
-func (p process) Describe() (processDescription, error) {
-	pd := processDescription{
-		Info: p.Info, Resources: p.Runtime.Resources, Inputs: p.Inputs, Outputs: p.Outputs} // Links: p.createLinks()
-
-	return pd, nil
-}
 
 func (p process) Type() string {
 	return p.Host.Type
