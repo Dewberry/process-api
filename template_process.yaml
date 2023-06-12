@@ -21,7 +21,7 @@ host:
   jobDefinition: process-sandbox:2
   jobQueue: micro-test
 
-runtime:
+container:
   # full uri of the image, it should be exectly same as what is needed in docker pull command
   # image should be empty when image is defined somewhere else, for example in jobDefinition
   # in that case the, the API will fetch this information at the startup and overwrite image information

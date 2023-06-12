@@ -222,19 +222,19 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	var cmd []string
-	if p.Runtime.Command == nil {
+	if p.Container.Command == nil {
 		cmd = []string{string(jsonParams)}
 	} else {
-		cmd = append(p.Runtime.Command, string(jsonParams))
+		cmd = append(p.Container.Command, string(jsonParams))
 	}
 
 	if jobType == "sync-execute" {
 		j = &jobs.DockerJob{
 			UUID:        jobID,
 			ProcessName: processID,
-			Image:       p.Runtime.Image,
-			EnvVars:     p.Runtime.EnvVars,
-			Resources:   jobs.Resources(p.Runtime.Resources),
+			Image:       p.Container.Image,
+			EnvVars:     p.Container.EnvVars,
+			Resources:   jobs.Resources(p.Container.Resources),
 			Cmd:         cmd,
 		}
 
@@ -247,7 +247,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			j = &jobs.AWSBatchJob{
 				UUID:             jobID,
 				ProcessName:      processID,
-				Image:            p.Runtime.Image,
+				Image:            p.Container.Image,
 				Cmd:              cmd,
 				JobDef:           p.Host.JobDefinition,
 				JobQueue:         p.Host.JobQueue,

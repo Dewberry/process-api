@@ -13,11 +13,11 @@ import (
 )
 
 type process struct {
-	Info    Info      `yaml:"info"`
-	Host    Host      `yaml:"host"`
-	Runtime Runtime   `yaml:"runtime"`
-	Inputs  []Inputs  `yaml:"inputs"`
-	Outputs []Outputs `yaml:"outputs"`
+	Info      Info      `yaml:"info"`
+	Host      Host      `yaml:"host"`
+	Container Container `yaml:"container"`
+	Inputs    []Inputs  `yaml:"inputs"`
+	Outputs   []Outputs `yaml:"outputs"`
 }
 
 type Link struct {
@@ -89,8 +89,8 @@ type Host struct {
 
 // Non-OGC types used for this API's implementation of the standard
 
-// Runtime provides information with which to call the container/job
-type Runtime struct {
+// Container provides information with which to call the container/job
+type Container struct {
 	// Image is the exact string which docker can use to pull an image
 	// Image will be overwritten for batch jobs defined by job defitions
 	Image string `yaml:"image"`
@@ -102,8 +102,8 @@ type Runtime struct {
 
 // func (p process) createLinks() []Link {
 // 	var links []Link
-// 	if p.Runtime.Image != "" {
-// 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Runtime.Repository, p.Runtime.Image)})
+// 	if p.Container.Image != "" {
+// 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Container.Repository, p.Container.Image)})
 // 	}
 // 	return links
 // }
@@ -193,9 +193,9 @@ func newProcess(f string) (process, error) {
 		if err != nil {
 			return process{}, err
 		}
-		p.Runtime.Image = jdi.Image
-		p.Runtime.Resources.Memory = jdi.Memory
-		p.Runtime.Resources.CPUs = jdi.VCPUs
+		p.Container.Image = jdi.Image
+		p.Container.Resources.Memory = jdi.Memory
+		p.Container.Resources.CPUs = jdi.VCPUs
 	}
 
 	return p, nil

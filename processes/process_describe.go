@@ -11,7 +11,7 @@ type processDescription struct {
 
 func (p process) Describe() (processDescription, error) {
 	pd := processDescription{
-		Info: p.Info, Image: p.Runtime.Image, Resources: p.Runtime.Resources, Inputs: p.Inputs, Outputs: p.Outputs} // Links: p.createLinks()
+		Info: p.Info, Image: p.Container.Image, Resources: p.Container.Resources, Inputs: p.Inputs, Outputs: p.Outputs} // Links: p.createLinks()
 
 	return pd, nil
 }
