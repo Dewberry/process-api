@@ -1,0 +1,44 @@
+name: E2E tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: 'Create env file'
+        run: |
+          touch .env
+          echo STORE_TYPE='S3' >> .env
+          echo AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} >> .env
+          echo AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} >> .env
+          echo AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} >> .env
+          echo S3_BUCKET=${{ secrets.S3_BUCKET }} >> .env
+          echo S3_RESULTS_DIR='tests/results' >> .env
+          echo S3_META_DIR='tests/metadata' >> .env
+          echo S3_LOGS_DIR='tests/logs' >> .env
+          echo BATCH_LOG_STREAM_GROUP='/aws/batch/job' >> .env
+          echo CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES' >> .env
+          echo EXPIRY_DAYS='1' >> .env
+
+
+      - name: Add processes
+        run: |
+          cd plugins
+          ln -s ../tests/e2e/processes ./processes
+
+      - name: Start API
+        run: go run main.go
+
+      - name: Run newman tests
+        run: |
+          sleep 10s
+          docker run postman/newman:alpine newman run /tests/e2e/tests.postman_collection.json --env-var "url=localhost:5050"
