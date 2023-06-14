@@ -1,23 +1,22 @@
 name: E2E tests
 
-on: 
+on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v2
-        
-      - name: 'Create env file'
+
+      - name: Create env file
         run: |
           touch .env
-          echo STORE_TYPE='S3' >> .env
           echo AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} >> .env
           echo AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} >> .env
           echo AWS_DEFAULT_REGION=${{ secrets.AWS_DEFAULT_REGION }} >> .env
@@ -40,5 +39,5 @@ jobs:
 
       - name: Run newman tests
         run: |
-          ls
-          docker run postman/newman:5.3.1-alpine run ./tests/e2e/tests.postman_collection.json --env-var "url=localhost:5050"
+          sleep 10s
+          docker run --network="host" -v /tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"
