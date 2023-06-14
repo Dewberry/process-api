@@ -35,7 +35,9 @@ jobs:
           ln -s ../tests/e2e/processes ./processes
 
       - name: Start API
-        run: nohup go run main.go > output.log &
+        run: |
+          go build main.go
+          nohup go run main.go > output.log &
 
       - name: Run newman tests
         run: |
