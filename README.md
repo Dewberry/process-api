@@ -1,4 +1,7 @@
 # process-api
+
+[![E2E Tests](https://github.com/dewberry/process-api/actions/workflows/e2e-tests.yml/badge.svg?event=push)](https://github.com/Dewberry/process-api/actions/workflows/e2e-tests.yml)
+
 A lightweight, extensible, OGC compliant Process API for local and cloud based containerized processing.
 
 ![](/docs/swagger-screenshot.png)
