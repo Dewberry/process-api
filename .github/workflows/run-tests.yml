@@ -42,5 +42,4 @@ jobs:
       - name: Run newman tests
         run: |
           sleep 10s
-          curl localhost:5050
           docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"

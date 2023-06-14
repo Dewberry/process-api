@@ -78,7 +78,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"image test\", function () {\r",
-									"    pm.expect(processData[\"image\"]).to.eql(\"alpine\");\r",
+									"    pm.expect(processData[\"image\"]).to.eql(\"alpine2\");\r",
 									"});\r",
 									""
 								],
