@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: 'Create env file'
         run: |
@@ -35,7 +35,7 @@ jobs:
           ln -s ../tests/e2e/processes ./processes
 
       - name: Start API
-        run: go run main.go
+        run: nohup go run main.go > output.log &
 
       - name: Run newman tests
         run: |
