@@ -39,5 +39,5 @@ jobs:
 
       - name: Run newman tests
         run: |
-          sleep 10s
+          ls
           docker run postman/newman:5.3.1-alpine run ./tests/e2e/tests.postman_collection.json --env-var "url=localhost:5050"
