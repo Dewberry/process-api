@@ -222,36 +222,36 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	var cmd []string
-	if p.Runtime.Command == nil {
+	if p.Container.Command == nil {
 		cmd = []string{string(jsonParams)}
 	} else {
-		cmd = append(p.Runtime.Command, string(jsonParams))
+		cmd = append(p.Container.Command, string(jsonParams))
 	}
 
 	if jobType == "sync-execute" {
 		j = &jobs.DockerJob{
 			UUID:        jobID,
 			ProcessName: processID,
-			Repository:  p.Runtime.Repository,
-			EnvVars:     p.Runtime.EnvVars,
-			ImgTag:      fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+			Image:       p.Container.Image,
+			EnvVars:     p.Container.EnvVars,
+			Resources:   jobs.Resources(p.Container.Resources),
 			Cmd:         cmd,
 		}
 
 	} else {
-		runtime := p.Runtime.Provider.Type
-		switch runtime {
+		host := p.Host.Type
+		switch host {
 		case "aws-batch":
 			md := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jobID)
 
 			j = &jobs.AWSBatchJob{
 				UUID:             jobID,
 				ProcessName:      processID,
-				ImgTag:           fmt.Sprintf("%s:%s", p.Runtime.Image, p.Runtime.Tag),
+				Image:            p.Container.Image,
 				Cmd:              cmd,
-				JobDef:           p.Runtime.Provider.JobDefinition,
-				JobQueue:         p.Runtime.Provider.JobQueue,
-				JobName:          p.Runtime.Provider.Name,
+				JobDef:           p.Host.JobDefinition,
+				JobQueue:         p.Host.JobQueue,
+				JobName:          "ogc-api-id-" + jobID,
 				MetaDataLocation: md,
 				ProcessVersion:   p.Info.Version,
 			}
