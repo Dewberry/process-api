@@ -1,7 +1,11 @@
 name: E2E tests
 
-on: [pull_request]
-
+on: 
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  
 jobs:
   build:
     runs-on: ubuntu-latest
