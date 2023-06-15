@@ -1,0 +1,1257 @@
+{
+	"info": {
+		"_postman_id": "175ad4cd-0da2-441c-b468-2f9e5cc56d9a",
+		"name": "process-api Testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "26956706"
+	},
+	"item": [
+		{
+			"name": "startup",
+			"item": [
+				{
+					"name": "landingpage",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "conformance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/conformance",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"conformance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "processes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/processes",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "process-describe",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const processData = pm.response.json();\r",
+									"\r",
+									"pm.test(\"id test\", function () {\r",
+									"    pm.expect(processData[\"info\"][\"id\"]).to.eql(\"echo\");\r",
+									"});\r",
+									"\r",
+									"pm.test(\"job control test\", function () {\r",
+									"    pm.expect(processData[\"info\"][\"jobControlOptions\"][0]).to.eql(\"sync-execute\");\r",
+									"});\r",
+									"\r",
+									"pm.test(\"image test\", function () {\r",
+									"    pm.expect(processData[\"image\"]).to.eql(\"alpine\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/processes/:processID",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								":processID"
+							],
+							"variable": [
+								{
+									"key": "processID",
+									"value": "echo"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200 ', function(){",
+							"    pm.response.to.have.status(200)",
+							"});",
+							"",
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "execution",
+			"item": [
+				{
+					"name": "general",
+					"item": [
+						{
+							"name": "Negatives",
+							"item": [
+								{
+									"name": "missing",
+									"event": [
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													""
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"epoch\": \"2020\"\n    }\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{url}}/processes/:processID/execution",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"processes",
+												":processID",
+												"execution"
+											],
+											"variable": [
+												{
+													"key": "processID",
+													"value": "aepGrid"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "incorrectKey",
+									"event": [
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													""
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"inputs\": {\n        \"incorrectKey\": \"value\"\n    }\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{url}}/processes/:processID/execution",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"processes",
+												":processID",
+												"execution"
+											],
+											"variable": [
+												{
+													"key": "processID",
+													"value": "echo"
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"Status code is equal or greater than 400\", function () {",
+											"    pm.expect(pm.response.code).to.be.greaterThan(399)",
+											"});",
+											"",
+											"pm.test(\"response should have message\", function () {",
+											"    pm.response.to.have.jsonBody(\"message\");",
+											"});"
+										]
+									}
+								}
+							]
+						}
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "sync",
+					"item": [
+						{
+							"name": "Positives",
+							"item": [
+								{
+									"name": "job-submit",
+									"item": [
+										{
+											"name": "echo",
+											"event": [
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "POST",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"inputs\": {}\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{url}}/processes/:processID/execution",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"processes",
+														":processID",
+														"execution"
+													],
+													"variable": [
+														{
+															"key": "processID",
+															"value": "echo"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									],
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													"var resp = pm.response.json()",
+													"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+												]
+											}
+										}
+									]
+								},
+								{
+									"name": "job-details",
+									"item": [
+										{
+											"name": "job-status",
+											"event": [
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"response should have jobid, status, etc\", function () {\r",
+															"    pm.response.to.not.be.error;\r",
+															"    pm.response.to.have.jsonBody(\"jobID\");\r",
+															"    pm.response.to.have.jsonBody(\"status\");\r",
+															"    pm.response.to.have.jsonBody(\"updated\");\r",
+															"    pm.response.to.have.jsonBody(\"processID\");\r",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-logs",
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/logs",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"logs"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									],
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										}
+									]
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test('Status code is 200', function(){",
+											"    pm.response.to.have.status(200)",
+											"});",
+											"",
+											""
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Negatives",
+							"item": [
+								{
+									"name": "job-metadata",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/metadata",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"metadata"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "job-results",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/results",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"results"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "job-dismiss",
+									"request": {
+										"method": "DELETE",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"Status code is equal or greater than 400\", function () {",
+											"    pm.expect(pm.response.code).to.be.greaterThan(399)",
+											"});",
+											"",
+											"pm.test(\"response should have message\", function () {",
+											"    pm.response.to.have.jsonBody(\"message\");",
+											"});"
+										]
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "async",
+					"item": [
+						{
+							"name": "Positives",
+							"item": [
+								{
+									"name": "job-submit",
+									"item": [
+										{
+											"name": "aepGrid",
+											"event": [
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"var resp = pm.response.json()\r",
+															"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "POST",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{url}}/processes/:processID/execution",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"processes",
+														":processID",
+														"execution"
+													],
+													"variable": [
+														{
+															"key": "processID",
+															"value": "aepGrid"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-dismiss",
+											"request": {
+												"method": "DELETE",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "aepGrid retry",
+											"event": [
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"var resp = pm.response.json()\r",
+															"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "POST",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{url}}/processes/:processID/execution",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"processes",
+														":processID",
+														"execution"
+													],
+													"variable": [
+														{
+															"key": "processID",
+															"value": "aepGrid"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									],
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													"pm.test(\"Response time is less than 300ms\", function () {",
+													"    pm.expect(pm.response.responseTime).to.be.below(300);",
+													"});",
+													"",
+													""
+												]
+											}
+										}
+									]
+								},
+								{
+									"name": "job-details",
+									"item": [
+										{
+											"name": "job-status",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 20000); \r",
+															""
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"async process should be running or succeeded after 20 seconds\", function () {\r",
+															"    pm.expect(pm.response.json()[\"status\"]).to.be.oneOf([\"running\",\"successful\"]);\r",
+															"});\r",
+															"\r",
+															"pm.test(\"response should have jobid, status, etc\", function () {\r",
+															"    pm.response.to.not.be.error;\r",
+															"    pm.response.to.have.jsonBody(\"jobID\");\r",
+															"    pm.response.to.have.jsonBody(\"status\");\r",
+															"    pm.response.to.have.jsonBody(\"updated\");\r",
+															"    pm.response.to.have.jsonBody(\"processID\");\r",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-logs",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 20000); "
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/logs",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"logs"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-results",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 200000); "
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/results",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"results"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-metadata",
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/metadata",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"metadata"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									],
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"type": "text/javascript",
+												"exec": [
+													""
+												]
+											}
+										}
+									]
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"Successful request\", function () {",
+											"    pm.expect(pm.response.code).to.be.oneOf([200,201,202]);",
+											"});"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "job-submit",
+							"item": [
+								{
+									"name": "aepGrid",
+									"event": [
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"var resp = pm.response.json()\r",
+													"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{url}}/processes/:processID/execution",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"processes",
+												":processID",
+												"execution"
+											],
+											"variable": [
+												{
+													"key": "processID",
+													"value": "aepGrid"
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"Response time is less than 300ms\", function () {",
+											"    pm.expect(pm.response.responseTime).to.be.below(300);",
+											"});",
+											"",
+											""
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Negatives",
+							"item": [
+								{
+									"name": "job-logs",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/logs",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"logs"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "job-metadata",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/metadata",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"metadata"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "job-results",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/results",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"results"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								}
+							],
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											""
+										]
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"pm.test(\"Status code is equal or greater than 400\", function () {",
+											"    pm.expect(pm.response.code).to.be.greaterThan(399)",
+											"});",
+											"",
+											"pm.test(\"response should have message\", function () {",
+											"    pm.response.to.have.jsonBody(\"message\");",
+											"});"
+										]
+									}
+								}
+							]
+						}
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "closure",
+			"item": [
+				{
+					"name": "number-of-jobs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jobsData = pm.response.json();\r",
+									"\r",
+									"pm.test(\"number of jobs in record test\", function () {\r",
+									"    pm.expect(jobsData.length).to.eql(4);\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/jobs",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"jobs"
+							],
+							"query": [
+								{
+									"key": "include_error_messages",
+									"value": "true",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200 ', function(){",
+							"    pm.response.to.have.status(200)",
+							"});",
+							"",
+							""
+						]
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"pm.test(\"response must be valid and have a body\", function () {",
+					"     pm.response.to.be.withBody;",
+					"     pm.response.to.be.json;",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": "localhost:5050",
+			"type": "default"
+		},
+		{
+			"key": "jobID",
+			"value": ""
+		}
+	]
+}

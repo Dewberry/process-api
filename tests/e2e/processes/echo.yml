@@ -1,0 +1,21 @@
+info:
+  version: '0.0.1'
+  id: echo
+  title: Echo
+  description: Echo the passed input
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+
+
+host:
+  type: local
+
+container:
+  image: alpine
+  command:
+    - echo
+
+inputs:
+
+outputs:
