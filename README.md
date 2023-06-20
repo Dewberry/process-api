@@ -84,6 +84,7 @@ AWS_DEFAULT_REGION='us-east-1'
 S3_BUCKET='********'
 S3_RESULTS_DIR='results'
 S3_LOGS_DIR='logs'
+S3_META_DIR='metadata'
 
 # BATCH
 BATCH_LOG_STREAM_GROUP='/aws/batch/job'
