@@ -261,7 +261,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	}
 
 	// Add to cache
-	rh.JobsCache.Add(&j)
+	rh.ActiveJobs.Add(&j)
 
 	// Create job
 	err = j.Create()
@@ -309,7 +309,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
-	if j, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if j, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		err := (*j).Kill()
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
@@ -334,7 +334,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	}
 
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		resp := jobs.JobStatus{
 			ProcessID:  (*job).ProcessID(),
 			JobID:      (*job).JobID(),
@@ -357,7 +357,7 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		switch (*job).CurrentStatus() {
 		case jobs.SUCCESSFUL:
 			outputs, err := jobs.FetchResults(rh.S3Svc, (*job).JobID())
@@ -393,7 +393,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		switch (*job).(type) {
 		case *jobs.DockerJob:
 			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not exist for sync jobs."}
@@ -441,7 +441,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		return err
 	}
 
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		logs, err := (*job).Logs()
 		if err != nil {
 			if err.Error() == "not found" {
@@ -466,12 +466,12 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} []JobStatus
 // @Router /jobs [get]
-func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
+func (rh *RESTHandler) ActiveJobsHandler(c echo.Context) error {
 	err := validateFormat(c)
 	if err != nil {
 		return err
 	}
 
-	jobsList := rh.JobsCache.ListJobs()
+	jobsList := rh.ActiveJobs.ListJobs()
 	return prepareResponse(c, http.StatusOK, "jobs", jobsList)
 }

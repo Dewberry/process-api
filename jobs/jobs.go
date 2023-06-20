@@ -35,14 +35,16 @@ type Job interface {
 	GetSizeinCache() int
 }
 
-// JobStatus describes status of a job
+// JobStatus contains details about a job
+// only those fields are exported which are part of OGC status response
 type JobStatus struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
 	Status     string    `json:"status"`
 	ProcessID  string    `json:"processID"`
-	CMD        []string  `json:"commands,omitempty"`
 	Type       string    `default:"process" json:"type"`
+	host       string
+	mode       int
 }
 
 // JobLogs describes logs for the job
@@ -62,20 +64,19 @@ const (
 
 // Returns an array of all Job statuses in memory
 // Most recently updated job first
-func (jc *JobsCache) ListJobs() []JobStatus {
-	jc.mu.Lock()
-	defer jc.mu.Unlock()
+func (ac *ActiveJobs) ListJobs() []JobStatus {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 
-	jobs := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]JobStatus, len(ac.Jobs))
 
 	var i int
-	for _, j := range jc.Jobs {
+	for _, j := range ac.Jobs {
 		js := JobStatus{
 			ProcessID:  (*j).ProcessID(),
 			JobID:      (*j).JobID(),
 			LastUpdate: (*j).LastUpdate(),
 			Status:     (*j).CurrentStatus(),
-			CMD:        (*j).CMD(),
 		}
 		jobs[i] = js
 		i++

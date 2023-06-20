@@ -63,7 +63,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(pluginsDir, uint64(cacheSize), overwrite)
+	rh, err := handlers.NewRESTHander(pluginsDir, uint64(cacheSize))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -99,20 +99,12 @@ func main() {
 	// e.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", rh.JobsCacheHandler)
+	e.GET("/jobs", rh.ActiveJobsHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)   //requires cache
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)         //requires cache
 	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler) //requires cache
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
-
-	// JobCache Monitor
-	go func() {
-		for {
-			time.Sleep(60 * 60 * time.Second) // check cache once an hour
-			_ = rh.JobsCache.CheckCache()
-		}
-	}()
 
 	// Start server
 	go func() {
@@ -131,19 +123,11 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	err = rh.JobsCache.KillAll()
+	err = rh.ActiveJobs.KillAll()
 	if err != nil {
 		e.Logger.Error(err)
 	} else {
 		e.Logger.Info("killed and removed active containers")
-	}
-
-	// Dump cache to file
-	err = rh.JobsCache.DumpCacheToFile()
-	if err != nil {
-		e.Logger.Error(err)
-	} else {
-		e.Logger.Info("snapshot created at .data/snapshot.gob")
 	}
 
 	// Shutdown the server

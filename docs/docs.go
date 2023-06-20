@@ -86,7 +86,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/jobs.jobStatus"
+                                "$ref": "#/definitions/jobs.JobStatus"
                             }
                         }
                     }
