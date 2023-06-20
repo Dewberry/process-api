@@ -22,7 +22,6 @@ import (
 
 var (
 	pluginsDir string
-	cacheSize  int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
 	overwrite  bool
 	port       string
 	envFP      string
@@ -32,8 +31,6 @@ func init() {
 
 	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.IntVar(&cacheSize, "c", 11073741824, "specify the max cache size in bytes (default= 1GB)")
-	flag.BoolVar(&overwrite, "o", false, "overwrite cache snapshot if exist")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -63,7 +60,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(pluginsDir, uint64(cacheSize))
+	rh, err := handlers.NewRESTHander(pluginsDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -101,9 +98,9 @@ func main() {
 	// Jobs
 	e.GET("/jobs", rh.ActiveJobsHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
-	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)   //requires cache
-	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)         //requires cache
-	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler) //requires cache
+	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
+	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// Start server

@@ -21,8 +21,6 @@ https://developer.ogc.org/api/processes/index.html
 3. Update swagger documents and compile the server: `swag init && go build main.go`.
 4. Run the server: `./main`, with the following available flags:
    ```
-      `-c [type int] specify the path of the max cache size for storing jobs (default 11073741824 (1GB))`
-      `-o [type bool] specify if cache should be overwritten`
       `-d [type string] specify the path of the processes directory to load (default "plugins" assuming program called from inside repo)`
       `-e [type string] specify the path of the dot env file to load (default ".env")`
       `-p [type string] specify the port to run the api on (default "5050")`
@@ -67,8 +65,6 @@ The containerized processes must expect a JSON load as the last argument of the 
 When a job is submitted, a local container is fired up immediately for sync jobs, and a job request is submitted to the AWS batch for async jobs. When a local job reaches a finished state (successful or failed), the local container is removed. Similarly, if an active job is explicitly dismissed using DEL route or the HTTP connection drops, the job is terminated, and resources are freed up. If the server is gracefully shut down, all currently active jobs are terminated, and resources are freed up.
 
 The API responds to all GET requests (except `/jobs/<jobID>/results`) as HTML or JSON depending upon if the request is being originated from Browser or not or if it specifies the format using query parameter ‘f’.
-
-The app maintains a cache of all jobs submitted, a snapshot of this cache is saved to disk at `./.data/snapshot.gob` every 60 minutes and at the graceful shutdown of the server. If during the restart the snapshot is found at the above location, the cache is repopulated with the snapshot data.
 
 ## Example .env file
 

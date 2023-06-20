@@ -32,7 +32,6 @@ type Job interface {
 	NewStatusUpdate(string)
 	Run()
 	Create() error
-	GetSizeinCache() int
 }
 
 // JobStatus contains details about a job

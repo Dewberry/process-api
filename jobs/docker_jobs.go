@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -49,7 +48,7 @@ func (j *DockerJob) IMAGE() string {
 	return j.Image
 }
 
-// Fetches Container logs from S3 and API logs from cache
+// Fetches Container logs from S3 and API logs from ActiveJobs
 func (j *DockerJob) Logs() (JobLogs, error) {
 	var logs JobLogs
 	cl, err := j.FetchLogs()
@@ -226,28 +225,6 @@ func (j *DockerJob) Kill() error {
 	j.NewStatusUpdate(DISMISSED)
 	j.ctxCancel()
 	return nil
-}
-
-func (j *DockerJob) GetSizeinCache() int {
-	cmdData := int(unsafe.Sizeof(j.Cmd))
-	for _, item := range j.Cmd {
-		cmdData += len(item)
-	}
-
-	messageData := int(unsafe.Sizeof(j.APILogs))
-	for _, item := range j.APILogs {
-		messageData += len(item)
-	}
-
-	totalMemory := cmdData + messageData +
-		int(unsafe.Sizeof(j.ctx)) +
-		int(unsafe.Sizeof(j.ctxCancel)) +
-		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
-		int(unsafe.Sizeof(j.ContainerID)) + len(j.ContainerID) +
-		int(unsafe.Sizeof(j.Image)) + len(j.Image) +
-		int(unsafe.Sizeof(j.UpdateTime)) +
-		int(unsafe.Sizeof(j.Status))
-	return totalMemory
 }
 
 // If JobID exists but log file doesn't then it raises an error

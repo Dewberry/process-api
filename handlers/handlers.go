@@ -464,7 +464,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	return prepareResponse(c, http.StatusNotFound, "error", output)
 }
 
-// @Summary Summary of all (cached) Jobs
+// @Summary Summary of all (active) Jobs
 // @Description [Job List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)
 // @Tags jobs
 // @Accept */*

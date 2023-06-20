@@ -33,8 +33,8 @@ type RESTHandler struct {
 }
 
 // Initializes resources and return a new handler
-func NewRESTHander(pluginsDir string, cacheSize uint64) (*RESTHandler, error) {
-	// working with pointers here so as not to copy large templates, yamls, and job cache
+func NewRESTHander(pluginsDir string) (*RESTHandler, error) {
+	// working with pointers here so as not to copy large templates, yamls, and ActiveJobs
 	config := RESTHandler{
 		Title:       "process-api",
 		Description: "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
@@ -58,7 +58,7 @@ func NewRESTHander(pluginsDir string, cacheSize uint64) (*RESTHandler, error) {
 	}))
 	config.S3Svc = s3.New(sess)
 
-	// Setup Job Cache that will store all jobs
+	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"unsafe"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -55,7 +54,7 @@ func (j *AWSBatchJob) IMAGE() string {
 	return j.Image
 }
 
-// Fetches Container logs from CloudWatch and API logs from cache
+// Fetches Container logs from CloudWatch and API logs from ActiveJobs
 func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	var logs JobLogs
 	cl, err := j.FetchLogs()
@@ -213,35 +212,6 @@ func (j *AWSBatchJob) Kill() error {
 	j.NewStatusUpdate(DISMISSED)
 	j.ctxCancel()
 	return nil
-}
-
-// Placeholder
-func (j *AWSBatchJob) GetSizeinCache() int {
-	cmdData := int(unsafe.Sizeof(j.Cmd))
-	for _, item := range j.Cmd {
-		cmdData += len(item)
-	}
-
-	messageData := int(unsafe.Sizeof(j.APILogs))
-	for _, item := range j.APILogs {
-		messageData += len(item)
-	}
-
-	totalMemory := cmdData + messageData +
-		int(unsafe.Sizeof(j.ctx)) +
-		int(unsafe.Sizeof(j.ctxCancel)) +
-		int(unsafe.Sizeof(j.UUID)) + len(j.UUID) +
-		int(unsafe.Sizeof(j.AWSBatchID)) + len(j.AWSBatchID) +
-		int(unsafe.Sizeof(j.Image)) + len(j.Image) +
-		int(unsafe.Sizeof(j.UpdateTime)) +
-		int(unsafe.Sizeof(j.Status)) +
-		int(unsafe.Sizeof(j.LogStreamName)) + len(j.LogStreamName) +
-		int(unsafe.Sizeof(j.JobDef)) + len(j.JobDef) +
-		int(unsafe.Sizeof(j.JobQueue)) + len(j.JobQueue) +
-		int(unsafe.Sizeof(j.JobName)) + len(j.JobName) +
-		int(unsafe.Sizeof(j.EnvVars)) + len(j.EnvVars)
-
-	return totalMemory
 }
 
 // Fetches logs from CloudWatch using the AWS Go SDK
