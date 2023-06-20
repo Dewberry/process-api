@@ -260,17 +260,19 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		}
 	}
 
-	// Add to cache
-	rh.ActiveJobs.Add(&j)
-
 	// Create job
 	err = j.Create()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
 	}
 
+	// Add to active jobs
+	rh.ActiveJobs.Add(&j)
+
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
+		defer rh.ActiveJobs.Remove(&j)
+
 		j.Run()
 
 		if j.CurrentStatus() == "successful" {
@@ -289,7 +291,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
-		go j.Run()
+		go func() {
+			defer rh.ActiveJobs.Remove(&j)
+			j.Run()
+		}()
 		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
 		return c.JSON(http.StatusCreated, resp)
 	default:

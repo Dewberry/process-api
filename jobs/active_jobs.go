@@ -4,6 +4,7 @@ import (
 	"sync"
 )
 
+// It is the resoponsibility of originator to add and remove job from ActiveJobs
 type ActiveJobs struct {
 	Jobs map[string]*Job `json:"jobs"`
 	mu   sync.Mutex
@@ -12,6 +13,7 @@ type ActiveJobs struct {
 func (ac *ActiveJobs) Add(j *Job) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
+
 	ac.Jobs[(*j).JobID()] = j
 }
 

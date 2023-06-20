@@ -71,8 +71,10 @@ func (j *DockerJob) NewMessage(m string) {
 
 func (j *DockerJob) HandleError(m string) {
 	j.APILogs = append(j.APILogs, m)
-	j.NewStatusUpdate(FAILED)
 	j.ctxCancel()
+	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
+		j.NewStatusUpdate(FAILED)
+	}
 }
 
 func (j *DockerJob) LastUpdate() time.Time {
