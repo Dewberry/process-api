@@ -3,7 +3,9 @@ package handlers
 import (
 	"app/jobs"
 	pr "app/processes"
+	"database/sql"
 	"io"
+	"log"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -28,12 +30,14 @@ type RESTHandler struct {
 	ConformsTo  []string
 	T           Template
 	S3Svc       *s3.S3
+	DB          *sql.DB
 	ActiveJobs  *jobs.ActiveJobs
 	ProcessList *pr.ProcessList
 }
 
 // Initializes resources and return a new handler
-func NewRESTHander(pluginsDir string) (*RESTHandler, error) {
+// errors are fatal
+func NewRESTHander(pluginsDir string) *RESTHandler {
 	// working with pointers here so as not to copy large templates, yamls, and ActiveJobs
 	config := RESTHandler{
 		Title:       "process-api",
@@ -63,11 +67,15 @@ func NewRESTHander(pluginsDir string) (*RESTHandler, error) {
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac
 
+	db := initDB(".data/db.sqlite")
+	createTables(db)
+	config.DB = db
+
 	processList, err := pr.LoadProcesses(pluginsDir)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	config.ProcessList = &processList
 
-	return &config, nil
+	return &config
 }

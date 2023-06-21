@@ -60,10 +60,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(pluginsDir)
-	if err != nil {
-		log.Fatal(err)
-	}
+	rh := handlers.NewRESTHander(pluginsDir)
 
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
@@ -120,11 +117,17 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	err = rh.ActiveJobs.KillAll()
-	if err != nil {
+
+	if err := rh.ActiveJobs.KillAll(); err != nil {
 		e.Logger.Error(err)
 	} else {
 		e.Logger.Info("killed and removed active containers")
+	}
+
+	if err := rh.DB.Close(); err != nil {
+		e.Logger.Fatal(err)
+	} else {
+		e.Logger.Info("closed connection to database")
 	}
 
 	// Shutdown the server
