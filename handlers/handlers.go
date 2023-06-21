@@ -252,6 +252,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				JobName:          "ogc-api-id-" + jobID,
 				MetaDataLocation: md,
 				ProcessVersion:   p.Info.Version,
+				DB:               rh.DB,
 			}
 		default:
 			return c.JSON(http.StatusBadRequest, errResponse{Message: fmt.Sprintf("unsupported type %s", jobType)})

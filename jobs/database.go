@@ -86,7 +86,7 @@ func (db *DB) addJob(jid string, status string, updated time.Time, mode string, 
 
 func (db *DB) updateJobStatus(jid string, status string, now time.Time) {
 	query := `UPDATE jobs SET status = ?, updated = ? WHERE id = ?`
-	_, err := db.Handle.Exec(query, jid, status, now)
+	_, err := db.Handle.Exec(query, status, now, jid)
 	if err != nil {
 		log.Error(err)
 	}

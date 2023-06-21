@@ -76,7 +76,7 @@ func (j *DockerJob) NewStatusUpdate(s string) {
 	j.Status = s
 	now := time.Now()
 	j.UpdateTime = now
-	j.DB.updateJobStatus(j.UUID, FAILED, now)
+	j.DB.updateJobStatus(j.UUID, s, now)
 }
 
 func (j *DockerJob) CurrentStatus() string {
@@ -103,11 +103,13 @@ func (j *DockerJob) Create() error {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
+		j.ctxCancel()
 		return err
 	}
 
 	// verify command in body
 	if j.Cmd == nil {
+		j.ctxCancel()
 		return err
 	}
 
@@ -115,6 +117,7 @@ func (j *DockerJob) Create() error {
 	if j.Image != "" {
 		err = c.EnsureImage(ctx, j.Image, false)
 		if err != nil {
+			j.ctxCancel()
 			return err
 		}
 	}
@@ -122,6 +125,7 @@ func (j *DockerJob) Create() error {
 	// At this point job is ready to be added to database
 	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
 	if err != nil {
+		j.ctxCancel()
 		return err
 	}
 
@@ -183,8 +187,6 @@ func (j *DockerJob) Run() {
 		}
 		j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
 		return
-	} else if statusCode == 0 {
-		j.NewStatusUpdate(SUCCESSFUL)
 	}
 
 	// clean up the finished job
@@ -193,6 +195,8 @@ func (j *DockerJob) Run() {
 		j.HandleError(err.Error())
 		return
 	}
+
+	j.NewStatusUpdate(SUCCESSFUL)
 
 	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
@@ -210,7 +214,7 @@ func (j *DockerJob) Kill() error {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.NewMessage(err.Error())
+		j.HandleError(err.Error())
 	}
 
 	err = c.ContainerKillAndRemove(j.ctx, j.ContainerID, "KILL")

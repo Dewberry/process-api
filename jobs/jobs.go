@@ -42,8 +42,6 @@ type JobStatus struct {
 	Status     string    `json:"status"`
 	ProcessID  string    `json:"processID"`
 	Type       string    `default:"process" json:"type"`
-	host       string
-	mode       int
 }
 
 // JobLogs describes logs for the job

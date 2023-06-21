@@ -14,16 +14,17 @@ import (
 
 // Fields are exported so that gob can access it
 type AWSBatchJob struct {
-	ctx         context.Context // not exported because unsupported by gob
-	ctxCancel   context.CancelFunc
-	UUID        string `json:"jobID"`
-	AWSBatchID  string
-	ProcessName string   `json:"processID"`
-	Image       string   `json:"image"`
-	Cmd         []string `json:"commandOverride"`
-	UpdateTime  time.Time
-	Status      string `json:"status"`
-	APILogs     []string
+	ctx           context.Context // not exported because unsupported by gob
+	ctxCancel     context.CancelFunc
+	UUID          string `json:"jobID"`
+	AWSBatchID    string
+	ProcessName   string   `json:"processID"`
+	Image         string   `json:"image"`
+	Cmd           []string `json:"commandOverride"`
+	UpdateTime    time.Time
+	Status        string `json:"status"`
+	apiLogs       []string
+	containerLogs []string
 
 	JobDef   string `json:"jobDefinition"`
 	JobQueue string `json:"jobQueue"`
@@ -32,10 +33,11 @@ type AWSBatchJob struct {
 	JobName       string `json:"jobName"`
 	EnvVars       map[string]string
 	batchContext  *controllers.AWSBatchController
-	LogStreamName string
+	logStreamName string
 	// MetaData
 	MetaDataLocation string
 	ProcessVersion   string
+	DB               *DB
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -54,15 +56,17 @@ func (j *AWSBatchJob) IMAGE() string {
 	return j.Image
 }
 
-// Fetches Container logs from CloudWatch and API logs from ActiveJobs
+// Return current logs of the job
+// Fetches Container logs from CloudWatch
 func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	var logs JobLogs
-	cl, err := j.FetchLogs()
+	err := j.fetchCloudWatchLogs()
 	if err != nil {
-		return JobLogs{}, err
+		return logs, err
 	}
-	logs.ContainerLogs = cl
-	logs.APILogs = j.APILogs
+
+	logs.ContainerLogs = j.containerLogs
+	logs.APILogs = j.apiLogs
 	return logs, nil
 }
 
@@ -71,18 +75,20 @@ func (j *AWSBatchJob) ClearOutputs() {
 }
 
 func (j *AWSBatchJob) Messages(includeErrors bool) []string {
-	return j.APILogs
+	return j.apiLogs
 }
 
 func (j *AWSBatchJob) NewMessage(m string) {
-	j.APILogs = append(j.APILogs, m)
+	j.apiLogs = append(j.apiLogs, m)
 }
 
+// Append error to apiLogs, cancelCtx, update Status, and time, write logs to database
 func (j *AWSBatchJob) HandleError(m string) {
-	j.APILogs = append(j.APILogs, m)
+	j.apiLogs = append(j.apiLogs, m)
 	j.ctxCancel()
 	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
 		j.NewStatusUpdate(FAILED)
+		go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	}
 }
 
@@ -92,7 +98,9 @@ func (j *AWSBatchJob) LastUpdate() time.Time {
 
 func (j *AWSBatchJob) NewStatusUpdate(s string) {
 	j.Status = s
-	j.UpdateTime = time.Now()
+	now := time.Now()
+	j.UpdateTime = now
+	j.DB.updateJobStatus(j.UUID, s, now)
 }
 
 func (j *AWSBatchJob) CurrentStatus() string {
@@ -119,13 +127,13 @@ func (j *AWSBatchJob) Create() error {
 
 	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
 	if err != nil {
-		j.HandleError(err.Error())
+		j.ctxCancel()
 		return err
 	}
 
 	aWSBatchID, err := batchContext.JobCreate(j.ctx, j.JobDef, j.JobName, j.JobQueue, j.Cmd, j.EnvVars)
 	if err != nil {
-		j.HandleError(err.Error())
+		j.ctxCancel()
 		return err
 	}
 
@@ -134,7 +142,14 @@ func (j *AWSBatchJob) Create() error {
 
 	// verify command in body
 	if j.Cmd == nil {
-		j.HandleError(err.Error())
+		j.ctxCancel()
+		return err
+	}
+
+	// At this point job is ready to be added to database
+	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName)
+	if err != nil {
+		j.ctxCancel()
 		return err
 	}
 
@@ -164,7 +179,8 @@ func (j *AWSBatchJob) Run() {
 		}
 
 		if status != oldStatus {
-			j.LogStreamName = logStreamName
+			j.logStreamName = logStreamName
+			j.fetchCloudWatchLogs()
 			switch status {
 			case "ACCEPTED":
 				j.NewStatusUpdate(ACCEPTED)
@@ -174,15 +190,16 @@ func (j *AWSBatchJob) Run() {
 				// fetch results here // todo
 				j.NewStatusUpdate(SUCCESSFUL)
 				j.ctxCancel()
+				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 				go j.WriteMeta(c)
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)
 				j.ctxCancel()
+				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 				return
 			case "FAILED":
-				j.NewStatusUpdate(FAILED)
-				j.ctxCancel()
+				j.HandleError("Batch API returned failed status")
 				return
 			}
 		}
@@ -206,48 +223,52 @@ func (j *AWSBatchJob) Kill() error {
 
 	_, err = c.JobKill(j.AWSBatchID)
 	if err != nil {
+		j.HandleError(err.Error())
 		return err
 	}
 
 	j.NewStatusUpdate(DISMISSED)
+	// this may not be needed since in the run function at a dimiss status logs will be written to database
+	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 	return nil
 }
 
 // Fetches logs from CloudWatch using the AWS Go SDK
-func (j *AWSBatchJob) FetchLogs() (logs []string, err error) {
+func (j *AWSBatchJob) fetchCloudWatchLogs() error {
 	// Create a new session in the desired region
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_DEFAULT_REGION")),
 	})
 	if err != nil {
-		return logs, fmt.Errorf("Error creating session: " + err.Error())
+		return fmt.Errorf("Error creating session: " + err.Error())
 	}
 
 	// Create a CloudWatchLogs client
 	svc := cloudwatchlogs.New(sess)
 
-	if j.LogStreamName == "" {
-		return nil, fmt.Errorf("LogStreamName is empty. If you just ran your job, retry in few seconds")
+	if j.logStreamName == "" {
+		return fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
 	}
 
 	// Define the parameters for the log stream you want to read
 	params := &cloudwatchlogs.GetLogEventsInput{
 		LogGroupName:  aws.String(os.Getenv("BATCH_LOG_STREAM_GROUP")),
-		LogStreamName: aws.String(j.LogStreamName),
+		LogStreamName: aws.String(j.logStreamName),
 		StartFromHead: aws.Bool(true),
 	}
 
 	// Call the GetLogEvents API to read the log events
 	resp, err := svc.GetLogEvents(params)
 	if err != nil {
-		return logs, fmt.Errorf("Error reading log events: " + err.Error())
+		return fmt.Errorf("Error reading log events: " + err.Error())
 	}
 
 	// Print the log events
-	logs = make([]string, len(resp.Events))
+	logs := make([]string, len(resp.Events))
 	for i, event := range resp.Events {
 		logs[i] = *event.Message
 	}
-	return logs, nil
+	j.containerLogs = logs
+	return nil
 }
