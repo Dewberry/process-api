@@ -34,14 +34,15 @@ type Job interface {
 	Create() error
 }
 
-// JobStatus contains details about a job
-// only those fields are exported which are part of OGC status response
-type JobStatus struct {
+// JobRecord contains details about a job
+type JobRecord struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
 	Status     string    `json:"status"`
 	ProcessID  string    `json:"processID"`
 	Type       string    `default:"process" json:"type"`
+	Host       string    `json:"host,omitempty"`
+	Mode       string    `json:"mode,omitempty"`
 }
 
 // JobLogs describes logs for the job
@@ -61,15 +62,15 @@ const (
 
 // Returns an array of all Job statuses in memory
 // Most recently updated job first
-func (ac *ActiveJobs) ListJobs() []JobStatus {
+func (ac *ActiveJobs) ListJobs() []JobRecord {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
-	jobs := make([]JobStatus, len(ac.Jobs))
+	jobs := make([]JobRecord, len(ac.Jobs))
 
 	var i int
 	for _, j := range ac.Jobs {
-		js := JobStatus{
+		js := JobRecord{
 			ProcessID:  (*j).ProcessID(),
 			JobID:      (*j).JobID(),
 			LastUpdate: (*j).LastUpdate(),

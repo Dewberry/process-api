@@ -3,6 +3,7 @@ package jobs
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/labstack/gommon/log"
@@ -84,7 +85,7 @@ func (db *DB) addJob(jid string, status string, updated time.Time, mode string, 
 	return nil
 }
 
-func (db *DB) updateJobStatus(jid string, status string, now time.Time) {
+func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 	query := `UPDATE jobs SET status = ?, updated = ? WHERE id = ?`
 	_, err := db.Handle.Exec(query, status, now, jid)
 	if err != nil {
@@ -109,4 +110,101 @@ func (db *DB) addLogs(jid string, apiLogs []string, containerLogs []string) {
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+func (db *DB) GetJob(jid string) (JobRecord, bool) {
+	query := `SELECT * FROM jobs WHERE id = ?`
+
+	js := JobRecord{}
+
+	row := db.Handle.QueryRow(query, jid)
+	err := row.Scan(&js.JobID, &js.Status, &js.LastUpdate, &js.Mode, &js.Host, &js.ProcessID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return JobRecord{}, false
+		} else {
+			log.Error(err)
+			return JobRecord{}, false
+		}
+	}
+	return js, true
+}
+
+func (db *DB) CheckJobExist(jid string) bool {
+	query := `SELECT id FROM jobs WHERE id = ?`
+
+	js := JobRecord{}
+
+	row := db.Handle.QueryRow(query, jid)
+	err := row.Scan(&js.JobID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false
+		} else {
+			log.Error(err)
+			return false
+		}
+	}
+	return true
+}
+
+func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
+	query := `SELECT id, status, updated, process_id FROM jobs ORDER BY updated DESC LIMIT ? OFFSET ?`
+
+	res := []JobRecord{}
+
+	rows, err := db.Handle.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r JobRecord
+		var updated string
+		if err := rows.Scan(&r.JobID, &r.Status, &updated, &r.ProcessID); err != nil {
+			return nil, err
+		}
+		r.LastUpdate, err = time.Parse(time.RFC3339, updated)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, r)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (db *DB) GetLogs(jid string) (JobLogs, error) {
+	query := `SELECT api_logs, container_logs FROM logs WHERE job_id = ?`
+
+	logs := JobLogs{}
+	// These will hold the JSON strings from the database
+	var apiLogsJSON, containerLogsJSON string
+
+	row := db.Handle.QueryRow(query, jid)
+	err := row.Scan(&apiLogsJSON, &containerLogsJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return JobLogs{}, errors.New("not found")
+		} else {
+			return JobLogs{}, err
+		}
+	}
+
+	// Convert JSON strings back into arrays of strings
+	err = json.Unmarshal([]byte(apiLogsJSON), &logs.APILogs)
+	if err != nil {
+		return JobLogs{}, errors.New("error decoding api logs")
+	}
+	err = json.Unmarshal([]byte(containerLogsJSON), &logs.ContainerLogs)
+	if err != nil {
+		return JobLogs{}, errors.New("error decoding container logs")
+	}
+
+	return logs, nil
 }

@@ -76,7 +76,7 @@ func (j *DockerJob) NewStatusUpdate(s string) {
 	j.Status = s
 	now := time.Now()
 	j.UpdateTime = now
-	j.DB.updateJobStatus(j.UUID, s, now)
+	j.DB.updateJobRecord(j.UUID, s, now)
 }
 
 func (j *DockerJob) CurrentStatus() string {

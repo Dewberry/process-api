@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -329,7 +330,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobStatus
+// @Success 200 {object} JobRecord
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -339,13 +340,15 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		resp := jobs.JobStatus{
+		resp := jobs.JobRecord{
 			ProcessID:  (*job).ProcessID(),
 			JobID:      (*job).JobID(),
 			LastUpdate: (*job).LastUpdate(),
 			Status:     (*job).CurrentStatus(),
 		}
 		return prepareResponse(c, http.StatusOK, "js", resp)
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
+		return prepareResponse(c, http.StatusOK, "js", jRcrd)
 	}
 	output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("%s job id not found", jobID)}
 	return prepareResponse(c, http.StatusNotFound, "error", output)
@@ -362,12 +365,19 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		switch (*job).CurrentStatus() {
+		// for sync jobs jobid is not returned to use untill the job is no longer in activeJobs, so it means job is not async
+		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+		return c.JSON(http.StatusNotFound, output)
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
+		// todo
+		// if jRcrd.Mode == "sync"
+
+		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			outputs, err := jobs.FetchResults(rh.S3Svc, (*job).JobID())
+			outputs, err := jobs.FetchResults(rh.S3Svc, jRcrd.JobID)
 			if err != nil {
 				if err.Error() == "not found" {
-					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
+					output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "results not available, resource might have expired."}
 					return c.JSON(http.StatusNotFound, output)
 				}
 				return c.JSON(http.StatusInternalServerError, err.Error())
@@ -375,18 +385,18 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			output := jobResponse{
 				Type:       "process",
 				JobID:      jobID,
-				Status:     (*job).CurrentStatus(),
-				LastUpdate: (*job).LastUpdate(),
+				Status:     jRcrd.Status,
+				LastUpdate: jRcrd.LastUpdate,
 				Outputs:    outputs,
 			}
 			return c.JSON(http.StatusOK, output)
 
 		case jobs.FAILED, jobs.DISMISSED:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
 			return c.JSON(http.StatusOK, output)
 
 		default:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "results not ready", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusNotFound, output)
 		}
 
@@ -398,18 +408,19 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		switch (*job).(type) {
-		case *jobs.DockerJob:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not exist for sync jobs."}
-			return c.JSON(http.StatusBadRequest, output)
-		}
+		// for sync jobs jobid is not returned to use untill the job is no longer in activeJobs, so it means job is not async
+		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
+		return c.JSON(http.StatusNotFound, output)
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
+		// todo
+		// if jRcrd.Mode == "sync"
 
-		switch (*job).CurrentStatus() {
+		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			md, err := jobs.FetchMeta(rh.S3Svc, (*job).JobID())
+			md, err := jobs.FetchMeta(rh.S3Svc, jobID)
 			if err != nil {
 				if err.Error() == "not found" {
-					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not found."}
+					output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "metadata not found."}
 					return c.JSON(http.StatusInternalServerError, output)
 				}
 				return c.JSON(http.StatusInternalServerError, err.Error())
@@ -417,11 +428,11 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 			return c.JSON(http.StatusOK, md)
 
 		case jobs.FAILED, jobs.DISMISSED:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Metadata only available for successful jobs.", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Metadata only available for successful jobs.", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusOK, output)
 
 		default:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "metadata not ready", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusNotFound, output)
 		}
 
@@ -445,22 +456,28 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		return err
 	}
 
+	var logs jobs.JobLogs
+	var errLogs error
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		logs, err := (*job).Logs()
-		if err != nil {
-			if err.Error() == "not found" {
-				output := errResponse{HTTPStatus: http.StatusNotFound, Message: err.Error()}
-				return prepareResponse(c, http.StatusNotFound, "error", output)
-			}
-			output := errResponse{HTTPStatus: http.StatusNotFound, Message: "Error while fetching logs: " + err.Error()}
-			return prepareResponse(c, http.StatusInternalServerError, "error", output)
-		}
-
-		return prepareResponse(c, http.StatusOK, "logs", logs)
+		logs, errLogs = (*job).Logs()
+	} else if ok := rh.DB.CheckJobExist(jobID); ok {
+		logs, errLogs = rh.DB.GetLogs(jobID)
+	} else {
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
+		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
-	output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
-	return prepareResponse(c, http.StatusNotFound, "error", output)
+	if errLogs != nil {
+		if errLogs.Error() == "not found" {
+			output := errResponse{HTTPStatus: http.StatusNotFound, Message: errLogs.Error()}
+			return prepareResponse(c, http.StatusNotFound, "error", output)
+		}
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "Error while fetching logs: " + errLogs.Error()}
+		return prepareResponse(c, http.StatusInternalServerError, "error", output)
+	}
+
+	return prepareResponse(c, http.StatusOK, "logs", logs)
+
 }
 
 // @Summary Summary of all (active) Jobs
@@ -468,14 +485,31 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []JobStatus
+// @Success 200 {object} []JobRecord
 // @Router /jobs [get]
-func (rh *RESTHandler) ActiveJobsHandler(c echo.Context) error {
+func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	err := validateFormat(c)
 	if err != nil {
 		return err
 	}
 
-	jobsList := rh.ActiveJobs.ListJobs()
-	return prepareResponse(c, http.StatusOK, "jobs", jobsList)
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit > 50 || limit < 1 {
+		limit = 50
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	result, err := rh.DB.GetJobs(limit, offset)
+	if err != nil {
+		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
+		return prepareResponse(c, http.StatusNotFound, "error", output)
+	}
+	return prepareResponse(c, http.StatusOK, "jobs", result)
 }

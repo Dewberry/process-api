@@ -93,7 +93,7 @@ func main() {
 	// e.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", rh.ActiveJobsHandler)
+	e.GET("/jobs", rh.ListJobsHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
