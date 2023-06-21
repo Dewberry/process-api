@@ -14,7 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
 )
 
 // base error
@@ -183,7 +182,6 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 func (rh *RESTHandler) Execution(c echo.Context) error {
 	processID := c.Param("processID")
 
-	log.Debug("processID", processID)
 	if processID == "" {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
@@ -199,7 +197,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	// Review this section
 	if params.Inputs == nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
 	}
@@ -236,6 +233,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			EnvVars:     p.Container.EnvVars,
 			Resources:   jobs.Resources(p.Container.Resources),
 			Cmd:         cmd,
+			DB:          rh.DB,
 		}
 
 	} else {

@@ -3,7 +3,6 @@ package handlers
 import (
 	"app/jobs"
 	pr "app/processes"
-	"database/sql"
 	"io"
 	"log"
 	"text/template"
@@ -30,7 +29,7 @@ type RESTHandler struct {
 	ConformsTo  []string
 	T           Template
 	S3Svc       *s3.S3
-	DB          *sql.DB
+	DB          *jobs.DB
 	ActiveJobs  *jobs.ActiveJobs
 	ProcessList *pr.ProcessList
 }
@@ -67,9 +66,8 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac
 
-	db := initDB(".data/db.sqlite")
-	createTables(db)
-	config.DB = db
+	adb := jobs.InitDB(".data/db.sqlite")
+	config.DB = adb
 
 	processList, err := pr.LoadProcesses(pluginsDir)
 	if err != nil {

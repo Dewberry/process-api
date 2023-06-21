@@ -2,34 +2,27 @@ package jobs
 
 import (
 	"app/controllers"
-	"app/utils"
-	"bufio"
 	"context"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// Fields are exported so that gob can access it
 type DockerJob struct {
-	ctx         context.Context
-	ctxCancel   context.CancelFunc
-	UUID        string `json:"jobID"`
-	ContainerID string
-	Image       string `json:"image"`
-	ProcessName string `json:"processID"`
-	EnvVars     []string
-	Cmd         []string `json:"commandOverride"`
-	UpdateTime  time.Time
-	Status      string `json:"status"`
-	APILogs     []string
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	UUID          string `json:"jobID"`
+	ContainerID   string
+	Image         string `json:"image"`
+	ProcessName   string `json:"processID"`
+	EnvVars       []string
+	Cmd           []string `json:"commandOverride"`
+	UpdateTime    time.Time
+	Status        string `json:"status"`
+	apiLogs       []string
+	containerLogs []string
 	Resources
+	DB *DB
 }
 
 func (j *DockerJob) JobID() string {
@@ -48,31 +41,30 @@ func (j *DockerJob) IMAGE() string {
 	return j.Image
 }
 
-// Fetches Container logs from S3 and API logs from ActiveJobs
+// Return current logs of the job
 func (j *DockerJob) Logs() (JobLogs, error) {
 	var logs JobLogs
-	cl, err := j.FetchLogs()
-	if err != nil {
-		return JobLogs{}, err
-	}
-	logs.ContainerLog = cl
-	logs.APILog = j.APILogs
+
+	logs.ContainerLogs = j.containerLogs
+	logs.APILogs = j.apiLogs
 	return logs, nil
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
-	return j.APILogs
+	return j.apiLogs
 }
 
 func (j *DockerJob) NewMessage(m string) {
-	j.APILogs = append(j.APILogs, m)
+	j.apiLogs = append(j.apiLogs, m)
 }
 
+// Append error to apiLogs, cancelCtx, update Status, and time, write logs to database
 func (j *DockerJob) HandleError(m string) {
-	j.APILogs = append(j.APILogs, m)
+	j.apiLogs = append(j.apiLogs, m)
 	j.ctxCancel()
 	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
 		j.NewStatusUpdate(FAILED)
+		go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	}
 }
 
@@ -82,7 +74,9 @@ func (j *DockerJob) LastUpdate() time.Time {
 
 func (j *DockerJob) NewStatusUpdate(s string) {
 	j.Status = s
-	j.UpdateTime = time.Now()
+	now := time.Now()
+	j.UpdateTime = now
+	j.DB.updateJobStatus(j.UUID, FAILED, now)
 }
 
 func (j *DockerJob) CurrentStatus() string {
@@ -109,13 +103,11 @@ func (j *DockerJob) Create() error {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.HandleError(err.Error())
 		return err
 	}
 
 	// verify command in body
 	if j.Cmd == nil {
-		j.HandleError(err.Error())
 		return err
 	}
 
@@ -123,9 +115,14 @@ func (j *DockerJob) Create() error {
 	if j.Image != "" {
 		err = c.EnsureImage(ctx, j.Image, false)
 		if err != nil {
-			j.HandleError(err.Error())
 			return err
 		}
+	}
+
+	// At this point job is ready to be added to database
+	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
+	if err != nil {
+		return err
 	}
 
 	j.NewStatusUpdate(ACCEPTED)
@@ -161,13 +158,9 @@ func (j *DockerJob) Run() {
 
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
-	logs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
-
-	// Creating new routine so that failure of writing logs does not mean failure of job
-	// This function does not panic
-	expDays, _ := strconv.Atoi(os.Getenv("EXPIRY_DAYS"))
-	textBytes := []byte(strings.Join(logs, "\n"))
-	go utils.WriteToS3(textBytes, fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID), &j.APILogs, "text/plain", expDays)
+	// todo: get logs while container running so that logs or running containers is visible by users
+	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
+	j.containerLogs = containerLogs
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
@@ -201,6 +194,7 @@ func (j *DockerJob) Run() {
 		return
 	}
 
+	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 }
 
@@ -211,6 +205,8 @@ func (j *DockerJob) Kill() error {
 		// if these jobs have been loaded from previous snapshot they would not have context etc
 		return fmt.Errorf("can't call delete on an already completed, failed, or dismissed job")
 	}
+
+	j.NewMessage("`received dismiss signal`")
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
@@ -223,53 +219,7 @@ func (j *DockerJob) Kill() error {
 	}
 
 	j.NewStatusUpdate(DISMISSED)
+	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 	return nil
-}
-
-// If JobID exists but log file doesn't then it raises an error
-// Assumes jobID is valid and the process is sync
-func (j *DockerJob) FetchLogs() ([]string, error) {
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	svc := s3.New(sess)
-
-	bucket := os.Getenv("S3_BUCKET")
-	key := fmt.Sprintf("%s/%s.txt", os.Getenv("S3_LOGS_DIR"), j.UUID)
-
-	exist, err := utils.KeyExists(key, svc)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, fmt.Errorf("not found")
-	}
-
-	// Create a new S3GetObjectInput object to specify the file to read
-	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}
-
-	// Use the S3 service object to download the file into a byte slice
-	resp, err := svc.GetObject(params)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	scanner := bufio.NewScanner(resp.Body)
-	var logs []string
-
-	for scanner.Scan() {
-		logs = append(logs, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return logs, nil
 }

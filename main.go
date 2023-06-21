@@ -124,7 +124,7 @@ func main() {
 		e.Logger.Info("killed and removed active containers")
 	}
 
-	if err := rh.DB.Close(); err != nil {
+	if err := rh.DB.Handle.Close(); err != nil {
 		e.Logger.Fatal(err)
 	} else {
 		e.Logger.Info("closed connection to database")

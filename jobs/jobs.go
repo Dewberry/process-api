@@ -48,8 +48,8 @@ type JobStatus struct {
 
 // JobLogs describes logs for the job
 type JobLogs struct {
-	ContainerLog []string `json:"container_log"`
-	APILog       []string `json:"api_log"`
+	ContainerLogs []string `json:"container_logs"`
+	APILogs       []string `json:"api_logs"`
 }
 
 // OGCStatusCodes

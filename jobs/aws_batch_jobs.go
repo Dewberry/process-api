@@ -61,8 +61,8 @@ func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	if err != nil {
 		return JobLogs{}, err
 	}
-	logs.ContainerLog = cl
-	logs.APILog = j.APILogs
+	logs.ContainerLogs = cl
+	logs.APILogs = j.APILogs
 	return logs, nil
 }
 
