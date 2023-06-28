@@ -69,7 +69,9 @@ func main() {
 	e.HideBanner = true
 	e.HidePort = true
 	e.Use(middleware.Recover())
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Output: e.Logger.Output(),
+	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
