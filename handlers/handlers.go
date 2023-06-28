@@ -135,12 +135,30 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 		return err
 	}
 
-	processList, err := rh.ProcessList.ListAll()
-	if err != nil {
-		return prepareResponse(c, http.StatusInternalServerError, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusInternalServerError})
+	// to meet ogc api core requirement /req/core/pl-limit-definition
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit > 100 || limit < 1 {
+		limit = 50
 	}
 
-	return prepareResponse(c, http.StatusOK, "processes", processList)
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	if offset >= len(rh.ProcessList.InfoList) {
+		return prepareResponse(c, http.StatusOK, "processes", rh.ProcessList.InfoList[0:0])
+	}
+
+	upperBound := offset + limit
+	if upperBound > len(rh.ProcessList.InfoList) {
+		upperBound = len(rh.ProcessList.InfoList)
+	}
+
+	return prepareResponse(c, http.StatusOK, "processes", rh.ProcessList.InfoList[offset:upperBound])
 }
 
 // ProcessDescribeHandler godoc
