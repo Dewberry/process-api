@@ -1163,7 +1163,7 @@
 									"const jobsData = pm.response.json();\r",
 									"\r",
 									"pm.test(\"number of jobs in record test\", function () {\r",
-									"    pm.expect(jobsData.length).to.eql(4);\r",
+									"    pm.expect(jobsData.length).to.eql(2);\r",
 									"});\r",
 									""
 								],
@@ -1175,7 +1175,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{url}}/jobs",
+							"raw": "{{url}}/jobs?limit=10&offset=2",
 							"host": [
 								"{{url}}"
 							],
@@ -1184,9 +1184,12 @@
 							],
 							"query": [
 								{
-									"key": "include_error_messages",
-									"value": "true",
-									"disabled": true
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "2"
 								}
 							]
 						}
