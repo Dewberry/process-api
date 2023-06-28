@@ -497,7 +497,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	offsetStr := c.QueryParam("offset")
 
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit > 50 || limit < 1 {
+	if err != nil || limit > 100 || limit < 1 {
 		limit = 50
 	}
 
