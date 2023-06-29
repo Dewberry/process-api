@@ -187,7 +187,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"epoch\": \"2020\"\n    }\n}",
+											"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"epoch\": \"2020\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -207,7 +207,7 @@
 											"variable": [
 												{
 													"key": "processID",
-													"value": "aepGrid"
+													"value": "dfc"
 												}
 											]
 										}
@@ -620,7 +620,7 @@
 									"name": "job-submit",
 									"item": [
 										{
-											"name": "aepGrid",
+											"name": "dfc",
 											"event": [
 												{
 													"listen": "test",
@@ -638,7 +638,7 @@
 												"header": [],
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
 													"options": {
 														"raw": {
 															"language": "json"
@@ -658,7 +658,7 @@
 													"variable": [
 														{
 															"key": "processID",
-															"value": "aepGrid"
+															"value": "dfc"
 														}
 													]
 												}
@@ -690,7 +690,7 @@
 											"response": []
 										},
 										{
-											"name": "aepGrid retry",
+											"name": "dfc retry",
 											"event": [
 												{
 													"listen": "test",
@@ -708,7 +708,7 @@
 												"header": [],
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
 													"options": {
 														"raw": {
 															"language": "json"
@@ -728,7 +728,7 @@
 													"variable": [
 														{
 															"key": "processID",
-															"value": "aepGrid"
+															"value": "dfc"
 														}
 													]
 												}
@@ -765,13 +765,58 @@
 									"name": "job-details",
 									"item": [
 										{
+											"name": "job-logs-before-job-is-running",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/logs",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"logs"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
 											"name": "job-status",
 											"event": [
 												{
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 20000); \r",
+															"setTimeout(() => {}, 30000); \r",
 															""
 														],
 														"type": "text/javascript"
@@ -820,13 +865,13 @@
 											"response": []
 										},
 										{
-											"name": "job-logs",
+											"name": "job-logs-after-streamname-exist",
 											"event": [
 												{
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 20000); "
+															""
 														],
 														"type": "text/javascript"
 													}
@@ -871,7 +916,7 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 200000); "
+															"setTimeout(() => {}, 110000); "
 														],
 														"type": "text/javascript"
 													}
@@ -975,7 +1020,7 @@
 							"name": "job-submit",
 							"item": [
 								{
-									"name": "aepGrid",
+									"name": "dfc",
 									"event": [
 										{
 											"listen": "test",
@@ -993,7 +1038,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"inputs\": {\n        \"aepGridDestination\": \"aep-grid-outputs/output3.tif\",\n        \"tile\": \"106\",\n        \"epoch\": \"2020\"\n    }\n}",
+											"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1013,7 +1058,7 @@
 											"variable": [
 												{
 													"key": "processID",
-													"value": "aepGrid"
+													"value": "dfc"
 												}
 											]
 										}
@@ -1049,31 +1094,6 @@
 						{
 							"name": "Negatives",
 							"item": [
-								{
-									"name": "job-logs",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{url}}/jobs/:jobID/logs",
-											"host": [
-												"{{url}}"
-											],
-											"path": [
-												"jobs",
-												":jobID",
-												"logs"
-											],
-											"variable": [
-												{
-													"key": "jobID",
-													"value": "{{jobID}}"
-												}
-											]
-										}
-									},
-									"response": []
-								},
 								{
 									"name": "job-metadata",
 									"request": {
