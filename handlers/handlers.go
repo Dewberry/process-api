@@ -382,13 +382,11 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		// for sync jobs jobid is not returned to use untill the job is no longer in activeJobs, so it means job is not async
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
 		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
 		return c.JSON(http.StatusNotFound, output)
-	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
-		// todo
-		// if jRcrd.Mode == "sync"
+
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
 
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
@@ -419,17 +417,18 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 		}
 
 	}
+	// miss
 	output := errResponse{Message: "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
-		// for sync jobs jobid is not returned to use untill the job is no longer in activeJobs, so it means job is not async
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		// for sync jobs jobid is not returned to user untill the job is no longer in activeJobs, so it means job is not async
 		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
 		return c.JSON(http.StatusNotFound, output)
-	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
 		// todo
 		// if jRcrd.Mode == "sync"
 
@@ -455,6 +454,7 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 		}
 
 	}
+	// miss
 	output := errResponse{Message: "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
@@ -476,24 +476,22 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 
 	var logs jobs.JobLogs
 	var errLogs error
-	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
+
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
 		logs, errLogs = (*job).Logs()
-	} else if ok := rh.DB.CheckJobExist(jobID); ok {
+	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
 		logs, errLogs = rh.DB.GetLogs(jobID)
-	} else {
+	} else { // miss
 		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
 	if errLogs != nil {
-		if errLogs.Error() == "not found" {
-			output := errResponse{HTTPStatus: http.StatusNotFound, Message: errLogs.Error()}
-			return prepareResponse(c, http.StatusNotFound, "error", output)
-		}
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "Error while fetching logs: " + errLogs.Error()}
+		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + errLogs.Error()}
 		return prepareResponse(c, http.StatusInternalServerError, "error", output)
 	}
 
+	logs.Prettify()
 	return prepareResponse(c, http.StatusOK, "logs", logs)
 
 }

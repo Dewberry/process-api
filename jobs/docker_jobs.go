@@ -162,7 +162,7 @@ func (j *DockerJob) Run() {
 
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
-	// todo: get logs while container running so that logs or running containers is visible by users
+	// todo: get logs while container running so that logs or running containers is visible by users this would only be needed when docker jobs can also be async
 	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
 	j.containerLogs = containerLogs
 

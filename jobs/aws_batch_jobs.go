@@ -56,13 +56,16 @@ func (j *AWSBatchJob) IMAGE() string {
 	return j.Image
 }
 
-// Return current logs of the job
-// Fetches Container logs from CloudWatch
+// Return current logs of the job.
+// Fetches Container logs from CloudWatch.
 func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	var logs JobLogs
-	err := j.fetchCloudWatchLogs()
-	if err != nil {
-		return logs, err
+	// we are fetching logs here and not in run function because we only want to fetch logs when needed
+	if j.logStreamName != "" {
+		err := j.fetchCloudWatchLogs()
+		if err != nil {
+			return logs, fmt.Errorf("error while fetching cloud watch logs for: %s: %s", j.logStreamName, err.Error())
+		}
 	}
 
 	logs.ContainerLogs = j.containerLogs
@@ -88,6 +91,7 @@ func (j *AWSBatchJob) HandleError(m string) {
 	j.ctxCancel()
 	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
 		j.NewStatusUpdate(FAILED)
+		j.fetchCloudWatchLogs()
 		go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	}
 }
@@ -180,7 +184,6 @@ func (j *AWSBatchJob) Run() {
 
 		if status != oldStatus {
 			j.logStreamName = logStreamName
-			j.fetchCloudWatchLogs()
 			switch status {
 			case "ACCEPTED":
 				j.NewStatusUpdate(ACCEPTED)
@@ -190,12 +193,14 @@ func (j *AWSBatchJob) Run() {
 				// fetch results here // todo
 				j.NewStatusUpdate(SUCCESSFUL)
 				j.ctxCancel()
+				j.fetchCloudWatchLogs()
 				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 				go j.WriteMeta(c)
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)
 				j.ctxCancel()
+				j.fetchCloudWatchLogs()
 				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 				return
 			case "FAILED":
@@ -228,7 +233,9 @@ func (j *AWSBatchJob) Kill() error {
 	}
 
 	j.NewStatusUpdate(DISMISSED)
-	// this may not be needed since in the run function at a dimiss status logs will be written to database
+	// this would be redundent in most cases because the run function will also update status and add logs
+	// but leaving it here in case run function fails
+	j.fetchCloudWatchLogs()
 	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 	return nil
@@ -261,7 +268,11 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() error {
 	// Call the GetLogEvents API to read the log events
 	resp, err := svc.GetLogEvents(params)
 	if err != nil {
-		return fmt.Errorf("Error reading log events: " + err.Error())
+		if err.Error() == "ResourceNotFoundException: The specified log stream does not exist." {
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	// Print the log events
