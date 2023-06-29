@@ -51,6 +51,16 @@ type JobLogs struct {
 	APILogs       []string `json:"api_logs"`
 }
 
+// Prettify JobLogs by replacing nil with empty []string{}
+func (jl *JobLogs) Prettify() {
+	if jl.ContainerLogs == nil {
+		jl.ContainerLogs = []string{}
+	}
+	if jl.APILogs == nil {
+		jl.APILogs = []string{}
+	}
+}
+
 // OGCStatusCodes
 const (
 	ACCEPTED   = "accepted"
