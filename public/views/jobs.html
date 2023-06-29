@@ -58,6 +58,7 @@
             color: gray;
         }
 
+        /* we do not want visited to be highlighted as this jobs are continuously updated and visited is not relevant here */
         a:link,
         a:visited {
             color: blue;
@@ -111,6 +112,7 @@
         <a href="{{.Href}}" class="next-link"> Next &gt; </a>
         {{end}}
         {{end}}
+    </div>
 </body>
 
 </html>

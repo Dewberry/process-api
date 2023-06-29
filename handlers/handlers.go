@@ -156,16 +156,43 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 		offset = 0
 	}
 
-	if offset >= len(rh.ProcessList.InfoList) {
-		return prepareResponse(c, http.StatusOK, "processes", rh.ProcessList.InfoList[0:0])
+	// instantiate result variable without importing processes pkg
+	result := rh.ProcessList.InfoList[0:0]
+
+	if offset < len(rh.ProcessList.InfoList) {
+		upperBound := offset + limit
+		if upperBound > len(rh.ProcessList.InfoList) {
+			upperBound = len(rh.ProcessList.InfoList)
+		}
+		result = rh.ProcessList.InfoList[offset:upperBound]
 	}
 
-	upperBound := offset + limit
-	if upperBound > len(rh.ProcessList.InfoList) {
-		upperBound = len(rh.ProcessList.InfoList)
+	// required by /req/core/process-list-success
+	links := make([]link, 0)
+
+	// if offset is not 0
+	if offset != 0 {
+		lnk := link{
+			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset-limit, limit),
+			Title: "prev",
+		}
+		links = append(links, lnk)
 	}
 
-	return prepareResponse(c, http.StatusOK, "processes", rh.ProcessList.InfoList[offset:upperBound])
+	// if limit is not exhausted
+	if limit == len(result) {
+		lnk := link{
+			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset+limit, limit),
+			Title: "next",
+		}
+		links = append(links, lnk)
+	}
+
+	output := make(map[string]interface{}, 0)
+	output["processes"] = result
+	output["links"] = links
+
+	return prepareResponse(c, http.StatusOK, "processes", output)
 }
 
 // ProcessDescribeHandler godoc
