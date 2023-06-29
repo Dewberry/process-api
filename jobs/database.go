@@ -19,6 +19,12 @@ func (db *DB) createTables() {
 
 	// SQLite does not have a built-in ENUM type or array type.
 	// SQLite doesn't enforce the length of the VARCHAR datatype, therefore not using something like VARCHAR(30).
+	// SQLite's concurrency control is based on transactions, not connections. A connection to a SQLite database does not inherently acquire a lock.
+	// Locks are acquired when a transaction is started and released when the transaction is committed or rolled back.
+
+	// indices needed to speedup
+	// fetching jobs for a particular process id
+	// providing job-lists ordered by time
 
 	queryJobs := `
 	CREATE TABLE IF NOT EXISTS jobs (
@@ -31,7 +37,6 @@ func (db *DB) createTables() {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_jobs_updated ON jobs(updated);
-	CREATE INDEX IF NOT EXISTS idx_jobs_id ON jobs(id);
 	CREATE INDEX IF NOT EXISTS idx_jobs_process_id ON jobs(process_id);
 	`
 
@@ -44,13 +49,11 @@ func (db *DB) createTables() {
 
 	queryLogs := `
 	CREATE TABLE IF NOT EXISTS logs (
-		job_id TEXT,
+		job_id TEXT PRIMARY KEY,
 		api_logs TEXT,
 		container_logs TEXT,
-		FOREIGN KEY (job_id) REFERENCES jobs(id)
+		FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
 	);
-
-	CREATE INDEX IF NOT EXISTS idx_logs_job_id ON logs (job_id);
 	`
 
 	_, err = db.Handle.Exec(queryLogs)
@@ -61,9 +64,12 @@ func (db *DB) createTables() {
 
 // Initialize the database
 func InitDB(filepath string) *DB {
-	h, err := sql.Open("sqlite3", filepath)
+	h, err := sql.Open("sqlite3", filepath+"?mode=rwc")
+	// it maybe a good idea to check here if the connections has write privilage https://stackoverflow.com/a/44707371/11428410 https://www.sqlite.org/c3ref/db_readonly.html
+	// also maybe we should make db such that only go can write to it
+
 	if err != nil {
-		log.Fatalf("could not open %s delete the existing database to start with a fresh datbase: %s", filepath, err.Error())
+		log.Fatalf("could not open %s Delete the existing database to start with a new datbase. Error: %s", filepath, err.Error())
 	}
 
 	if h == nil {
@@ -94,7 +100,12 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 }
 
 func (db *DB) addLogs(jid string, apiLogs []string, containerLogs []string) {
-	query := `INSERT INTO logs (job_id, api_logs, container_logs) VALUES (?, ?, ?)`
+	query := `
+	INSERT INTO logs (job_id, api_logs, container_logs) VALUES (?, ?, ?)
+		ON CONFLICT(job_id) DO UPDATE SET
+			api_logs = excluded.api_logs,
+			container_logs = excluded.container_logs;
+	`
 
 	// Convert APILogs and ContainerLogs from []string to JSON string
 	apiLogsJSON, err := json.Marshal(apiLogs)
