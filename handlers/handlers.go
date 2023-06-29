@@ -541,7 +541,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	// if offset is not 0
 	if offset != 0 {
 		lnk := link{
-			Href:  fmt.Sprintf("/jobs?limit=%v", limit),
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset-limit, limit),
 			Title: "prev",
 		}
 		links = append(links, lnk)
