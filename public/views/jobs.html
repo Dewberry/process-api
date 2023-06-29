@@ -57,37 +57,60 @@
         .gray {
             color: gray;
         }
+
+        a:link,
+        a:visited {
+            color: blue;
+        }
+
+        .pagination {
+            text-align: center;
+        }
+
+        .prev-link {
+            margin-right: 10px;
+        }
     </style>
 </head>
 
 <body>
     <h1>Jobs List</h1>
-    <hr>
     <table>
         <thead>
             <tr>
                 <th>Logs (JobID)</th>
                 <th>Status</th>
                 <th>ProcessID</th>
-                <th>Commands</th>
                 <th>Updated</th>
             </tr>
         </thead>
         <tbody>
-            {{range .}}
+            {{range .jobs}}
             <tr>
                 <td><a href="/jobs/{{.JobID}}/logs" target="_blank">{{.JobID}}</a></td>
-                <td><a href="/jobs/{{.JobID}}" target="_blank">{{.Status}}</a></td>
-                <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
                 <td>
-                    <pre
-                        style="max-width: 700px; white-space: pre-wrap; word-break: break-word;">{{range .CMD}}{{.}} {{end}}</pre>
+                    {{if eq .Status "successful"}}✔️{{else if or (eq .Status "failed") (eq .Status
+                    "dismissed")}}❌{{else if or (eq .Status "accepted") (eq .Status "running")}}🟡{{end}}
+                    <a href="/jobs/{{.JobID}}" target="_blank">
+                        {{.Status}}
+                    </a>
                 </td>
+                <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
                 <td>{{.LastUpdate}}</td>
             </tr>
             {{end}}
         </tbody>
     </table>
+    <br>
+    <div class="pagination">
+        {{range .links}}
+        {{if eq .Title "prev"}}
+        <a href="{{.Href}}" class="prev-link"> &lt; Prev </a>
+        {{end}}
+        {{if eq .Title "next"}}
+        <a href="{{.Href}}" class="next-link"> Next &gt; </a>
+        {{end}}
+        {{end}}
 </body>
 
 </html>

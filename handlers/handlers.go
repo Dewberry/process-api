@@ -34,6 +34,13 @@ type jobResponse struct {
 	Outputs    interface{} `json:"outputs,omitempty"`
 }
 
+type link struct {
+	Href  string `json:"href"`
+	Rel   string `json:"rel,omitempty"`
+	Type  string `json:"type,omitempty"`
+	Title string `json:"title,omitempty"`
+}
+
 // StatusText returns a text for the HTTP status code. It returns the empty
 // string if the code is unknown.
 func (er errResponse) GetHTTPStatusText() string {
@@ -408,7 +415,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			return c.JSON(http.StatusOK, output)
 
 		case jobs.FAILED, jobs.DISMISSED:
-			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusOK, output)
 
 		default:
@@ -527,5 +534,30 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
-	return prepareResponse(c, http.StatusOK, "jobs", result)
+
+	// required by /req/job-list/job-list-success
+	links := make([]link, 0)
+
+	// if offset is not 0
+	if offset != 0 {
+		lnk := link{
+			Href:  fmt.Sprintf("/jobs?limit=%v", limit),
+			Title: "prev",
+		}
+		links = append(links, lnk)
+	}
+
+	// if limit is not exhausted
+	if limit == len(result) {
+		lnk := link{
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset+limit, limit),
+			Title: "next",
+		}
+		links = append(links, lnk)
+	}
+
+	output := make(map[string]interface{}, 0)
+	output["jobs"] = result
+	output["links"] = links
+	return prepareResponse(c, http.StatusOK, "jobs", output)
 }
