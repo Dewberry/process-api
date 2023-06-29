@@ -45,16 +45,42 @@
 				},
 				{
 					"name": "processes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const processData = pm.response.json();\r",
+									"\r",
+									"pm.test(\"number of processes registered test\", function () {\r",
+									"    pm.expect(processData.length).to.eql(1);\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{url}}/processes",
+							"raw": "{{url}}/processes?limit=1&offset=1",
 							"host": [
 								"{{url}}"
 							],
 							"path": [
 								"processes"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "1"
+								},
+								{
+									"key": "offset",
+									"value": "1"
+								}
 							]
 						}
 					},
@@ -1175,7 +1201,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{url}}/jobs?limit=10&offset=2",
+							"raw": "{{url}}/jobs?limit=2&offset=1",
 							"host": [
 								"{{url}}"
 							],
@@ -1185,11 +1211,11 @@
 							"query": [
 								{
 									"key": "limit",
-									"value": "10"
+									"value": "2"
 								},
 								{
 									"key": "offset",
-									"value": "2"
+									"value": "1"
 								}
 							]
 						}
