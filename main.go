@@ -22,7 +22,6 @@ import (
 
 var (
 	pluginsDir string
-	overwrite  bool
 	port       string
 	envFP      string
 )
@@ -126,6 +125,7 @@ func main() {
 		e.Logger.Info("killed and removed active containers")
 	}
 
+	time.Sleep(15 * time.Second) // sleep so that routines spawned by KillAll() can finish, using 15 seconds because AWS batch monitors jobs every 10 seconds
 	if err := rh.DB.Handle.Close(); err != nil {
 		e.Logger.Fatal(err)
 	} else {
