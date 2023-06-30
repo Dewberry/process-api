@@ -50,7 +50,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"const processData = pm.response.json();\r",
+									"const processData = pm.response.json().processes;\r",
 									"\r",
 									"pm.test(\"number of processes registered test\", function () {\r",
 									"    pm.expect(processData.length).to.eql(1);\r",
@@ -1206,7 +1206,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"const jobsData = pm.response.json();\r",
+									"const jobsData = pm.response.json().jobs;\r",
 									"\r",
 									"pm.test(\"number of jobs in record test\", function () {\r",
 									"    pm.expect(jobsData.length).to.eql(2);\r",
