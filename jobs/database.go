@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/labstack/gommon/log"
@@ -63,13 +65,21 @@ func (db *DB) createTables() {
 }
 
 // Initialize the database
-func InitDB(filepath string) *DB {
-	h, err := sql.Open("sqlite3", filepath+"?mode=rwc")
+func InitDB(dbPath string) *DB {
+
+	// Create directory structure if it doesn't exist
+	dir := filepath.Dir(dbPath)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	h, err := sql.Open("sqlite3", dbPath+"?mode=rwc")
 	// it maybe a good idea to check here if the connections has write privilage https://stackoverflow.com/a/44707371/11428410 https://www.sqlite.org/c3ref/db_readonly.html
 	// also maybe we should make db such that only go can write to it
 
 	if err != nil {
-		log.Fatalf("could not open %s Delete the existing database to start with a new datbase. Error: %s", filepath, err.Error())
+		log.Fatalf("could not open %s Delete the existing database to start with a new datbase. Error: %s", dbPath, err.Error())
 	}
 
 	if h == nil {
