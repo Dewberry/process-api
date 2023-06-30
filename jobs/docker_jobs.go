@@ -64,7 +64,7 @@ func (j *DockerJob) HandleError(m string) {
 	j.ctxCancel()
 	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
 		j.NewStatusUpdate(FAILED)
-		go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+		go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 	}
 }
 
@@ -198,7 +198,7 @@ func (j *DockerJob) Run() {
 
 	j.NewStatusUpdate(SUCCESSFUL)
 
-	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+	go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 }
 
@@ -223,7 +223,7 @@ func (j *DockerJob) Kill() error {
 	}
 
 	j.NewStatusUpdate(DISMISSED)
-	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+	go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 	return nil
 }

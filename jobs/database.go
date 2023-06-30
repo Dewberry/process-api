@@ -64,7 +64,8 @@ func (db *DB) createTables() {
 	}
 }
 
-// Initialize the database
+// Initialize the database.
+// Creates intermediate directories if not exist.
 func InitDB(dbPath string) *DB {
 
 	// Create directory structure if it doesn't exist
@@ -91,6 +92,7 @@ func InitDB(dbPath string) *DB {
 	return &db
 }
 
+// Add job the database. Will return error if job exist.
 func (db *DB) addJob(jid string, status string, updated time.Time, mode string, host string, process_id string) error {
 	query := `INSERT INTO jobs (id, status, updated, mode, host, process_id) VALUES (?, ?, ?, ?, ?, ?)`
 
@@ -101,6 +103,7 @@ func (db *DB) addJob(jid string, status string, updated time.Time, mode string, 
 	return nil
 }
 
+// Update status and time of a job.
 func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 	query := `UPDATE jobs SET status = ?, updated = ? WHERE id = ?`
 	_, err := db.Handle.Exec(query, status, now, jid)
@@ -109,7 +112,8 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 	}
 }
 
-func (db *DB) addLogs(jid string, apiLogs []string, containerLogs []string) {
+// Upsert logs, on conflict replace the existing logs.
+func (db *DB) upsertLogs(jid string, apiLogs []string, containerLogs []string) {
 	query := `
 	INSERT INTO logs (job_id, api_logs, container_logs) VALUES (?, ?, ?)
 		ON CONFLICT(job_id) DO UPDATE SET
@@ -133,6 +137,9 @@ func (db *DB) addLogs(jid string, apiLogs []string, containerLogs []string) {
 	}
 }
 
+// Get Job Record from database given a job id.
+// If job do not exists, or error encountered bool would be false.
+// Similar behaviour as key exist in hashmap.
 func (db *DB) GetJob(jid string) (JobRecord, bool) {
 	query := `SELECT * FROM jobs WHERE id = ?`
 
@@ -151,6 +158,7 @@ func (db *DB) GetJob(jid string) (JobRecord, bool) {
 	return js, true
 }
 
+// Check if a job exists in database.
 func (db *DB) CheckJobExist(jid string) bool {
 	query := `SELECT id FROM jobs WHERE id = ?`
 
@@ -200,6 +208,7 @@ func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
 	return res, nil
 }
 
+// Get logs from database. If job id is not found then error will be returned.
 func (db *DB) GetLogs(jid string) (JobLogs, error) {
 	query := `SELECT api_logs, container_logs FROM logs WHERE job_id = ?`
 

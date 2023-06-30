@@ -92,7 +92,7 @@ func (j *AWSBatchJob) HandleError(m string) {
 	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
 		j.NewStatusUpdate(FAILED)
 		j.fetchCloudWatchLogs()
-		go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+		go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 	}
 }
 
@@ -194,14 +194,14 @@ func (j *AWSBatchJob) Run() {
 				j.NewStatusUpdate(SUCCESSFUL)
 				j.ctxCancel()
 				j.fetchCloudWatchLogs()
-				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+				go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 				go j.WriteMeta(c)
 				return
 			case "DISMISSED":
 				j.NewStatusUpdate(DISMISSED)
 				j.ctxCancel()
 				j.fetchCloudWatchLogs()
-				go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+				go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 				return
 			case "FAILED":
 				j.HandleError("Batch API returned failed status")
@@ -236,7 +236,7 @@ func (j *AWSBatchJob) Kill() error {
 	// this would be redundent in most cases because the run function will also update status and add logs
 	// but leaving it here in case run function fails
 	j.fetchCloudWatchLogs()
-	go j.DB.addLogs(j.UUID, j.apiLogs, j.containerLogs)
+	go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
 	j.ctxCancel()
 	return nil
 }
