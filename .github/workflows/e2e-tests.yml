@@ -37,7 +37,7 @@ jobs:
       - name: Start API
         run: |
           go build main.go
-          nohup go run main.go > output.log &
+          go run main.go
 
       - name: Run newman tests
         run: |
