@@ -5,7 +5,7 @@ import (
 	"app/utils"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -188,7 +188,7 @@ func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
 	}
 	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading response: %s", err)
 	}
