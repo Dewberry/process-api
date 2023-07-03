@@ -1,13 +1,41 @@
+:root {
+    --font-color: #333;
+    --background-color: #F8F8F8;
+    --link-color: #007BFF;
+    --link-hover-color: #0056b3;
+    --table-border-color: #ddd;
+    --table-header-bg: #d7d7d7;
+    --table-row-even-bg: #efefef;
+    --table-row-hover-bg: #E6F7FF;
+    --font-color-blue: #007BFF;
+    --font-color-gray: #6C757D;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --font-color: #FFF;
+        --background-color: #333;
+        --link-color: #BB86FC;
+        --link-hover-color: #9c7bea;
+        --table-border-color: #ddd;
+        --table-header-bg: #3c3c3c;
+        --table-row-even-bg: #2a2a2a;
+        --table-row-hover-bg: #1a1a1a;
+        --font-color-blue: #BB86FC;
+        --font-color-gray: #757575;
+    }
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 1rem;
     padding: 0;
-    background-color: #F8F8F8;
-    color: #333;
+    background-color: var(--background-color);
+    color: var(--font-color);
 }
 
-h {
-    color: #333;
+h1, h2 {
+    color: var(--font-color);
 }
 
 h1 {
@@ -19,12 +47,12 @@ h2 {
 }
 
 a {
-    color: #007BFF;
+    color: var(--link-color);
     text-decoration: none;
 }
 
 a:hover {
-    color: #0056b3;
+    color: var(--link-hover-color);
     text-decoration: underline;
 }
 
@@ -34,43 +62,31 @@ table {
     margin: 1rem 0;
 }
 
-th,
-td {
+th, td {
     padding: 0.6rem;
     text-align: left;
-    border-bottom: 1px solid #ddd;
-    border-right: 1px solid #ddd;
-}
-
-th:first-child,
-td:first-child {
-    border-left: 1px solid #ddd;
-}
-
-tr:first-child td {
-    border-top: 1px solid #ddd;
+    border: 1px solid var(--table-border-color);
 }
 
 th {
-    background-color: #d7d7d7;
+    background-color: var(--table-header-bg);
     font-weight: bold;
-    text-align: center;
 }
 
 tr:nth-child(even) {
-    background-color: #efefef;
+    background-color: var(--table-row-even-bg);
 }
 
 tr:hover {
-    background-color: #E6F7FF;
+    background-color: var(--table-row-hover-bg);
 }
 
 .blue {
-    color: #007BFF;
+    color: var(--font-color-blue);
 }
 
 .gray {
-    color: #6C757D;
+    color: var(--font-color-gray);
 }
 
 .bold {
