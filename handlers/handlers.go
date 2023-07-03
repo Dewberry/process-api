@@ -60,7 +60,10 @@ func validateFormat(c echo.Context) error {
 
 // Prepare and return response based on query parameter.
 // Assumes query parameter is valid.
+// If query parameter not defined then fall back to Accept header as suggested in OGC Specs
+// Both are not defined then return JSON
 func prepareResponse(c echo.Context, httpStatus int, renderName string, output interface{}) error {
+	// this is to confomrm to OGC Process API classes: /req/html/definition and /req/json/definition
 	outputFormat := c.QueryParam("f")
 	switch outputFormat {
 	case "html":
@@ -68,13 +71,12 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	case "json":
 		return c.JSON(httpStatus, output)
 	default:
-		userAgent := c.Request().UserAgent()
-		// this method is not foolproof
-		if strings.Contains(userAgent, "Mozilla") && strings.Contains(userAgent, "AppleWebKit") {
-			// Request is coming from a browser
+		accept := c.Request().Header.Get("Accept")
+		if strings.Contains(accept, "text/html") {
+			// Browsers generally send text/html as an accept header
 			return c.Render(httpStatus, renderName, output)
 		} else {
-			// Request is not coming from a browser
+			// Default to JSON for any other cases, including 'Accept: */*'
 			return c.JSON(httpStatus, output)
 		}
 	}
@@ -398,9 +400,9 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 			LastUpdate: (*job).LastUpdate(),
 			Status:     (*job).CurrentStatus(),
 		}
-		return prepareResponse(c, http.StatusOK, "js", resp)
+		return prepareResponse(c, http.StatusOK, "jobStatus", resp)
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
-		return prepareResponse(c, http.StatusOK, "js", jRcrd)
+		return prepareResponse(c, http.StatusOK, "jobStatus", jRcrd)
 	}
 	output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("%s job id not found", jobID)}
 	return prepareResponse(c, http.StatusNotFound, "error", output)
