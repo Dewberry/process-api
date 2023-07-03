@@ -45,6 +45,7 @@ func (j *DockerJob) IMAGE() string {
 func (j *DockerJob) Logs() (JobLogs, error) {
 	var logs JobLogs
 
+	logs.JobID = j.UUID
 	logs.ContainerLogs = j.containerLogs
 	logs.APILogs = j.apiLogs
 	return logs, nil
