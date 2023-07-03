@@ -52,7 +52,7 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 
 	// Read all the html templates
 	config.T = Template{
-		templates: template.Must(template.ParseGlob("public/views/*.html")),
+		templates: template.Must(template.ParseGlob("views/*.html")),
 	}
 
 	// Set up a session with AWS credentials and region
