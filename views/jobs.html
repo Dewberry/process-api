@@ -5,73 +5,9 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
     <title>Jobs List</title>
-    <style>
-        body {
-            font-family: sans-serif;
-        }
-
-        h1 {
-            margin-bottom: 1rem;
-        }
-
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-
-        th,
-        td {
-            padding: 0.5rem;
-            text-align: left;
-            vertical-align: top;
-            border-bottom: 1px solid #ddd;
-            border-right: 1px solid #ddd;
-        }
-
-        th:first-child,
-        td:first-child {
-            border-left: 1px solid #ddd;
-        }
-
-        th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-            text-align: center;
-            vertical-align: center;
-            /* text-transform: uppercase; */
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        tr:hover {
-            background-color: #e6f7ff;
-        }
-
-        .blue {
-            color: blue;
-        }
-
-        .gray {
-            color: gray;
-        }
-
-        /* we do not want visited to be highlighted as this jobs are continuously updated and visited is not relevant here */
-        a:link,
-        a:visited {
-            color: blue;
-        }
-
-        .pagination {
-            text-align: center;
-        }
-
-        .prev-link {
-            margin-right: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="/public/css/main.css">
 </head>
 
 <body>
@@ -90,14 +26,16 @@
             <tr>
                 <td><a href="/jobs/{{.JobID}}/logs" target="_blank">{{.JobID}}</a></td>
                 <td>
-                    {{if eq .Status "successful"}}✔️{{else if or (eq .Status "failed") (eq .Status
-                    "dismissed")}}❌{{else if or (eq .Status "accepted") (eq .Status "running")}}🟡{{end}}
+                    <span class="status-symbol">
+                        {{if eq .Status "successful"}}✔️{{else if or (eq .Status "failed") (eq .Status
+                        "dismissed")}}❌{{else if or (eq .Status "accepted") (eq .Status "running")}}🟡{{end}}
+                    </span>
                     <a href="/jobs/{{.JobID}}" target="_blank">
                         {{.Status}}
                     </a>
                 </td>
                 <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
-                <td>{{.LastUpdate}}</td>
+                <td>{{.LastUpdate.Format "2006-01-02 15:04:05 MST"}}</td>
             </tr>
             {{end}}
         </tbody>
