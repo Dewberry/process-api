@@ -9,7 +9,12 @@
 </head>
 
 <body>
-    <h2>API Logs</h2>
+    <h1>Job Logs</h1>
+    <div>
+        <h3>Job ID</h3>
+        <p>{{ .JobID}}</p>
+    </div>
+    <h3>API Logs</h3>
     <table>
         {{range .APILogs}}
         <tr>
@@ -17,7 +22,7 @@
         </tr>
         {{end}}
     </table>
-    <h2>Container Logs</h2>
+    <h3>Container Logs</h3>
     <table>
         {{range .ContainerLogs}}
         <tr>
