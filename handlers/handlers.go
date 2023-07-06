@@ -72,7 +72,10 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 		return c.JSON(httpStatus, output)
 	default:
 		accept := c.Request().Header.Get("Accept")
-		if strings.Contains(accept, "text/html") {
+		if strings.Contains(accept, "application/json") {
+			// Browsers generally send text/html as an accept header
+			return c.Render(httpStatus, renderName, output)
+		} else if strings.Contains(accept, "text/html") {
 			// Browsers generally send text/html as an accept header
 			return c.Render(httpStatus, renderName, output)
 		} else {
