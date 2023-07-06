@@ -23,7 +23,6 @@ jobs:
           echo S3_BUCKET=${{ secrets.S3_BUCKET }} >> .env
           echo S3_RESULTS_DIR='tests/results' >> .env
           echo S3_META_DIR='tests/metadata' >> .env
-          echo S3_LOGS_DIR='tests/logs' >> .env
           echo BATCH_LOG_STREAM_GROUP='/aws/batch/job' >> .env
           echo CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES' >> .env
           echo EXPIRY_DAYS='1' >> .env
