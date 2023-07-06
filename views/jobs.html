@@ -26,10 +26,15 @@
             <tr>
                 <td><a href="/jobs/{{.JobID}}/logs" target="_blank">{{.JobID}}</a></td>
                 <td>
-                    <span class="status-symbol">
-                        {{if eq .Status "successful"}}✔️{{else if or (eq .Status "failed") (eq .Status
-                        "dismissed")}}❌{{else if or (eq .Status "accepted") (eq .Status "running")}}🟡{{end}}
-                    </span>
+                    {{if eq .Status "successful"}}
+                    <img src="/public/svgs/check-icon.svg" alt="successful" />
+                    {{else if eq .Status "failed"}}
+                    <img src="/public/svgs/cross-icon.svg" alt="failed" />
+                    {{else if eq .Status "dismissed"}}
+                    <img src="/public/svgs/delete-icon.svg" alt="dismissed" />
+                    {{else if or (eq .Status "accepted") (eq .Status "running")}}
+                    <img src="/public/svgs/yellow-circle-icon.svg" alt="in progress" />
+                    {{end}}
                     <a href="/jobs/{{.JobID}}" target="_blank">
                         {{.Status}}
                     </a>
