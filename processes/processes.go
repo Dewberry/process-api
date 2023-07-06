@@ -150,19 +150,13 @@ func (p process) VerifyInputs(inp map[string]interface{}) error {
 }
 
 // ProcessList describes processes
-type ProcessList []process
-
-// ListAll returns all the processes' info
-func (ps *ProcessList) ListAll() ([]Info, error) {
-	results := make([]Info, len(*ps))
-	for i, p := range *ps {
-		results[i] = p.Info
-	}
-	return results, nil
+type ProcessList struct {
+	List     []process
+	InfoList []Info
 }
 
 func (ps *ProcessList) Get(processID string) (process, error) {
-	for _, p := range *ps {
+	for _, p := range (*ps).List {
 		if p.Info.ID == processID {
 			return p, nil
 		}
@@ -203,21 +197,38 @@ func newProcess(f string) (process, error) {
 
 // Load all processes from yml files in the given directory and subdirectories
 func LoadProcesses(dir string) (ProcessList, error) {
+	var pl ProcessList
+
 	ymls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yml", dir))
+	if err != nil {
+		return pl, err
+	}
 	yamls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yaml", dir))
+	if err != nil {
+		return pl, err
+	}
 	y := append(ymls, yamls...)
-	processes := make(ProcessList, len(y))
+	processes := make([]process, len(y))
 
 	for i, y := range y {
 		p, err := newProcess(y)
 		if err != nil {
-			return processes, err
+			return pl, err
 		}
 		processes[i] = p
 	}
 
 	if err != nil {
-		return nil, err
+		return pl, err
 	}
-	return processes, err
+
+	infos := make([]Info, len(processes))
+	for i, p := range processes {
+		infos[i] = p.Info
+	}
+
+	pl.List = processes
+	pl.InfoList = infos
+
+	return pl, err
 }

@@ -5,7 +5,7 @@ import (
 	"app/utils"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -74,6 +74,10 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 	i := image{imgURI, imgDgst}
 
 	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
 
 	md := metaData{
 		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
@@ -92,9 +96,7 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
-	utils.WriteToS3(jsonBytes, j.MetaDataLocation, &j.APILogs, "application/json", 0)
-
-	return
+	utils.WriteToS3(jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Get image digest from ecr
@@ -181,26 +183,26 @@ func getDkrHubImageDigest(imgURI string, arch string) (string, error) {
 
 	response, err := client.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("Error sending request: %s\n", err)
+		return "", fmt.Errorf("error sending request: %s", err)
 
 	}
 	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", fmt.Errorf("Error reading response: %s\n", err)
+		return "", fmt.Errorf("error reading response: %s", err)
 	}
 
 	var result []interface{}
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return "", fmt.Errorf("Error parsing JSON: %s\n", err)
+		return "", fmt.Errorf("error parsing JSON: %s", err)
 	}
 
 	// Currently it gets just the first image, while there can be more than 1. This is incorrect
 	digest, ok := result[0].(map[string]interface{})["digest"].(string)
 	if !ok {
-		return "", fmt.Errorf("Error retrieving image digest")
+		return "", fmt.Errorf("error retrieving image digest")
 	}
 
 	return digest, nil

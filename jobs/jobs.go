@@ -32,23 +32,33 @@ type Job interface {
 	NewStatusUpdate(string)
 	Run()
 	Create() error
-	GetSizeinCache() int
 }
 
-// JobStatus describes status of a job
-type JobStatus struct {
+// JobRecord contains details about a job
+type JobRecord struct {
 	JobID      string    `json:"jobID"`
 	LastUpdate time.Time `json:"updated"`
 	Status     string    `json:"status"`
 	ProcessID  string    `json:"processID"`
-	CMD        []string  `json:"commands,omitempty"`
 	Type       string    `default:"process" json:"type"`
+	Host       string    `json:"host,omitempty"`
+	Mode       string    `json:"mode,omitempty"`
 }
 
 // JobLogs describes logs for the job
 type JobLogs struct {
-	ContainerLog []string `json:"container_log"`
-	APILog       []string `json:"api_log"`
+	ContainerLogs []string `json:"container_logs"`
+	APILogs       []string `json:"api_logs"`
+}
+
+// Prettify JobLogs by replacing nil with empty []string{}
+func (jl *JobLogs) Prettify() {
+	if jl.ContainerLogs == nil {
+		jl.ContainerLogs = []string{}
+	}
+	if jl.APILogs == nil {
+		jl.APILogs = []string{}
+	}
 }
 
 // OGCStatusCodes
@@ -62,20 +72,19 @@ const (
 
 // Returns an array of all Job statuses in memory
 // Most recently updated job first
-func (jc *JobsCache) ListJobs() []JobStatus {
-	jc.mu.Lock()
-	defer jc.mu.Unlock()
+func (ac *ActiveJobs) ListJobs() []JobRecord {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
 
-	jobs := make([]JobStatus, len(jc.Jobs))
+	jobs := make([]JobRecord, len(ac.Jobs))
 
 	var i int
-	for _, j := range jc.Jobs {
-		js := JobStatus{
+	for _, j := range ac.Jobs {
+		js := JobRecord{
 			ProcessID:  (*j).ProcessID(),
 			JobID:      (*j).JobID(),
 			LastUpdate: (*j).LastUpdate(),
 			Status:     (*j).CurrentStatus(),
-			CMD:        (*j).CMD(),
 		}
 		jobs[i] = js
 		i++

@@ -22,8 +22,6 @@ import (
 
 var (
 	pluginsDir string
-	cacheSize  int // default 1028*1028*1028 = 11073741824 (1GB) ~500K jobs
-	overwrite  bool
 	port       string
 	envFP      string
 )
@@ -32,8 +30,6 @@ func init() {
 
 	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.IntVar(&cacheSize, "c", 11073741824, "specify the max cache size in bytes (default= 1GB)")
-	flag.BoolVar(&overwrite, "o", false, "overwrite cache snapshot if exist")
 	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
 
 	flag.Parse()
@@ -63,10 +59,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh, err := handlers.NewRESTHander(pluginsDir, uint64(cacheSize), overwrite)
-	if err != nil {
-		log.Fatal(err)
-	}
+	rh := handlers.NewRESTHander(pluginsDir)
 
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
@@ -75,7 +68,9 @@ func main() {
 	e.HideBanner = true
 	e.HidePort = true
 	e.Use(middleware.Recover())
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Output: e.Logger.Output(),
+	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
@@ -99,20 +94,12 @@ func main() {
 	// e.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", rh.JobsCacheHandler)
+	e.GET("/jobs", rh.ListJobsHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
-	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)   //requires cache
-	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)         //requires cache
-	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler) //requires cache
+	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
+	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
-
-	// JobCache Monitor
-	go func() {
-		for {
-			time.Sleep(60 * 60 * time.Second) // check cache once an hour
-			_ = rh.JobsCache.CheckCache()
-		}
-	}()
 
 	// Start server
 	go func() {
@@ -131,19 +118,18 @@ func main() {
 	e.Logger.Info("gracefully shutting down the server")
 
 	// Kill any running docker containers (clean up resources)
-	err = rh.JobsCache.KillAll()
-	if err != nil {
+
+	if err := rh.ActiveJobs.KillAll(); err != nil {
 		e.Logger.Error(err)
 	} else {
 		e.Logger.Info("killed and removed active containers")
 	}
 
-	// Dump cache to file
-	err = rh.JobsCache.DumpCacheToFile()
-	if err != nil {
-		e.Logger.Error(err)
+	time.Sleep(15 * time.Second) // sleep so that routines spawned by KillAll() can finish, using 15 seconds because AWS batch monitors jobs every 10 seconds
+	if err := rh.DB.Handle.Close(); err != nil {
+		e.Logger.Fatal(err)
 	} else {
-		e.Logger.Info("snapshot created at .data/snapshot.gob")
+		e.Logger.Info("closed connection to database")
 	}
 
 	// Shutdown the server

@@ -1,8 +1,8 @@
 info:
-  version: '2023.2.1'
-  id: aepGrid
-  title: aepGrid
-  description: Creates an AEP grid
+  version: '0.0.1'
+  id: dfc
+  title: Depth Frequency Curve
+  description: Returns data for depth-frequency curve
   jobControlOptions:
     - async-execute
   outputTransmission:
@@ -16,15 +16,23 @@ host:
 container:
   command:
     - python
-    - aep_blocks.py
-
+    - dfc.py
 
 inputs:
+  - id: crs
+    title: crs
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
   - id: tile
     title: tile
     input:
       literalDataDomain:
-        dataType: string
+        dataType: value
         valueDefinition:
           anyValue: true
     minOccurs: 1
@@ -33,27 +41,26 @@ inputs:
     title: epoch
     input:
       literalDataDomain:
-        dataType: string
+        dataType: value
         valueDefinition:
           anyValue: true
     minOccurs: 1
     maxOccurs: 1
-  - id: aepGridDestination
-    title: aepGridDestination
+  - id: points
+    title: points
     input:
       literalDataDomain:
-        dataType: reference
+        dataType: value
         valueDefinition:
           anyValue: true
     minOccurs: 1
-    maxOccurs: 1
+    maxOccurs: 999999
 
 outputs:
-  - id: aepGrid
-    title: aepGrid
-    inputId: aepGridDestination
+  - id: dfc
+    title: dfc
     output:
       transmissionMode:
-      - reference
+      - value
 
 

@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <title>Process List</title>
     <style>
         body {
@@ -54,6 +55,14 @@
         .gray {
             color: gray;
         }
+
+        .pagination {
+            text-align: center;
+        }
+
+        .prev-link {
+            margin-right: 10px;
+        }
     </style>
 </head>
 
@@ -70,9 +79,9 @@
             </tr>
         </thead>
         <tbody>
-            {{range .}}
+            {{range .processes}}
             <tr>
-                <td>{{.Title}}</td>
+                <td><a href="/processes/{{.ID}}" target="_blank">{{.Title}}</a></td>
                 <td>{{.Description}}</td>
                 <td>{{.Version}}</td>
                 <td>{{range .JobControlOptions}}{{.}} {{end}}</td>
@@ -81,6 +90,17 @@
             {{end}}
         </tbody>
     </table>
+    <br>
+    <div class="pagination">
+        {{range .links}}
+        {{if eq .Title "prev"}}
+        <a href="{{.Href}}" class="prev-link"> &lt; Prev </a>
+        {{end}}
+        {{if eq .Title "next"}}
+        <a href="{{.Href}}" class="next-link"> Next &gt; </a>
+        {{end}}
+        {{end}}
+    </div>
 </body>
 
 </html>

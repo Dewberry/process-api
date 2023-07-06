@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
 )
 
 // base error
@@ -32,6 +32,13 @@ type jobResponse struct {
 	ProcessID  string      `json:"processID,omitempty"`
 	Message    string      `json:"message,omitempty"`
 	Outputs    interface{} `json:"outputs,omitempty"`
+}
+
+type link struct {
+	Href  string `json:"href"`
+	Rel   string `json:"rel,omitempty"`
+	Type  string `json:"type,omitempty"`
+	Title string `json:"title,omitempty"`
 }
 
 // StatusText returns a text for the HTTP status code. It returns the empty
@@ -135,12 +142,57 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 		return err
 	}
 
-	processList, err := rh.ProcessList.ListAll()
-	if err != nil {
-		return prepareResponse(c, http.StatusInternalServerError, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusInternalServerError})
+	// to meet ogc api core requirement /req/core/pl-limit-definition
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit > 100 || limit < 1 {
+		limit = 50
 	}
 
-	return prepareResponse(c, http.StatusOK, "processes", processList)
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	// instantiate result variable without importing processes pkg
+	result := rh.ProcessList.InfoList[0:0]
+
+	if offset < len(rh.ProcessList.InfoList) {
+		upperBound := offset + limit
+		if upperBound > len(rh.ProcessList.InfoList) {
+			upperBound = len(rh.ProcessList.InfoList)
+		}
+		result = rh.ProcessList.InfoList[offset:upperBound]
+	}
+
+	// required by /req/core/process-list-success
+	links := make([]link, 0)
+
+	// if offset is not 0
+	if offset != 0 {
+		lnk := link{
+			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset-limit, limit),
+			Title: "prev",
+		}
+		links = append(links, lnk)
+	}
+
+	// if limit is not exhausted
+	if limit == len(result) {
+		lnk := link{
+			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset+limit, limit),
+			Title: "next",
+		}
+		links = append(links, lnk)
+	}
+
+	output := make(map[string]interface{}, 0)
+	output["processes"] = result
+	output["links"] = links
+
+	return prepareResponse(c, http.StatusOK, "processes", output)
 }
 
 // ProcessDescribeHandler godoc
@@ -183,7 +235,6 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 func (rh *RESTHandler) Execution(c echo.Context) error {
 	processID := c.Param("processID")
 
-	log.Debug("processID", processID)
 	if processID == "" {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
@@ -199,7 +250,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	// Review this section
 	if params.Inputs == nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
 	}
@@ -236,6 +286,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			EnvVars:     p.Container.EnvVars,
 			Resources:   jobs.Resources(p.Container.Resources),
 			Cmd:         cmd,
+			DB:          rh.DB,
 		}
 
 	} else {
@@ -254,14 +305,12 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 				JobName:          "ogc-api-id-" + jobID,
 				MetaDataLocation: md,
 				ProcessVersion:   p.Info.Version,
+				DB:               rh.DB,
 			}
 		default:
 			return c.JSON(http.StatusBadRequest, errResponse{Message: fmt.Sprintf("unsupported type %s", jobType)})
 		}
 	}
-
-	// Add to cache
-	rh.JobsCache.Add(&j)
 
 	// Create job
 	err = j.Create()
@@ -269,8 +318,13 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
 	}
 
+	// Add to active jobs
+	rh.ActiveJobs.Add(&j)
+
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
+		defer rh.ActiveJobs.Remove(&j)
+
 		j.Run()
 
 		if j.CurrentStatus() == "successful" {
@@ -289,7 +343,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
-		go j.Run()
+		go func() {
+			defer rh.ActiveJobs.Remove(&j)
+			j.Run()
+		}()
 		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
 		return c.JSON(http.StatusCreated, resp)
 	default:
@@ -309,7 +366,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
-	if j, ok := rh.JobsCache.Jobs[jobID]; ok {
+	if j, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 		err := (*j).Kill()
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
@@ -325,7 +382,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobStatus
+// @Success 200 {object} JobRecord
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -334,14 +391,16 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	}
 
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		resp := jobs.JobStatus{
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok {
+		resp := jobs.JobRecord{
 			ProcessID:  (*job).ProcessID(),
 			JobID:      (*job).JobID(),
 			LastUpdate: (*job).LastUpdate(),
 			Status:     (*job).CurrentStatus(),
 		}
 		return prepareResponse(c, http.StatusOK, "js", resp)
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok {
+		return prepareResponse(c, http.StatusOK, "js", jRcrd)
 	}
 	output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("%s job id not found", jobID)}
 	return prepareResponse(c, http.StatusNotFound, "error", output)
@@ -357,13 +416,18 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		switch (*job).CurrentStatus() {
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+		return c.JSON(http.StatusNotFound, output)
+
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
+
+		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			outputs, err := jobs.FetchResults(rh.S3Svc, (*job).JobID())
+			outputs, err := jobs.FetchResults(rh.S3Svc, jRcrd.JobID)
 			if err != nil {
 				if err.Error() == "not found" {
-					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not available, resource might have expired."}
+					output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "results not available, resource might have expired."}
 					return c.JSON(http.StatusNotFound, output)
 				}
 				return c.JSON(http.StatusInternalServerError, err.Error())
@@ -371,41 +435,43 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			output := jobResponse{
 				Type:       "process",
 				JobID:      jobID,
-				Status:     (*job).CurrentStatus(),
-				LastUpdate: (*job).LastUpdate(),
+				Status:     jRcrd.Status,
+				LastUpdate: jRcrd.LastUpdate,
 				Outputs:    outputs,
 			}
 			return c.JSON(http.StatusOK, output)
 
 		case jobs.FAILED, jobs.DISMISSED:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Call logs route for details", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusOK, output)
 
 		default:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "results not ready", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "results not ready", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusNotFound, output)
 		}
 
 	}
+	// miss
 	output := errResponse{Message: "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
 
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		switch (*job).(type) {
-		case *jobs.DockerJob:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not exist for sync jobs."}
-			return c.JSON(http.StatusBadRequest, output)
-		}
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		// for sync jobs jobid is not returned to user untill the job is no longer in activeJobs, so it means job is not async
+		output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
+		return c.JSON(http.StatusNotFound, output)
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
+		// todo
+		// if jRcrd.Mode == "sync"
 
-		switch (*job).CurrentStatus() {
+		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			md, err := jobs.FetchMeta(rh.S3Svc, (*job).JobID())
+			md, err := jobs.FetchMeta(rh.S3Svc, jobID)
 			if err != nil {
 				if err.Error() == "not found" {
-					output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not found."}
+					output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "metadata not found."}
 					return c.JSON(http.StatusInternalServerError, output)
 				}
 				return c.JSON(http.StatusInternalServerError, err.Error())
@@ -413,15 +479,16 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 			return c.JSON(http.StatusOK, md)
 
 		case jobs.FAILED, jobs.DISMISSED:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "job Failed or Dismissed. Metadata only available for successful jobs.", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "job Failed or Dismissed. Metadata only available for successful jobs.", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusOK, output)
 
 		default:
-			output := jobResponse{Type: "process", JobID: jobID, Status: (*job).CurrentStatus(), Message: "metadata not ready", LastUpdate: (*job).LastUpdate()}
+			output := jobResponse{Type: "process", JobID: jobID, Status: jRcrd.Status, Message: "metadata not ready", LastUpdate: jRcrd.LastUpdate}
 			return c.JSON(http.StatusNotFound, output)
 		}
 
 	}
+	// miss
 	output := errResponse{Message: "jobID not found"}
 	return c.JSON(http.StatusNotFound, output)
 }
@@ -441,37 +508,83 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		return err
 	}
 
-	if job, ok := rh.JobsCache.Jobs[jobID]; ok {
-		logs, err := (*job).Logs()
-		if err != nil {
-			if err.Error() == "not found" {
-				output := errResponse{HTTPStatus: http.StatusNotFound, Message: err.Error()}
-				return prepareResponse(c, http.StatusNotFound, "error", output)
-			}
-			output := errResponse{HTTPStatus: http.StatusNotFound, Message: "Error while fetching logs: " + err.Error()}
-			return prepareResponse(c, http.StatusInternalServerError, "error", output)
-		}
+	var logs jobs.JobLogs
+	var errLogs error
 
-		return prepareResponse(c, http.StatusOK, "logs", logs)
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		logs, errLogs = (*job).Logs()
+	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
+		logs, errLogs = rh.DB.GetLogs(jobID)
+	} else { // miss
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
+		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
-	output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
-	return prepareResponse(c, http.StatusNotFound, "error", output)
+	if errLogs != nil {
+		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + errLogs.Error()}
+		return prepareResponse(c, http.StatusInternalServerError, "error", output)
+	}
+
+	logs.Prettify()
+	return prepareResponse(c, http.StatusOK, "logs", logs)
+
 }
 
-// @Summary Summary of all (cached) Jobs
+// @Summary Summary of all (active) Jobs
 // @Description [Job List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []JobStatus
+// @Success 200 {object} []JobRecord
 // @Router /jobs [get]
-func (rh *RESTHandler) JobsCacheHandler(c echo.Context) error {
+func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	err := validateFormat(c)
 	if err != nil {
 		return err
 	}
 
-	jobsList := rh.JobsCache.ListJobs()
-	return prepareResponse(c, http.StatusOK, "jobs", jobsList)
+	limitStr := c.QueryParam("limit")
+	offsetStr := c.QueryParam("offset")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit > 100 || limit < 1 {
+		limit = 50
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	result, err := rh.DB.GetJobs(limit, offset)
+	if err != nil {
+		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
+		return prepareResponse(c, http.StatusNotFound, "error", output)
+	}
+
+	// required by /req/job-list/job-list-success
+	links := make([]link, 0)
+
+	// if offset is not 0
+	if offset != 0 {
+		lnk := link{
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset-limit, limit),
+			Title: "prev",
+		}
+		links = append(links, lnk)
+	}
+
+	// if limit is not exhausted
+	if limit == len(result) {
+		lnk := link{
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset+limit, limit),
+			Title: "next",
+		}
+		links = append(links, lnk)
+	}
+
+	output := make(map[string]interface{}, 0)
+	output["jobs"] = result
+	output["links"] = links
+	return prepareResponse(c, http.StatusOK, "jobs", output)
 }

@@ -86,7 +86,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/jobs.jobStatus"
+                                "$ref": "#/definitions/jobs.JobRecord"
                             }
                         }
                     }
@@ -316,7 +316,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.JobStatus": {
+        "jobs.JobRecord": {
             "type": "object",
             "properties": {
                 "commands": {
