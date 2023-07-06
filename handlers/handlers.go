@@ -150,7 +150,7 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit > 100 || limit < 1 {
-		limit = 50
+		limit = 20
 	}
 
 	offset, err := strconv.Atoi(offsetStr)
@@ -550,7 +550,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit > 100 || limit < 1 {
-		limit = 50
+		limit = 20
 	}
 
 	offset, err := strconv.Atoi(offsetStr)
