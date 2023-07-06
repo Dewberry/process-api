@@ -9,6 +9,13 @@
     --table-row-hover-bg: #E6F7FF;
     --font-color-blue: #007BFF;
     --font-color-gray: #6C757D;
+    --json-punctuation-color: #333;
+    --json-property-color: #007BFF;
+    --json-string-color: #DAA520;
+    --json-number-color: #FF4500;
+    --json-boolean-color: #008000;
+    --json-null-color: #800080;
+    --code-bg-color: #d8d7d7;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +30,13 @@
         --table-row-hover-bg: #1a1a1a;
         --font-color-blue: #BB86FC;
         --font-color-gray: #757575;
+        --json-punctuation-color: #FFF;
+        --json-property-color: #86b9fc;
+        --json-string-color: #DAA520;
+        --json-number-color: #FF4500;
+        --json-boolean-color: #008000;
+        --json-null-color: #800080;
+        --code-bg-color: #000000;
     }
 }
 
@@ -102,4 +116,86 @@ tr:hover {
 
 .prev-link {
     margin-right: 1rem;
+}
+
+.token {
+    background-color: transparent !important;
+}
+
+.token.punctuation {
+    color: var(--json-punctuation-color);
+}
+
+.token.property {
+    color: var(--json-property-color);
+}
+
+.token.string {
+    color: var(--json-string-color);
+}
+
+.token.number {
+    color: var(--json-number-color);
+}
+
+.token.boolean {
+    color: var(--json-boolean-color);
+}
+
+.token.null {
+    color: var(--json-null-color);
+}
+
+pre[class*="language-"]  {
+    position: relative;
+    background-color: var(--code-bg-color);
+    border: 1px solid var(--table-border-color); /* Use theme's table border color */
+    padding: 1rem; /* Some padding */
+    margin: 1rem 0; /* Top and bottom margin */
+    overflow-x: auto; /* Horizontal scrollbar if needed */
+}
+
+code[class*="language-"]  {
+    text-shadow: none;
+    background-color: var(--code-bg-color);
+    font-family: monospace; /* Monospaced font */
+    line-height: 1.5; /* More space between lines */
+}
+
+.copy-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: var(--link-color);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 0.8rem;
+    margin: 4px 2px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+}
+
+#notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--link-color);
+    color: white;
+    padding: 0.6rem 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+#notification.show {
+    opacity: 1;
 }

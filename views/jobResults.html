@@ -1,0 +1,25 @@
+{{define "jobResults"}}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Results · {{.JobID}}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/themes/prism.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+<body>
+    <h1>Results · {{.JobID}}</h1>
+    {{ template "statusTable.html" .}}
+    {{if .Outputs }}
+    <h2>Outputs</h2>
+    <pre><button class="copy-btn">Copy Code</button><code class="language-json">{{prettyPrint .Outputs}}</code></pre>
+    {{end}}
+    {{ template "jsonScripts.html"}}
+
+</body>
+
+</html>
+{{end}}

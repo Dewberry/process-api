@@ -1,0 +1,25 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/components/prism-json.min.js"></script>
+
+<script>
+    document.querySelectorAll('.copy-btn').forEach(function (button) {
+        button.addEventListener('click', function (e) {
+            var code = this.nextElementSibling.textContent;
+            var textarea = document.createElement('textarea');
+            textarea.textContent = code;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            var notification = document.getElementById('notification');
+            notification.classList.remove('hidden');
+            notification.classList.add('show');
+            setTimeout(function () {
+                notification.classList.remove('show');
+                notification.classList.add('hidden');
+            }, 2000);
+        });
+    });
+</script>
+<div id="notification" class="hidden">Code copied to clipboard!</div>
