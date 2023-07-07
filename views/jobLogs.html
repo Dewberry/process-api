@@ -1,4 +1,4 @@
-{{define "logs"}}
+{{define "jobLogs"}}
 <html>
 
 <head>
@@ -9,11 +9,7 @@
 </head>
 
 <body>
-    <h1>Job Logs</h1>
-    <div>
-        <h3>Job ID</h3>
-        <p>{{ .JobID}}</p>
-    </div>
+    <h1>Logs · {{.JobID}}</h1>
     <h3>API Logs</h3>
     <table>
         {{range .APILogs}}
