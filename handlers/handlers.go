@@ -438,7 +438,7 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if _, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "result not ready"}
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not ready"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
