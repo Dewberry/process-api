@@ -12,9 +12,8 @@
 
 <body>
     <h1>Results · {{.JobID}}</h1>
-    <pre><button class="copy-btn">Copy Code</button><code class="language-json">{{prettyPrint .Outputs}}</code></pre>
+    <pre><code class="language-json">{{prettyPrint .Outputs}}</code></pre>
     {{ template "jsonScripts.html"}}
-
 </body>
 
 </html>
