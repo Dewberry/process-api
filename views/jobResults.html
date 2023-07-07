@@ -12,11 +12,7 @@
 
 <body>
     <h1>Results · {{.JobID}}</h1>
-    {{ template "statusTable.html" .}}
-    {{if .Outputs }}
-    <h2>Outputs</h2>
     <pre><button class="copy-btn">Copy Code</button><code class="language-json">{{prettyPrint .Outputs}}</code></pre>
-    {{end}}
     {{ template "jsonScripts.html"}}
 
 </body>
