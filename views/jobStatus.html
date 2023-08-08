@@ -1,0 +1,19 @@
+{{define "jobStatus"}}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Status · {{.JobID}}</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+
+<body>
+    <h1>Job Status</h1>
+    {{ template "statusTable.html" .}}
+</body>
+
+</html>
+{{end}}

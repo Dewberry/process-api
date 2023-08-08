@@ -1,0 +1,20 @@
+{{define "jobMetadata"}}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Metadata · {{.apiJobId}}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/themes/prism.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+<body>
+    <h1>Metadata · {{.apiJobId}}</h1>
+    <pre><code class="language-json">{{prettyPrint .}}</code></pre>
+    {{ template "jsonScripts.html"}}
+</body>
+
+</html>
+{{end}}

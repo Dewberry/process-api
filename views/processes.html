@@ -1,0 +1,49 @@
+{{define "processes"}}
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Processes List</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+<body>
+    <h1>Processes List</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Version</th>
+                <th>Job Control Options</th>
+                <th>Output Transmission</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .processes}}
+            <tr>
+                <td><a href="/processes/{{.ID}}" target="_blank">{{.Title}}</a></td>
+                <td>{{.Description}}</td>
+                <td>{{.Version}}</td>
+                <td>{{range .JobControlOptions}}{{.}} {{end}}</td>
+                <td>{{range .OutputTransmission}}{{.}} {{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <br>
+    <div class="pagination">
+        {{range .links}}
+        {{if eq .Title "prev"}}
+        <a href="{{.Href}}" class="prev-link"> &lt; Prev </a>
+        {{end}}
+        {{if eq .Title "next"}}
+        <a href="{{.Href}}" class="next-link"> Next &gt; </a>
+        {{end}}
+        {{end}}
+    </div>
+</body>
+
+</html>
+{{end}}

@@ -1,0 +1,24 @@
+{{define "error"}}
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Error {{ .HTTPStatus }}</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+{{ $bodyStyle := "color: var(--status-server-error-color);" }}
+{{ if lt .HTTPStatus 500 }}
+{{ $bodyStyle = "color: var(--status-client-error-color);" }}
+{{ end }}
+
+<body style="{{ $bodyStyle }}">
+    <h1>Error {{ .HTTPStatus }}: {{ .GetHTTPStatusText }}</h1>
+    <p>{{ .Message }}</p>
+</body>
+
+</html>
+{{end}}

@@ -1,0 +1,26 @@
+{{define "conformance"}}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Conformance</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+<body>
+    <h1>Conforms To</h1>
+    <table>
+        <tbody>
+            {{range $value := .conformsTo}}
+            <tr>
+                <td>{{ $value}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</body>
+
+</html>
+{{end}}

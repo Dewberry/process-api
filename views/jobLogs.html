@@ -1,0 +1,32 @@
+{{define "jobLogs"}}
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/public/img/favicon-32x32.png">
+    <title>Logs · {{.JobID}}</title>
+    <link rel="stylesheet" href="/public/css/main.css">
+</head>
+
+<body>
+    <h1>Logs · {{.JobID}}</h1>
+    <h3>API Logs</h3>
+    <table>
+        {{range .APILogs}}
+        <tr>
+            <td>{{.}}</td>
+        </tr>
+        {{end}}
+    </table>
+    <h3>Container Logs</h3>
+    <table>
+        {{range .ContainerLogs}}
+        <tr>
+            <td>{{.}}</td>
+        </tr>
+        {{end}}
+    </table>
+</body>
+
+</html>
+{{end}}

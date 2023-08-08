@@ -190,11 +190,9 @@ func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
 
 	for rows.Next() {
 		var r JobRecord
-		var updated string
-		if err := rows.Scan(&r.JobID, &r.Status, &updated, &r.ProcessID); err != nil {
+		if err := rows.Scan(&r.JobID, &r.Status, &r.LastUpdate, &r.ProcessID); err != nil {
 			return nil, err
 		}
-		r.LastUpdate, err = time.Parse(time.RFC3339, updated)
 		if err != nil {
 			return nil, err
 		}
@@ -213,6 +211,8 @@ func (db *DB) GetLogs(jid string) (JobLogs, error) {
 	query := `SELECT api_logs, container_logs FROM logs WHERE job_id = ?`
 
 	logs := JobLogs{}
+	logs.JobID = jid
+
 	// These will hold the JSON strings from the database
 	var apiLogsJSON, containerLogsJSON string
 

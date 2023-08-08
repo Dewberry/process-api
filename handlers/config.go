@@ -3,6 +3,7 @@ package handlers
 import (
 	"app/jobs"
 	pr "app/processes"
+	"encoding/json"
 	"io"
 	"log"
 	"text/template"
@@ -34,6 +35,15 @@ type RESTHandler struct {
 	ProcessList *pr.ProcessList
 }
 
+// Pretty print a JSON
+func prettyPrint(v interface{}) string {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
 // Initializes resources and return a new handler
 // errors are fatal
 func NewRESTHander(pluginsDir string) *RESTHandler {
@@ -51,8 +61,12 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	}
 
 	// Read all the html templates
+	funcMap := template.FuncMap{
+		"prettyPrint": prettyPrint, // to pretty pring JSONs for results and metadata
+	}
+
 	config.T = Template{
-		templates: template.Must(template.ParseGlob("public/views/*.html")),
+		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob("views/*.html")),
 	}
 
 	// Set up a session with AWS credentials and region

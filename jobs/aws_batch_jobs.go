@@ -68,6 +68,7 @@ func (j *AWSBatchJob) Logs() (JobLogs, error) {
 		}
 	}
 
+	logs.JobID = j.UUID
 	logs.ContainerLogs = j.containerLogs
 	logs.APILogs = j.apiLogs
 	return logs, nil
