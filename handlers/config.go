@@ -6,8 +6,12 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"os"
+	"strconv"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/labstack/echo/v4"
@@ -69,11 +73,28 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob("views/*.html")),
 	}
 
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	config.S3Svc = s3.New(sess)
+	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
+	if err != nil {
+		log.Fatal("error parsing `S3_MOCK`, must be bool not %s" + os.Getenv("S3_MOCK") + err.Error())
+	}
+	if s3Mock {
+		s3Config := &aws.Config{
+			Credentials:      credentials.NewStaticCredentials("user", "password", ""),
+			Endpoint:         aws.String("http://localhost:9000"),
+			Region:           aws.String("us-east-1"),
+			DisableSSL:       aws.Bool(true),
+			S3ForcePathStyle: aws.Bool(true),
+		}
+		sess := session.Must(session.NewSession(s3Config))
+		config.S3Svc = s3.New(sess)
+
+	} else {
+		// Set up a session with AWS credentials and region
+		sess := session.Must(session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+		}))
+		config.S3Svc = s3.New(sess)
+	}
 
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
@@ -87,6 +108,7 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	config.ProcessList = &processList
 
 	return &config
