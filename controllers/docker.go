@@ -10,10 +10,13 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/labstack/gommon/log"
 )
+
+const DOCKER_NETWORK string = "process_api_net"
 
 type DockerController struct {
 	cli *client.Client
@@ -21,11 +24,26 @@ type DockerController struct {
 
 type DockerResources container.Resources
 
+func createDockerNetwork(cli *client.Client, ctx context.Context, networkName string) error {
+	_, err := cli.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
+	if err == nil {
+		// Network already exists
+		return nil
+	}
+
+	// Create the network
+	_, err = cli.NetworkCreate(ctx, networkName, types.NetworkCreate{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewDockerController() (*DockerController, error) {
 	c := new(DockerController)
 	var err error
 	c.cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +78,25 @@ func (c *DockerController) ContainerRun(ctx context.Context, image string, comma
 		i++
 	}
 
+	err := createDockerNetwork(c.cli, ctx, DOCKER_NETWORK)
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	// Define the network mode
+	netConfig := &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			DOCKER_NETWORK: {},
+		},
+	}
+
 	resp, err := c.cli.ContainerCreate(ctx, &container.Config{
 		Tty:   true,
 		Image: image,
 		Cmd:   command,
 		Env:   envs,
-	}, &hostConfig, nil, nil, "")
+	}, &hostConfig, netConfig, nil, "")
 	// log.Info("Container Create response", resp)
 	if err != nil {
 		log.Error(err)

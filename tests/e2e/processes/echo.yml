@@ -1,21 +1,49 @@
 info:
   version: '0.0.1'
   id: echo
-  title: Echo
+  title: echo
   description: Echo the passed input
   jobControlOptions:
     - sync-execute
   outputTransmission:
 
-
 host:
   type: local
 
 container:
-  image: alpine
+  image: lawlerseth/echo:v0.0.1
   command:
-    - echo
+    - python
+    - main.py
+  envVars:
+    - AWS_REGION
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_S3_BUCKET
+    - S3_ENDPOINT
+    - S3_MOCK
+    - S3_DISABLE_SSL
+    - S3_FORCE_PATH_STYLE
+  maxResources:
+    cpus: 0.1
+    memory: 1024
 
 inputs:
+  - id: text
+    title: text
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
 
 outputs:
+  - id: message
+    title: message
+    output:
+      transmissionMode:
+      - value
+
+
