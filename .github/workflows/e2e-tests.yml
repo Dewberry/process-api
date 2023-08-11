@@ -27,16 +27,26 @@ jobs:
           echo CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES' >> .env
           echo EXPIRY_DAYS='1' >> .env
 
-
       - name: Add processes
         run: |
-          cd plugins
-          ln -s ../tests/e2e/processes ./processes
+          cd api/plugins
+          cp -r ../../tests/e2e/processes ./processes
 
-      - name: Start API
+      - name: Build the docker-compose stack
+        run: docker-compose build
+
+      - name: Run the docker-compose stack
+        run: docker-compose up -d
+
+      - name: Check if all 1 container(s) are alive
         run: |
-          go build main.go
-          nohup go run main.go > output.log &
+          sleep 5s
+          docker ps -a
+          if [ $(docker ps | grep mcat-ras- | wc -l) -lt 21 ]
+          then
+            echo "Less than 1 docker services alive."
+            exit 1
+          fi
 
       - name: Run newman tests
         run: |
