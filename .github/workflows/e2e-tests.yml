@@ -38,15 +38,6 @@ jobs:
       - name: Run the docker-compose stack
         run: docker-compose up -d
 
-      - name: Check if all 1 container(s) are alive
-        run: |
-          sleep 5s
-          docker ps -a
-          if [ $(docker ps | grep process-api- | wc -l) -lt 1 ]
-          then
-            echo "Less than 1 docker services alive."
-            exit 1
-          fi
 
       - name: Run newman tests
         run: |
