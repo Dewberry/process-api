@@ -67,7 +67,7 @@ func main() {
 	e := echo.New()
 	e.Static("/public", "public")
 
-	e.HideBanner = true
+	// e.HideBanner = true
 	e.HidePort = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{

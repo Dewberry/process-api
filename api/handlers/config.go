@@ -80,7 +80,7 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac
 
-	adb := jobs.InitDB(".data/db.sqlite")
+	adb := jobs.InitDB("/mnt/.data/db.sqlite")
 	config.DB = adb
 
 	processList, err := pr.LoadProcesses(pluginsDir)
