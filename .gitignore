@@ -19,6 +19,5 @@
 .vscode/settings.json
 .data/*
 data/*
-plugins
-plguins/*
+api/plguins/*
 *main
