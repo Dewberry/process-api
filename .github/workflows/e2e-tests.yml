@@ -38,8 +38,6 @@ jobs:
       - name: Run the docker-compose stack
         run: docker-compose up -d
 
-
       - name: Run newman tests
         run: |
-          sleep 5s
           docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"
