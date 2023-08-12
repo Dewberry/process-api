@@ -91,10 +91,10 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 }
 
 // runRequestBody provides the required inputs for containerized processes
-type runRequestBody struct {
-	Inputs  map[string]interface{} `json:"inputs"`
-	EnvVars map[string]string      `json:"environmentVariables"`
-}
+// type runRequestBody struct {
+// 	Inputs  map[string]interface{}
+// 	EnvVars map[string]string `json:"environmentVariables"`
+// }
 
 // LandingPage godoc
 // @Summary Landing Page
@@ -249,22 +249,20 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
 
+	fmt.Println("ProcessID --> ", processID)
 	p, err := rh.ProcessList.Get(processID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
-	var params runRequestBody
-	err = c.Bind(&params)
+	var params map[string]interface{}
+	decoder := json.NewDecoder(c.Request().Body)
+	err = decoder.Decode(&params)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "invalid json or input data not found in the body of the request"})
 	}
 
-	if params.Inputs == nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
-	}
-
-	err = p.VerifyInputs(params.Inputs)
+	err = p.VerifyInputs(params)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
@@ -273,10 +271,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
 
-	params.Inputs["jobID"] = jobID
-	params.Inputs["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
-	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
-	jsonParams, err := json.Marshal(params.Inputs)
+	params["jobID"] = jobID
+	params["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
+	params["expDays"] = os.Getenv("EXPIRY_DAYS")
+	jsonParams, err := json.Marshal(params)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 	}

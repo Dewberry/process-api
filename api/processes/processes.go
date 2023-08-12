@@ -6,8 +6,10 @@ import (
 	"app/controllers"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -175,23 +177,30 @@ func newProcess(f string) (process, error) {
 		return process{}, err
 	}
 
-	// if processes is AWS Batch process get its resources, image, etc
-	// the problem with doing this here is that if the job definition is updated while we are doing this, our process info will not update
-	switch p.Host.Type {
-	case "aws-batch":
-		c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
-		if err != nil {
-			return process{}, err
-		}
-		jdi, err := c.GetJobDefInfo(p.Host.JobDefinition)
-		if err != nil {
-			return process{}, err
-		}
-		p.Container.Image = jdi.Image
-		p.Container.Resources.Memory = jdi.Memory
-		p.Container.Resources.CPUs = jdi.VCPUs
+	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
+	if err != nil {
+		return p, fmt.Errorf("error parsing `S3_MOCK`, must be bool not %s", os.Getenv("S3_MOCK"))
 	}
+	if !s3Mock {
+		// if processes is AWS Batch process get its resources, image, etc
+		// the problem with doing this here is that if the job definition is updated while we are doing this, our process info will not update
+		switch p.Host.Type {
+		case "aws-batch":
+			c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+			if err != nil {
+				return process{}, err
+			}
+			jdi, err := c.GetJobDefInfo(p.Host.JobDefinition)
+			if err != nil {
+				return process{}, err
+			}
+			p.Container.Image = jdi.Image
+			p.Container.Resources.Memory = jdi.Memory
+			p.Container.Resources.CPUs = jdi.VCPUs
+		}
 
+		return p, nil
+	}
 	return p, nil
 }
 
@@ -213,6 +222,7 @@ func LoadProcesses(dir string) (ProcessList, error) {
 	for i, y := range y {
 		p, err := newProcess(y)
 		if err != nil {
+			log.Fatalf("error registering process %s (verify aws credentials are in place)\n", y)
 			return pl, err
 		}
 		processes[i] = p

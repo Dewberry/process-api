@@ -15,3 +15,42 @@ services:
       - ./.data:/mnt/.data
       - ./data:/mnt/data
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - process_api_net
+
+  minio:
+    container_name: minio
+    image: minio/minio
+    environment:
+      - MINIO_ROOT_USER=user
+      - MINIO_ROOT_PASSWORD=password
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./miniodata:/data
+    networks:
+      - process_api_net
+
+  minio_init:
+    container_name: minio_init
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add minio http://minio:9000 user password;
+      /usr/bin/mc rb --force  minio/metadata;
+      /usr/bin/mc mb minio/metadata;
+      /usr/bin/mc policy set public minio/metadata;
+      /usr/bin/mc rb --force  minio/results;
+      /usr/bin/mc mb minio/results;
+      /usr/bin/mc policy set public minio/results;
+      exit 0 ;"
+    networks:
+      - process_api_net
+
+networks:
+  process_api_net:
+    external: true

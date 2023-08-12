@@ -56,6 +56,10 @@ func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays in
 // Check if an S3 Key exists
 func KeyExists(key string, svc *s3.S3) (bool, error) {
 
+	s3BucketEnv := os.Getenv("S3_BUCKET")
+	if s3BucketEnv == "" {
+		fmt.Println("ERROR: Ensure that the `S3_BUCKET` environment variable is set.")
+	}
 	_, err := svc.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(os.Getenv("S3_BUCKET")),
 		Key:    aws.String(key),
