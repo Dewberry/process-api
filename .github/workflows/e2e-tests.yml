@@ -33,7 +33,9 @@ jobs:
           cp -r ../../tests/e2e/processes ./processes
 
       - name: Build the docker-compose stack
-        run: docker-compose build
+        run: |
+          docker network create process_api_net
+          docker-compose build
 
       - name: Run the docker-compose stack
         run: docker-compose up -d
