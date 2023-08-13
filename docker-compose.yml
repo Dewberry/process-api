@@ -13,7 +13,7 @@ services:
     volumes:
       - ./api:/app
       - ./.data:/mnt/.data
-      - ./data:/mnt/data
+      - ./plugins:/app/plugins
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - process_api_net
@@ -29,27 +29,27 @@ services:
       - '9000:9000'
       - '9001:9001'
     volumes:
-      - ./miniodata:/data
+      - ./.miniodata:/data
     networks:
       - process_api_net
 
-  minio_init:
-    container_name: minio_init
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host add minio http://minio:9000 user password;
-      /usr/bin/mc rb --force  minio/metadata;
-      /usr/bin/mc mb minio/metadata;
-      /usr/bin/mc policy set public minio/metadata;
-      /usr/bin/mc rb --force  minio/results;
-      /usr/bin/mc mb minio/results;
-      /usr/bin/mc policy set public minio/results;
-      exit 0 ;"
-    networks:
-      - process_api_net
+  # minio_init:
+  #   container_name: minio_init
+  #   image: minio/mc
+  #   depends_on:
+  #     - minio
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     /usr/bin/mc config host add minio http://minio:9000 user password;
+  #     /usr/bin/mc rb --force  minio/local-test;
+  #     /usr/bin/mc mb minio/local-test;
+  #     /usr/bin/mc policy set public minio/local-test;
+  #     /usr/bin/mc rb --force  minio/results;
+  #     /usr/bin/mc mb minio/results;
+  #     /usr/bin/mc policy set public minio/results;
+  #     exit 0 ;"
+  #   networks:
+  #     - process_api_net
 
 networks:
   process_api_net:

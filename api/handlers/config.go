@@ -80,7 +80,7 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	if s3Mock {
 		s3Config := &aws.Config{
 			Credentials:      credentials.NewStaticCredentials("user", "password", ""),
-			Endpoint:         aws.String("http://localhost:9000"),
+			Endpoint:         aws.String("http://minio:9000"),
 			Region:           aws.String("us-east-1"),
 			DisableSSL:       aws.Bool(true),
 			S3ForcePathStyle: aws.Bool(true),
