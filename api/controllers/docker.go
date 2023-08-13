@@ -118,7 +118,7 @@ func (c *DockerController) Version() string {
 }
 
 // returns container logs as string, error
-func (c *DockerController) ContainerLog(ctx context.Context, id string) ([]string, error) {
+func (c *DockerController) ContainerLog(ctx context.Context, id string, options types.ContainerLogsOptions) ([]string, error) {
 
 	reader, err := c.cli.ContainerLogs(ctx, id, types.ContainerLogsOptions{
 		ShowStdout: true,

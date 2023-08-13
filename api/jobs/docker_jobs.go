@@ -4,8 +4,11 @@ import (
 	"app/controllers"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
+
+	"github.com/docker/docker/api/types"
 )
 
 type DockerJob struct {
@@ -161,46 +164,75 @@ func (j *DockerJob) Run() {
 
 	j.ContainerID = containerID
 
-	// wait for process to finish
-	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
-	// todo: get logs while container running so that logs or running containers is visible by users this would only be needed when docker jobs can also be async
-	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
-	j.containerLogs = containerLogs
+	// run ContainerWait in a Goroutine
+	done := make(chan struct{})
+	go func() {
+		statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
 
-	// If there are error messages remove container before cancelling context inside Handle Error
-	for _, err := range []error{errWait, errLog} {
-		if err != nil {
-			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
-			if errRem != nil {
-				j.HandleError(err.Error() + " " + errRem.Error())
+		// If there are error messages remove container before cancelling context inside Handle Error
+		for _, err := range []error{errWait} {
+			if err != nil {
+				errRem := c.ContainerRemove(j.ctx, j.ContainerID)
+				if errRem != nil {
+					j.HandleError(err.Error() + " " + errRem.Error())
+					return
+				}
+				j.HandleError(err.Error())
 				return
 			}
+		}
+
+		if statusCode != 0 {
+			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
+			if errRem != nil {
+				j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
+				return
+			}
+			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
+			return
+		}
+
+		// clean up the finished job
+		err = c.ContainerRemove(j.ctx, j.ContainerID)
+		if err != nil {
 			j.HandleError(err.Error())
 			return
 		}
-	}
 
-	if statusCode != 0 {
-		errRem := c.ContainerRemove(j.ctx, j.ContainerID)
-		if errRem != nil {
-			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
-			return
+		j.NewStatusUpdate(SUCCESSFUL)
+
+		go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
+		j.ctxCancel()
+		close(done)
+	}()
+
+	// check container logs every 2 seconds
+	logChecker := time.NewTicker(2 * time.Second)
+	defer logChecker.Stop()
+	for {
+		select {
+		case <-logChecker.C:
+			logOptions := types.ContainerLogsOptions{
+				ShowStdout: true,
+				ShowStderr: true,
+				Follow:     true,
+				Tail:       "all",
+			}
+
+			logsReader, err := c.ContainerLog(j.ctx, j.ContainerID, logOptions)
+			if err != nil {
+				log.Println("Error reading container logs:", err)
+				return
+			}
+			// log.Println("Checking container logs...")
+			j.containerLogs = logsReader
+
+		case <-done:
+			continue
 		}
-		j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
-		return
+
 	}
 
-	// clean up the finished job
-	err = c.ContainerRemove(j.ctx, j.ContainerID)
-	if err != nil {
-		j.HandleError(err.Error())
-		return
-	}
-
-	j.NewStatusUpdate(SUCCESSFUL)
-
-	go j.DB.upsertLogs(j.UUID, j.apiLogs, j.containerLogs)
-	j.ctxCancel()
 }
 
 // kill local container

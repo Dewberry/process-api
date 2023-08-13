@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -34,10 +33,10 @@ func init() {
 
 	flag.Parse()
 
-	err := godotenv.Load(envFP)
-	if err != nil {
-		log.Warnf("no .env file is being used: %s", err.Error())
-	}
+	// err := godotenv.Load(envFP)
+	// if err != nil {
+	// 	log.Warnf("no .env file is being used: %s", err.Error())
+	// }
 }
 
 // @title Process-API Server
