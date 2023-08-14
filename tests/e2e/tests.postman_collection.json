@@ -154,7 +154,13 @@
 							"    pm.response.to.have.status(200)",
 							"});",
 							"",
-							""
+							"pm.test(\"Response time is less than 1000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+							"});",
+							"",
+							"if (pm.response.responseTime > 100) {",
+							"    console.log(`⚠️ Warning: Response time is ${pm.response.responseTime}ms which is greater than 100ms.`);",
+							"}"
 						]
 					}
 				}
@@ -751,11 +757,13 @@
 											"script": {
 												"type": "text/javascript",
 												"exec": [
-													"pm.test(\"Response time is less than 300ms\", function () {",
-													"    pm.expect(pm.response.responseTime).to.be.below(300);",
+													"pm.test(\"Response time is less than 1000ms\", function () {",
+													"    pm.expect(pm.response.responseTime).to.be.below(1000);",
 													"});",
 													"",
-													""
+													"if (pm.response.responseTime > 500) {",
+													"    console.log(`⚠️ Warning: Response time is ${pm.response.responseTime}ms which is greater than 500ms.`);",
+													"}"
 												]
 											}
 										}
@@ -1081,11 +1089,13 @@
 									"script": {
 										"type": "text/javascript",
 										"exec": [
-											"pm.test(\"Response time is less than 300ms\", function () {",
-											"    pm.expect(pm.response.responseTime).to.be.below(300);",
+											"pm.test(\"Response time is less than 1000ms\", function () {",
+											"    pm.expect(pm.response.responseTime).to.be.below(1000);",
 											"});",
 											"",
-											""
+											"if (pm.response.responseTime > 500) {",
+											"    console.log(`⚠️ Warning: Response time is ${pm.response.responseTime}ms which is greater than 500ms.`);",
+											"}"
 										]
 									}
 								}
@@ -1262,7 +1272,13 @@
 							"    pm.response.to.have.status(200)",
 							"});",
 							"",
-							""
+							"pm.test(\"Response time is less than 1000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+							"});",
+							"",
+							"if (pm.response.responseTime > 500) {",
+							"    console.log(`⚠️ Warning: Response time is ${pm.response.responseTime}ms which is greater than 500ms.`);",
+							"}"
 						]
 					}
 				}

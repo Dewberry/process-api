@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Create env file
         run: |
@@ -27,18 +27,17 @@ jobs:
           echo CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES' >> .env
           echo EXPIRY_DAYS='1' >> .env
 
-
       - name: Add processes
         run: |
-          cd plugins
-          ln -s ../tests/e2e/processes ./processes
+          cd api/plugins
+          cp -r ../../tests/e2e/processes ./processes
 
-      - name: Start API
-        run: |
-          go build main.go
-          nohup go run main.go > output.log &
+      - name: Build the docker-compose stack
+        run: docker-compose build
+
+      - name: Run the docker-compose stack
+        run: docker-compose up -d
 
       - name: Run newman tests
         run: |
-          sleep 5s
           docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"

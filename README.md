@@ -14,17 +14,25 @@ https://developer.ogc.org/api/processes/index.html
 
 ---
 
-## Build and run
+## Getting Started
 
-1. Create a `.env` file (example below)
-2. Add process configuration files (yaml) to the [plugins](plugins/) directory or use -d flag to specify path of the directory with process configuration files
-3. Update swagger documents and compile the server: `swag init && go build main.go`.
-4. Run the server: `./main`, with the following available flags:
+1. Create a `.env` file (example below) at the root of this repo
+### Native
+2. Add process configuration file(s) (yaml) to the [plugins](api/plugins/) directory (or use -d flag to specify path of the directory with process configuration files in step 4)
+3. `cd api`
+4. Update swagger documents and compile the server: `swag init && go build main.go`.
+5. Run the server: `./main`, with the following available flags:
    ```
       `-d [type string] specify the path of the processes directory to load (default "plugins" assuming program called from inside repo)`
-      `-e [type string] specify the path of the dot env file to load (default ".env")`
+      `-e [type string] specify the path of the dot env file to load (default "../.env")`
       `-p [type string] specify the port to run the api on (default "5050")`
+      `-db [type string] specify the path of the sqlite database (default "../.data/db.sqlite")`
    ```
+
+### Docker Compose
+2. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
+3. `docker-compose build`
+4. `docker-compose up`
 
 
 Once the server is up and running, go to http://localhost:5050/swagger/ for documentation details.
