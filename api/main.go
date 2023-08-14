@@ -21,6 +21,7 @@ import (
 
 var (
 	pluginsDir string
+	dbPath     string
 	port       string
 	envFP      string
 )
@@ -29,7 +30,8 @@ func init() {
 
 	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&envFP, "e", ".env", "specify the path of the dot env file to load")
+	flag.StringVar(&envFP, "e", "../.env", "specify the path of the dot env file to load")
+	flag.StringVar(&dbPath, "db", "../.data/db.sqlite", "specify the path of the sqlite database")
 
 	flag.Parse()
 
@@ -58,7 +60,7 @@ func init() {
 func main() {
 
 	// Initialize resources
-	rh := handlers.NewRESTHander(pluginsDir)
+	rh := handlers.NewRESTHander(pluginsDir, dbPath)
 
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 

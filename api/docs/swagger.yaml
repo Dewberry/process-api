@@ -1,6 +1,54 @@
 basePath: /
 definitions:
-  jobs.Info:
+  handlers.jobResponse:
+    properties:
+      jobID:
+        type: string
+      message:
+        type: string
+      outputs: {}
+      processID:
+        type: string
+      status:
+        type: string
+      type:
+        default: process
+        type: string
+      updated:
+        type: string
+    type: object
+  jobs.JobLogs:
+    properties:
+      api_logs:
+        items:
+          type: string
+        type: array
+      container_logs:
+        items:
+          type: string
+        type: array
+      jobID:
+        type: string
+    type: object
+  jobs.JobRecord:
+    properties:
+      host:
+        type: string
+      jobID:
+        type: string
+      mode:
+        type: string
+      processID:
+        type: string
+      status:
+        type: string
+      type:
+        default: process
+        type: string
+      updated:
+        type: string
+    type: object
+  processes.Info:
     properties:
       description:
         type: string
@@ -19,17 +67,17 @@ definitions:
       version:
         type: string
     type: object
-  jobs.Input:
+  processes.Input:
     properties:
       literalDataDomain:
-        $ref: '#/definitions/jobs.LiteralDataDomain'
+        $ref: '#/definitions/processes.LiteralDataDomain'
     type: object
-  jobs.Inputs:
+  processes.Inputs:
     properties:
       id:
         type: string
       input:
-        $ref: '#/definitions/jobs.Input'
+        $ref: '#/definitions/processes.Input'
       maxOccurs:
         type: integer
       minOccurs:
@@ -37,36 +85,7 @@ definitions:
       title:
         type: string
     type: object
-  jobs.JobLogs:
-    properties:
-      api_log:
-        items:
-          type: string
-        type: array
-      container_log:
-        items:
-          type: string
-        type: array
-    type: object
-  jobs.jobStatus:
-    properties:
-      commands:
-        items:
-          type: string
-        type: array
-      jobID:
-        type: string
-      processID:
-        type: string
-      status:
-        type: string
-      type:
-        default: process
-        type: string
-      updated:
-        type: string
-    type: object
-  jobs.Link:
+  processes.Link:
     properties:
       href:
         type: string
@@ -77,21 +96,21 @@ definitions:
       type:
         type: string
     type: object
-  jobs.LiteralDataDomain:
+  processes.LiteralDataDomain:
     properties:
       dataType:
         type: string
       valueDefinition:
-        $ref: '#/definitions/jobs.ValueDefinition'
+        $ref: '#/definitions/processes.ValueDefinition'
     type: object
-  jobs.Output:
+  processes.Output:
     properties:
       formats:
         items:
           type: string
         type: array
     type: object
-  jobs.Outputs:
+  processes.Outputs:
     properties:
       id:
         type: string
@@ -99,28 +118,18 @@ definitions:
         description: json omit
         type: string
       output:
-        $ref: '#/definitions/jobs.Output'
+        $ref: '#/definitions/processes.Output'
       title:
         type: string
     type: object
-  jobs.ProcessDescription:
+  processes.Resources:
     properties:
-      info:
-        $ref: '#/definitions/jobs.Info'
-      inputs:
-        items:
-          $ref: '#/definitions/jobs.Inputs'
-        type: array
-      links:
-        items:
-          $ref: '#/definitions/jobs.Link'
-        type: array
-      outputs:
-        items:
-          $ref: '#/definitions/jobs.Outputs'
-        type: array
+      cpus:
+        type: number
+      memory:
+        type: integer
     type: object
-  jobs.ValueDefinition:
+  processes.ValueDefinition:
     properties:
       anyValue:
         type: boolean
@@ -129,27 +138,31 @@ definitions:
           type: string
         type: array
     type: object
-  jobs.jobResponse:
+  processes.processDescription:
     properties:
-      jobID:
+      image:
         type: string
-      message:
-        type: string
-      outputs: {}
-      processID:
-        type: string
-      status:
-        type: string
-      type:
-        default: process
-        type: string
-      updated:
-        type: string
+      info:
+        $ref: '#/definitions/processes.Info'
+      inputs:
+        items:
+          $ref: '#/definitions/processes.Inputs'
+        type: array
+      links:
+        items:
+          $ref: '#/definitions/processes.Link'
+        type: array
+      maxResources:
+        $ref: '#/definitions/processes.Resources'
+      outputs:
+        items:
+          $ref: '#/definitions/processes.Outputs'
+        type: array
     type: object
 externalDocs:
   description: Schemas
   url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
-host: http://vap.api.dewberryanalytics.com
+host: localhost:5050
 info:
   contact:
     email: slawler@dewberry.com
@@ -202,9 +215,9 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/jobs.jobStatus'
+              $ref: '#/definitions/jobs.JobRecord'
             type: array
-      summary: Summary of all (cached) Jobs
+      summary: Summary of all (active) Jobs
       tags:
       - jobs
   /jobs/{jobID}:
@@ -218,22 +231,22 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jobs.jobResponse'
+            $ref: '#/definitions/handlers.jobResponse'
       summary: Dismiss Job
       tags:
       - jobs
     get:
       consumes:
       - '*/*'
-      description: '[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)'
+      description: '[xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jobs.jobResponse'
-      summary: Job Results
+            $ref: '#/definitions/handlers.jobResponse'
+      summary: Job Status
       tags:
       - jobs
   /jobs/{jobID}/logs:
@@ -250,6 +263,21 @@ paths:
       summary: Job Logs
       tags:
       - jobs
+  /jobs/{jobID}/results:
+    get:
+      consumes:
+      - '*/*'
+      description: '[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.jobResponse'
+      summary: Job Results
+      tags:
+      - jobs
   /processes:
     get:
       consumes:
@@ -261,9 +289,8 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/jobs.Info'
-            type: array
+            additionalProperties: true
+            type: object
       summary: List Available Processes
       tags:
       - processes
@@ -284,7 +311,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jobs.ProcessDescription'
+            $ref: '#/definitions/processes.processDescription'
       summary: Describe Process Information
       tags:
       - processes
@@ -299,7 +326,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jobs.jobResponse'
+            $ref: '#/definitions/handlers.jobResponse'
       summary: Execute Process
       tags:
       - processes

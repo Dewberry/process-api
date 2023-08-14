@@ -79,7 +79,7 @@ const docTemplate = `{
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Summary of all (cached) Jobs",
+                "summary": "Summary of all (active) Jobs",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -95,7 +95,7 @@ const docTemplate = `{
         },
         "/jobs/{jobID}": {
             "get": {
-                "description": "[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)",
+                "description": "[xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)",
                 "consumes": [
                     "*/*"
                 ],
@@ -105,12 +105,12 @@ const docTemplate = `{
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Job Results",
+                "summary": "Job Status",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.jobResponse"
+                            "$ref": "#/definitions/handlers.jobResponse"
                         }
                     }
                 }
@@ -131,7 +131,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.jobResponse"
+                            "$ref": "#/definitions/handlers.jobResponse"
                         }
                     }
                 }
@@ -159,6 +159,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/jobs/{jobID}/results": {
+            "get": {
+                "description": "[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Job Results",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.jobResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/processes": {
             "get": {
                 "description": "[Process List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_list)",
@@ -176,10 +199,8 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/jobs.Info"
-                            }
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -211,7 +232,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.ProcessDescription"
+                            "$ref": "#/definitions/processes.processDescription"
                         }
                     }
                 }
@@ -234,7 +255,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jobs.jobResponse"
+                            "$ref": "#/definitions/handlers.jobResponse"
                         }
                     }
                 }
@@ -242,7 +263,79 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "jobs.Info": {
+        "handlers.jobResponse": {
+            "type": "object",
+            "properties": {
+                "jobID": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "outputs": {},
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.JobLogs": {
+            "type": "object",
+            "properties": {
+                "api_logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "jobID": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.JobRecord": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "jobID": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "processID": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "default": "process"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
+        },
+        "processes.Info": {
             "type": "object",
             "properties": {
                 "description": {
@@ -271,22 +364,22 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.Input": {
+        "processes.Input": {
             "type": "object",
             "properties": {
                 "literalDataDomain": {
-                    "$ref": "#/definitions/jobs.LiteralDataDomain"
+                    "$ref": "#/definitions/processes.LiteralDataDomain"
                 }
             }
         },
-        "jobs.Inputs": {
+        "processes.Inputs": {
             "type": "object",
             "properties": {
                 "id": {
                     "type": "string"
                 },
                 "input": {
-                    "$ref": "#/definitions/jobs.Input"
+                    "$ref": "#/definitions/processes.Input"
                 },
                 "maxOccurs": {
                     "type": "integer"
@@ -299,51 +392,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.JobLogs": {
-            "type": "object",
-            "properties": {
-                "api_log": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "container_log": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "jobs.JobRecord": {
-            "type": "object",
-            "properties": {
-                "commands": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "jobID": {
-                    "type": "string"
-                },
-                "processID": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string",
-                    "default": "process"
-                },
-                "updated": {
-                    "type": "string"
-                }
-            }
-        },
-        "jobs.Link": {
+        "processes.Link": {
             "type": "object",
             "properties": {
                 "href": {
@@ -360,18 +409,18 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.LiteralDataDomain": {
+        "processes.LiteralDataDomain": {
             "type": "object",
             "properties": {
                 "dataType": {
                     "type": "string"
                 },
                 "valueDefinition": {
-                    "$ref": "#/definitions/jobs.ValueDefinition"
+                    "$ref": "#/definitions/processes.ValueDefinition"
                 }
             }
         },
-        "jobs.Output": {
+        "processes.Output": {
             "type": "object",
             "properties": {
                 "formats": {
@@ -382,7 +431,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.Outputs": {
+        "processes.Outputs": {
             "type": "object",
             "properties": {
                 "id": {
@@ -393,40 +442,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "output": {
-                    "$ref": "#/definitions/jobs.Output"
+                    "$ref": "#/definitions/processes.Output"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "jobs.ProcessDescription": {
+        "processes.Resources": {
             "type": "object",
             "properties": {
-                "info": {
-                    "$ref": "#/definitions/jobs.Info"
+                "cpus": {
+                    "type": "number"
                 },
-                "inputs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jobs.Inputs"
-                    }
-                },
-                "links": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jobs.Link"
-                    }
-                },
-                "outputs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jobs.Outputs"
-                    }
+                "memory": {
+                    "type": "integer"
                 }
             }
         },
-        "jobs.ValueDefinition": {
+        "processes.ValueDefinition": {
             "type": "object",
             "properties": {
                 "anyValue": {
@@ -440,28 +474,35 @@ const docTemplate = `{
                 }
             }
         },
-        "jobs.jobResponse": {
+        "processes.processDescription": {
             "type": "object",
             "properties": {
-                "jobID": {
+                "image": {
                     "type": "string"
                 },
-                "message": {
-                    "type": "string"
+                "info": {
+                    "$ref": "#/definitions/processes.Info"
                 },
-                "outputs": {},
-                "processID": {
-                    "type": "string"
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/processes.Inputs"
+                    }
                 },
-                "status": {
-                    "type": "string"
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/processes.Link"
+                    }
                 },
-                "type": {
-                    "type": "string",
-                    "default": "process"
+                "maxResources": {
+                    "$ref": "#/definitions/processes.Resources"
                 },
-                "updated": {
-                    "type": "string"
+                "outputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/processes.Outputs"
+                    }
                 }
             }
         }
@@ -475,7 +516,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "dev-4.19.23",
-	Host:             "http://vap.api.dewberryanalytics.com",
+	Host:             "localhost:5050",
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "Process-API Server",

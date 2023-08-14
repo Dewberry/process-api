@@ -50,7 +50,7 @@ func prettyPrint(v interface{}) string {
 
 // Initializes resources and return a new handler
 // errors are fatal
-func NewRESTHander(pluginsDir string) *RESTHandler {
+func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	// working with pointers here so as not to copy large templates, yamls, and ActiveJobs
 	config := RESTHandler{
 		Title:       "process-api",
@@ -101,7 +101,7 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac
 
-	adb := jobs.InitDB("/mnt/.data/db.sqlite")
+	adb := jobs.InitDB(dbPath)
 	config.DB = adb
 
 	processList, err := pr.LoadProcesses(pluginsDir)
