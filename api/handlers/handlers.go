@@ -144,7 +144,7 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 // @Tags processes
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []Info
+// @Success 200 {object} map[string]interface{}
 // @Router /processes [get]
 func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -212,7 +212,7 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Param processID path string true "processID"
 // @Accept */*
 // @Produce json
-// @Success 200 {object} ProcessDescription
+// @Success 200 {object} processes.processDescription
 // @Router /processes/{processID} [get]
 func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 	processID := c.Param("processID")
@@ -392,7 +392,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobRecord
+// @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [get]
 func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 	err := validateFormat(c)
@@ -521,7 +521,7 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} JobLogs
+// @Success 200 {object} jobs.JobLogs
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
@@ -558,7 +558,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} []JobRecord
+// @Success 200 {object} []jobs.JobRecord
 // @Router /jobs [get]
 func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	err := validateFormat(c)
