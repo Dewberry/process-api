@@ -12,6 +12,6 @@ services:
       - .env
     volumes:
       - ./api:/app
-      - ./.data:/mnt/.data
-      - ./data:/mnt/data
+      - ./.data:/.data
+      - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock

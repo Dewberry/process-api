@@ -32,7 +32,7 @@ func init() {
 	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
 	flag.StringVar(&envFP, "e", "../.env", "specify the path of the dot env file to load")
-	flag.StringVar(&dbPath, "db", "/mnt/.data/db.sqlite", "specify the path of the sqlite database")
+	flag.StringVar(&dbPath, "db", "../.data/db.sqlite", "specify the path of the sqlite database")
 
 	flag.Parse()
 
