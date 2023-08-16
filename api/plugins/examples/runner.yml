@@ -1,0 +1,48 @@
+info:
+  version: '8.16.2023'
+  id: runner
+  title: model runner plugin
+  description: Simulates a model runner job
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+
+host:
+  type: local
+
+container:
+  image: lawlerseth/runner:v0.0.1
+  command:
+    - ./main
+  maxResources:
+    cpus: 1.0
+    memory: 512
+
+inputs:
+  - id: inputs
+    title: model input files
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 5
+  - id: jobRootPrefix
+    title: root prefix on s3 for model
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 5
+
+outputs:
+  - id: outputs
+    title: model output files
+    output:
+      transmissionMode:
+      - value
+
+
