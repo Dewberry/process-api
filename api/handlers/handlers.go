@@ -79,7 +79,8 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 		accept := c.Request().Header.Get("Accept")
 		if strings.Contains(accept, "application/json") {
 			// Browsers generally send text/html as an accept header
-			return c.Render(httpStatus, renderName, output)
+			// return c.Render(httpStatus, renderName, output)
+			return c.JSON(httpStatus, output)
 		} else if strings.Contains(accept, "text/html") {
 			// Browsers generally send text/html as an accept header
 			return c.Render(httpStatus, renderName, output)
@@ -90,11 +91,11 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	}
 }
 
-// runRequestBody provides the required inputs for containerized processes
-type runRequestBody struct {
-	Inputs  map[string]interface{} `json:"inputs"`
-	EnvVars map[string]string      `json:"environmentVariables"`
-}
+// // runRequestBody provides the required inputs for containerized processes
+// type runRequestBody struct {
+// 	Inputs  map[string]interface{} `json:"inputs"`
+// 	EnvVars map[string]string      `json:"environmentVariables"`
+// }
 
 // LandingPage godoc
 // @Summary Landing Page
@@ -239,6 +240,8 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Tags processes
 // @Accept */*
 // @Produce json
+// @Param processID path string true "pyecho"
+// @Param input body string true "{"text":"hello world!"}"
 // @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
@@ -254,17 +257,14 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
-	var params runRequestBody
-	err = c.Bind(&params)
+	var params map[string]interface{}
+	decoder := json.NewDecoder(c.Request().Body)
+	err = decoder.Decode(&params)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "invalid json or input data not found in the body of the request"})
 	}
 
-	if params.Inputs == nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
-	}
-
-	err = p.VerifyInputs(params.Inputs)
+	err = p.VerifyInputs(params)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
@@ -273,10 +273,10 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
 
-	params.Inputs["jobID"] = jobID
-	params.Inputs["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
-	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
-	jsonParams, err := json.Marshal(params.Inputs)
+	params["jobID"] = jobID
+	params["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
+	params["expDays"] = os.Getenv("EXPIRY_DAYS")
+	jsonParams, err := json.Marshal(params)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 	}
@@ -343,7 +343,9 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			if p.Outputs != nil {
 				outputs, err = jobs.FetchResults(rh.S3Svc, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
+					// outputs
+					// return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
+					return c.JSON(http.StatusInternalServerError, "outputs not handled yet")
 				}
 			}
 			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
