@@ -159,9 +159,6 @@ definitions:
           $ref: '#/definitions/processes.Outputs'
         type: array
     type: object
-externalDocs:
-  description: Schemas
-  url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 host: localhost:5050
 info:
   contact:
@@ -320,6 +317,18 @@ paths:
       consumes:
       - '*/*'
       description: '[Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)'
+      parameters:
+      - description: pyecho
+        in: path
+        name: processID
+        required: true
+        type: string
+      - description: '{'
+        in: body
+        name: input
+        required: true
+        schema:
+          type: string
       produces:
       - application/json
       responses:

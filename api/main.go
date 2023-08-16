@@ -43,7 +43,7 @@ func init() {
 }
 
 // @title Process-API Server
-// @version dev-4.19.23
+// @version dev-8.16.23
 // @description An OGC compliant process server.
 
 // @contact.name Seth Lawler

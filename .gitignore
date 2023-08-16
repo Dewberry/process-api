@@ -21,3 +21,4 @@
 data/*
 api/plguins/*
 *main
+.miniodata/

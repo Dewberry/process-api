@@ -247,6 +247,24 @@
                     "processes"
                 ],
                 "summary": "Execute Process",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "pyecho",
+                        "name": "processID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "{",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -502,9 +520,5 @@
                 }
             }
         }
-    },
-    "externalDocs": {
-        "description": "Schemas",
-        "url": "http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/"
     }
 }
