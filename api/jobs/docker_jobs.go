@@ -3,8 +3,10 @@ package jobs
 import (
 	"app/controllers"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,7 @@ type DockerJob struct {
 	Status        string `json:"status"`
 	apiLogs       []string
 	containerLogs []string
+	results       map[string]interface{}
 	Resources
 	DB *DB
 }
@@ -49,6 +52,45 @@ func (j *DockerJob) Logs() (JobLogs, error) {
 	logs.ContainerLogs = j.containerLogs
 	logs.APILogs = j.apiLogs
 	return logs, nil
+}
+
+// stripResultsFromLog convenience function
+func StripResultsFromLog(containerLogs []string, jid string) (map[string]interface{}, error) {
+	lastLogIdx := len(containerLogs) - 1
+	if lastLogIdx < 0 {
+		return nil, fmt.Errorf("container_logs array is empty")
+	}
+
+	lastLog := containerLogs[lastLogIdx]
+	lastLog = strings.ReplaceAll(lastLog, "'", "\"")
+
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(lastLog), &data)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling reslts: %s", err.Error())
+	}
+
+	pluginResults, ok := data["plugin_results"]
+	if !ok {
+		return nil, fmt.Errorf("'plugin_results' key not found")
+	}
+
+	apiOutputResults := map[string]interface{}{
+		"jobID":   jid,
+		"results": pluginResults,
+	}
+
+	return apiOutputResults, nil
+}
+
+func (j *DockerJob) Results() (map[string]interface{}, error) {
+
+	results, err := StripResultsFromLog(j.containerLogs, j.JobID())
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+
 }
 
 func (j *DockerJob) Messages(includeErrors bool) []string {
@@ -105,27 +147,30 @@ func (j *DockerJob) Create() error {
 	c, err := controllers.NewDockerController()
 	if err != nil {
 		j.ctxCancel()
-		return err
+		return fmt.Errorf("error creating NewDockerController %s ", err.Error())
 	}
 
 	// verify command in body
 	if j.Cmd == nil {
+		fmt.Println("CMD")
 		j.ctxCancel()
-		return err
+		return fmt.Errorf("unable to execute docker_job CMD %s ", err.Error())
 	}
 
-	// pull image
-	if j.Image != "" {
-		err = c.EnsureImage(ctx, j.Image, false)
-		if err != nil {
-			j.ctxCancel()
-			return err
-		}
-	}
+	_ = c
+	// // pull image
+	// if j.Image != "" {
+	// 	err = c.EnsureImage(ctx, j.Image, false)
+	// 	if err != nil {
+	// 		j.ctxCancel()
+	// 		return fmt.Errorf("unable to EnsureImage avaailable, comment this check for offline dev.")
+	// 	}
+	// }
 
 	// At this point job is ready to be added to database
 	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
 	if err != nil {
+		fmt.Println("j.DB.addJob")
 		j.ctxCancel()
 		return err
 	}
@@ -163,9 +208,21 @@ func (j *DockerJob) Run() {
 
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
+
 	// todo: get logs while container running so that logs or running containers is visible by users this would only be needed when docker jobs can also be async
 	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
+	if err != nil {
+		j.HandleError(err.Error())
+		return
+	}
 	j.containerLogs = containerLogs
+
+	results, err := j.Results()
+	if err != nil {
+		j.HandleError(err.Error())
+		return
+	}
+	j.results = results
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {

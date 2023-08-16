@@ -3,6 +3,7 @@ package jobs
 import (
 	"app/controllers"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -25,6 +26,7 @@ type AWSBatchJob struct {
 	Status        string `json:"status"`
 	apiLogs       []string
 	containerLogs []string
+	// results       interface{}
 
 	JobDef   string `json:"jobDefinition"`
 	JobQueue string `json:"jobQueue"`
@@ -110,6 +112,10 @@ func (j *AWSBatchJob) NewStatusUpdate(s string) {
 
 func (j *AWSBatchJob) CurrentStatus() string {
 	return j.Status
+}
+
+func (j *AWSBatchJob) Results() (map[string]interface{}, error) {
+	return nil, errors.New("error: results not imlemented for aws-batch jobs")
 }
 
 func (j *AWSBatchJob) ProviderID() string {

@@ -32,6 +32,7 @@ type Job interface {
 	NewStatusUpdate(string)
 	Run()
 	Create() error
+	Results() (map[string]interface{}, error)
 }
 
 // JobRecord contains details about a job
@@ -99,30 +100,12 @@ func (ac *ActiveJobs) ListJobs() []JobRecord {
 	return jobs
 }
 
-// If JobID exists but results file doesn't then it raises an error
-// Assumes jobID is valid
+// TODO: Add to db
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
-	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_RESULTS_DIR"), jid)
-
-	exist, err := utils.KeyExists(key, svc)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exist {
-		return nil, fmt.Errorf("not found")
-	}
-
-	data, err := utils.GetS3JsonData(key, svc)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return nil, nil
 }
 
-// If JobID exists but metadata file doesn't then it raises an error
-// Assumes jobID is valid
+// TODO: Add to db
 func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
 	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jid)
 
