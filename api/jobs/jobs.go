@@ -24,6 +24,7 @@ type Job interface {
 	IMAGE() string
 	JobID() string
 	ProcessID() string
+	ProcessVersionID() string
 	Logs() (JobLogs, error)
 	Kill() error
 	LastUpdate() time.Time

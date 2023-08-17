@@ -3,8 +3,10 @@ package controllers
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -222,8 +224,44 @@ func (c *DockerController) GetImageDigest(imageURI string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	// Get the digest from the image inspect response
 	imageDigest := imageInspect.ID
 	return imageDigest, nil
+}
+
+// Get job execution times
+func (c *DockerController) GetJobTimes(containerID string) (cp time.Time, cr time.Time, st time.Time, err error) {
+	// Initialize the Docker client
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error initializing Docker client: %v", err)
+	}
+
+	// Get the container details
+	containerInfo, err := cli.ContainerInspect(context.Background(), containerID)
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error getting container details: %v", err)
+	}
+
+	launchTime, err := time.Parse(time.RFC3339Nano, containerInfo.Created)
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing launch time: %v", err)
+	}
+
+	var startTime, stopTime time.Time
+	if containerInfo.State.StartedAt != "" {
+		startTime, err = time.Parse(time.RFC3339Nano, containerInfo.State.StartedAt)
+		if err != nil {
+			return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing start time: %v", err)
+		}
+	}
+
+	if containerInfo.State.FinishedAt != "" {
+		stopTime, err = time.Parse(time.RFC3339Nano, containerInfo.State.FinishedAt)
+		if err != nil {
+			return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing stop time: %v", err)
+		}
+	}
+
+	return launchTime, startTime, stopTime, nil
 }

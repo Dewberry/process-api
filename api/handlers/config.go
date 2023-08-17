@@ -4,10 +4,16 @@ import (
 	"app/jobs"
 	pr "app/processes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
+	"os"
+	"strconv"
 	"text/template"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/labstack/echo/v4"
@@ -69,11 +75,11 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob("views/*.html")),
 	}
 
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	config.S3Svc = s3.New(sess)
+	sess, err := SessionManager()
+	if err != nil {
+		log.Fatal(err)
+	}
+	config.S3Svc = sess
 
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
@@ -90,4 +96,47 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	config.ProcessList = &processList
 
 	return &config
+}
+
+func SessionManager() (*s3.S3, error) {
+	region := os.Getenv("AWS_REGION")
+	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
+	if err != nil {
+		log.Fatal("TODO", err)
+	}
+
+	if s3Mock {
+		fmt.Println("Using minio to mock s3")
+		endpoint := os.Getenv("S3_ENDPOINT")
+		if endpoint == "" {
+			return nil, errors.New("`S3_ENDPOINT` env var required if using Minio (S3_MOCK). Set `S3_MOCK` to false or add an `S3_ENDPOINT` to the env")
+		}
+
+		sess, err := session.NewSession(&aws.Config{
+			Endpoint:         aws.String(endpoint),
+			Region:           aws.String(region),
+			Credentials:      credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
+			S3ForcePathStyle: aws.Bool(true),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error connecting to minio session: %s", err.Error())
+		}
+
+		return s3.New(sess), nil
+
+	} else {
+
+		sess, err := session.NewSession(&aws.Config{
+			Region:      aws.String(region),
+			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error creating s3 session: %s", err.Error())
+		}
+
+		return s3.New(sess), nil
+
+	}
 }

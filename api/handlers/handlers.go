@@ -284,13 +284,15 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 	if jobType == "sync-execute" {
 		j = &jobs.DockerJob{
-			UUID:        jobID,
-			ProcessName: processID,
-			Image:       p.Container.Image,
-			EnvVars:     p.Container.EnvVars,
-			Resources:   jobs.Resources(p.Container.Resources),
-			Cmd:         cmd,
-			DB:          rh.DB,
+			UUID:           jobID,
+			ProcessName:    processID,
+			ProcessVersion: p.Info.Version,
+			Image:          p.Container.Image,
+			EnvVars:        p.Container.EnvVars,
+			Resources:      jobs.Resources(p.Container.Resources),
+			Cmd:            cmd,
+			DB:             rh.DB,
+			S3Svc:          rh.S3Svc,
 		}
 
 	} else {
@@ -485,6 +487,8 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
 			md, err := jobs.FetchMeta(rh.S3Svc, jobID)
+			fmt.Println("md", md)
+			fmt.Println("err", err)
 			if err != nil {
 				if err.Error() == "not found" {
 					output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "metadata not found"}

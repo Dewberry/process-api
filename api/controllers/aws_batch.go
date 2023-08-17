@@ -37,7 +37,7 @@ func (c *AWSBatchController) GetJobDefInfo(jobDef string) (JobDefinitionInfo, er
 
 	// Check if any job definitions were returned
 	if len(resp.JobDefinitions) != 1 {
-		return jdi, fmt.Errorf("Did not get an exact match for job definitions")
+		return jdi, fmt.Errorf("did not get an exact match for job definitions")
 	}
 
 	// Retrieve the Image URI from the first job definition in the response
@@ -46,8 +46,14 @@ func (c *AWSBatchController) GetJobDefInfo(jobDef string) (JobDefinitionInfo, er
 
 	// Extract vCPU and memory requirements
 	f64, err := strconv.ParseFloat(getResourceRequirement(resourceRequirements, "VCPU"), 32)
+	if err != nil {
+		return jdi, fmt.Errorf("vCPU....todo")
+	}
 	jdi.VCPUs = float32(f64)
 	jdi.Memory, err = strconv.Atoi(getResourceRequirement(resourceRequirements, "MEMORY"))
+	if err != nil {
+		return jdi, fmt.Errorf("mEMORY...todo")
+	}
 
 	return jdi, nil
 }
@@ -237,7 +243,7 @@ func (c *AWSBatchController) GetImageURI(jobDef string) (string, error) {
 
 	// Check if any job definitions were returned
 	if len(resp.JobDefinitions) != 1 {
-		return "", fmt.Errorf("Did not get an exact match for job definitions")
+		return "", fmt.Errorf("did not get an exact match for job definitions")
 	}
 
 	// Retrieve the Image URI from the first job definition in the response

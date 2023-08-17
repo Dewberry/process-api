@@ -27,9 +27,9 @@ type image struct {
 
 // Define a metaData object
 type metaData struct {
-	Context string  `json:"@context"`
-	JobID   string  `json:"apiJobId"`
-	User    string  `json:"apiUser"`
+	Context string `json:"@context"`
+	JobID   string `json:"apiJobId"`
+	// User    string  `json:"apiUser"`
 	Process process `json:"process"`
 	Image   image   `json:"image"`
 	// ComputeEnvironmentURI    string    // ARN
@@ -38,6 +38,49 @@ type metaData struct {
 	GeneratedAtTime time.Time `json:"generatedAtTime"`
 	StartedAtTime   time.Time `json:"startedAtTime"`
 	EndedAtTime     time.Time `json:"endedAtTime"`
+}
+
+// Write metadata at the job's metadata location
+func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
+
+	p := process{j.ProcessID(), j.ProcessVersionID()}
+	imageDigest, err := c.GetImageDigest(j.IMAGE())
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	i := image{j.IMAGE(), imageDigest}
+
+	g, s, e, err := c.GetJobTimes(j.ContainerID)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	md := metaData{
+		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
+		JobID:           j.UUID,
+		Process:         p,
+		Image:           i,
+		Commands:        j.Cmd,
+		GeneratedAtTime: g,
+		StartedAtTime:   s,
+		EndedAtTime:     e,
+	}
+
+	fmt.Println("Metadata.......----------->>", md)
+	jsonBytes, err := json.Marshal(md)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	fmt.Println("metadata-->", md)
+
+	metaDataLocation := "metadata/" + j.JobID() + ".json"
+	fmt.Println("metaDataLocation", metaDataLocation)
+	utils.WriteToS3(j.S3Svc, jsonBytes, metaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Write metadata at the job's metadata location
@@ -96,7 +139,7 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
-	utils.WriteToS3(jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
+	utils.WriteToS3(j.S3Svc, jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Get image digest from ecr

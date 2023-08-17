@@ -10,7 +10,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -18,20 +17,15 @@ import (
 // 0 value for expDays means no expiry
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays int) {
+func WriteToS3(svc *s3.S3, b []byte, key string, logs *[]string, contType string, expDays int) error {
 
 	defer func(logs *[]string) {
 		if r := recover(); r != nil {
 			// Handle the panic gracefully
-			*logs = append(*logs, fmt.Sprintf("Failure writing to S3. Log writing routine panicked: %v", r))
+			msg := fmt.Sprintf("Failure writing `%s` to `%s`: %v", key, os.Getenv("S3_BUCKET"), r)
+			*logs = append(*logs, msg)
 		}
 	}(logs)
-
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	svc := s3.New(sess)
 
 	var expirationDate *time.Time
 	if expDays != 0 {
@@ -50,7 +44,11 @@ func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays in
 
 	if err != nil {
 		*logs = append(*logs, "Failure writing to S3. Error: "+err.Error())
+		return err
 	}
+	msg := fmt.Sprintf("Metadata file `%s` successfully written to `%s`", key, os.Getenv("S3_BUCKET"))
+	*logs = append(*logs, msg)
+	return nil
 }
 
 // Check if an S3 Key exists

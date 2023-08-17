@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 // Fields are exported so that gob can access it
@@ -40,6 +41,7 @@ type AWSBatchJob struct {
 	MetaDataLocation string
 	ProcessVersion   string
 	DB               *DB
+	S3Svc            *s3.S3
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -48,6 +50,10 @@ func (j *AWSBatchJob) JobID() string {
 
 func (j *AWSBatchJob) ProcessID() string {
 	return j.ProcessName
+}
+
+func (j *AWSBatchJob) ProcessVersionID() string {
+	return j.ProcessVersion
 }
 
 func (j *AWSBatchJob) CMD() []string {
@@ -137,7 +143,7 @@ func (j *AWSBatchJob) Create() error {
 	j.ctx = ctx
 	j.ctxCancel = cancelFunc
 
-	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	batchContext, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		j.ctxCancel()
 		return err
@@ -171,7 +177,7 @@ func (j *AWSBatchJob) Create() error {
 
 // Thid actually does not run a job but only monitors it
 func (j *AWSBatchJob) Run() {
-	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		j.HandleError(err.Error())
 		return
@@ -228,7 +234,7 @@ func (j *AWSBatchJob) Kill() error {
 		return fmt.Errorf("can't call delete on an already completed, failed, or dismissed job")
 	}
 
-	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
 		j.HandleError(err.Error())
 		return err
@@ -253,7 +259,7 @@ func (j *AWSBatchJob) Kill() error {
 func (j *AWSBatchJob) fetchCloudWatchLogs() error {
 	// Create a new session in the desired region
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_DEFAULT_REGION")),
+		Region: aws.String(os.Getenv("AWS_REGION")),
 	})
 	if err != nil {
 		return fmt.Errorf("Error creating session: " + err.Error())

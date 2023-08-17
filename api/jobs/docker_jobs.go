@@ -8,24 +8,28 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type DockerJob struct {
-	ctx           context.Context
-	ctxCancel     context.CancelFunc
-	UUID          string `json:"jobID"`
-	ContainerID   string
-	Image         string `json:"image"`
-	ProcessName   string `json:"processID"`
-	EnvVars       []string
-	Cmd           []string `json:"commandOverride"`
-	UpdateTime    time.Time
-	Status        string `json:"status"`
-	apiLogs       []string
-	containerLogs []string
-	results       map[string]interface{}
+	ctx            context.Context
+	ctxCancel      context.CancelFunc
+	UUID           string `json:"jobID"`
+	ContainerID    string
+	Image          string `json:"image"`
+	ProcessName    string `json:"processID"`
+	ProcessVersion string `json:"processVersion"`
+	EnvVars        []string
+	Cmd            []string `json:"commandOverride"`
+	UpdateTime     time.Time
+	Status         string `json:"status"`
+	apiLogs        []string
+	containerLogs  []string
+	results        map[string]interface{}
 	Resources
-	DB *DB
+	DB    *DB
+	S3Svc *s3.S3
 }
 
 func (j *DockerJob) JobID() string {
@@ -34,6 +38,10 @@ func (j *DockerJob) JobID() string {
 
 func (j *DockerJob) ProcessID() string {
 	return j.ProcessName
+}
+
+func (j *DockerJob) ProcessVersionID() string {
+	return j.ProcessVersion
 }
 
 func (j *DockerJob) CMD() []string {
@@ -224,6 +232,7 @@ func (j *DockerJob) Run() {
 		return
 	}
 	j.results = results
+	j.WriteMeta(c)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
