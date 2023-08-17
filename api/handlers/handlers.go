@@ -299,7 +299,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			Resources:      jobs.Resources(p.Container.Resources),
 			Cmd:            cmd,
 			DB:             rh.DB,
-			MinioSvc:       rh.S3Svc,
+			MinioSvc:       rh.MinioSvc,
 		}
 
 	} else {
@@ -489,20 +489,20 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
 		// todo
-		// if jRcrd.Mode == "sync"
+
+		var bucket string
+		if jRcrd.Host == "local" {
+			bucket = os.Getenv("MINIO_S3_BUCKET")
+		} else {
+			bucket = os.Getenv("AWS_S3_BUCKET")
+		}
 
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			md, err := jobs.FetchMeta(rh.S3Svc, jobID)
-			fmt.Println("md", md)
-			fmt.Println("err", err)
+			md, err := jobs.FetchMeta(rh.MinioSvc, bucket, jobID)
 			if err != nil {
-				if err.Error() == "not found" {
-					output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "metadata not found"}
-					return prepareResponse(c, http.StatusInternalServerError, "error", output)
-				}
-				output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
-				return prepareResponse(c, http.StatusInternalServerError, "error", output)
+				output := errResponse{HTTPStatus: http.StatusNotFound, Message: err.Error()}
+				return prepareResponse(c, http.StatusNotFound, "error", output)
 			}
 			return prepareResponse(c, http.StatusOK, "jobMetadata", md)
 

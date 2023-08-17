@@ -111,7 +111,7 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 func SessionManager(host string) (*s3.S3, error) {
 
 	var region, accessKeyID, secretAccessKey string
-	if host == "minio" {
+	if host == "local" {
 		region = os.Getenv("MINIO_REGION")
 		accessKeyID = os.Getenv("MINIO_ACCESS_KEY_ID")
 		secretAccessKey = os.Getenv("MINIO_SECRET_ACCESS_KEY")

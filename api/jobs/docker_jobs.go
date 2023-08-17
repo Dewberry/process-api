@@ -63,22 +63,29 @@ func (j *DockerJob) Logs() (JobLogs, error) {
 	return logs, nil
 }
 
+// Return current logs of the job
+func (j *DockerJob) UpdateApiLogs(newItem string) {
+	apiLogs := j.apiLogs
+	apiLogs = append(apiLogs, newItem)
+	j.apiLogs = apiLogs
+}
+
 // stripResultsFromLog convenience function
 func StripResultsFromLog(containerLogs []string, jid string) (map[string]interface{}, error) {
 	lastLogIdx := len(containerLogs) - 1
 	if lastLogIdx < 0 {
-		return nil, fmt.Errorf("container_logs array is empty")
+		return nil, fmt.Errorf("no contnainer logs available")
 	}
 
 	lastLog := containerLogs[lastLogIdx]
 	lastLog = strings.ReplaceAll(lastLog, "'", "\"")
 
-	fmt.Println("containerLogs....", containerLogs)
+	// fmt.Println("containerLogs....", containerLogs)
 
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(lastLog), &data)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling reslts: %s", err.Error())
+		return nil, fmt.Errorf(`unable to parse results, expected {"plugin_results": {....}}, found : %s`, err.Error())
 	}
 
 	pluginResults, ok := data["plugin_results"]
@@ -120,6 +127,7 @@ func (j *DockerJob) HandleError(m string) {
 		j.NewStatusUpdate(FAILED)
 		go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
 	}
+	go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
 }
 
 func (j *DockerJob) LastUpdate() time.Time {
@@ -193,6 +201,7 @@ func (j *DockerJob) Create() error {
 func (j *DockerJob) Run() {
 	c, err := controllers.NewDockerController()
 	if err != nil {
+		j.UpdateApiLogs("failed creating NewDockerController")
 		j.HandleError(err.Error())
 		return
 	}
@@ -203,6 +212,7 @@ func (j *DockerJob) Run() {
 		envVars[eVar] = os.Getenv(eVar)
 	}
 
+	j.UpdateApiLogs(fmt.Sprintf("Registered %v env vars", len(envVars)))
 	resources := controllers.DockerResources{}
 	resources.NanoCPUs = int64(j.Resources.CPUs * 1e9)         // Docker controller needs cpu in nano ints
 	resources.Memory = int64(j.Resources.Memory * 1024 * 1024) // Docker controller needs memory in bytes
@@ -211,11 +221,13 @@ func (j *DockerJob) Run() {
 	j.NewStatusUpdate(RUNNING)
 	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
+		j.UpdateApiLogs("failed to run container")
 		j.HandleError(err.Error())
 		return
 	}
 
 	j.ContainerID = containerID
+	j.UpdateApiLogs(fmt.Sprintf("ContainerID = %v", containerID))
 
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
@@ -223,27 +235,22 @@ func (j *DockerJob) Run() {
 	// todo: get logs while container running so that logs or running containers is visible by users this would only be needed when docker jobs can also be async
 	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
 	if err != nil {
+		j.UpdateApiLogs("failed fetching conttainer logs")
 		j.HandleError(err.Error())
 		return
 	}
 	j.containerLogs = containerLogs
-
-	results, err := j.Results()
-	if err != nil {
-		j.HandleError(err.Error())
-		return
-	}
-	j.results = results
-	j.WriteMeta(c)
 
 	// If there are error messages remove container before cancelling context inside Handle Error
 	for _, err := range []error{errWait, errLog} {
 		if err != nil {
 			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
 			if errRem != nil {
+				j.UpdateApiLogs("failed removing container")
 				j.HandleError(err.Error() + " " + errRem.Error())
 				return
 			}
+			j.UpdateApiLogs("failed wating for container")
 			j.HandleError(err.Error())
 			return
 		}
@@ -252,21 +259,32 @@ func (j *DockerJob) Run() {
 	if statusCode != 0 {
 		errRem := c.ContainerRemove(j.ctx, j.ContainerID)
 		if errRem != nil {
-			j.HandleError(fmt.Sprintf("container exit code: %d", statusCode) + " " + errRem.Error())
+			j.HandleError(fmt.Sprintf("container failure, exit code: %d", statusCode) + " " + errRem.Error())
 			return
 		}
-		j.HandleError(fmt.Sprintf("container exit code: %d", statusCode))
+		j.HandleError(fmt.Sprintf("container failure, exit code: %d", statusCode))
 		return
 	}
+
+	j.WriteMeta(c)
 
 	// clean up the finished job
 	err = c.ContainerRemove(j.ctx, j.ContainerID)
 	if err != nil {
+		j.UpdateApiLogs("failed removing for container")
 		j.HandleError(err.Error())
 		return
 	}
 
+	results, err := j.Results()
+	if err != nil {
+		j.UpdateApiLogs("unable to fetch results")
+		j.HandleError(err.Error())
+		return
+	}
+	j.results = results
 	j.NewStatusUpdate(SUCCESSFUL)
+	j.UpdateApiLogs("process completed successfully.")
 
 	go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
 	j.ctxCancel()

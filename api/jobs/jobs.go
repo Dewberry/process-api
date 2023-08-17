@@ -108,10 +108,10 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 }
 
 // TODO: Add to db
-func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
-	key := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jid)
+func FetchMeta(svc *s3.S3, bucket, jid string) (interface{}, error) {
+	key := fmt.Sprintf("%s/%s.json", os.Getenv("MINIO_S3_META_DIR"), jid)
 
-	exist, err := utils.KeyExists(key, svc)
+	exist, err := utils.KeyExists(key, bucket, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
 		return nil, fmt.Errorf("not found")
 	}
 
-	data, err := utils.GetS3JsonData(key, svc)
+	data, err := utils.GetS3JsonData(key, bucket, svc)
 	if err != nil {
 		return nil, err
 	}

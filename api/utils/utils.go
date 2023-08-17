@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -17,12 +16,12 @@ import (
 // 0 value for expDays means no expiry
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(svc *s3.S3, b []byte, key string, logs *[]string, contType string, expDays int) error {
+func WriteToS3(svc *s3.S3, b []byte, bucket, key string, logs *[]string, contType string, expDays int) error {
 
 	defer func(logs *[]string) {
 		if r := recover(); r != nil {
 			// Handle the panic gracefully
-			msg := fmt.Sprintf("Failure writing `%s` to `%s`: %v", key, os.Getenv("S3_BUCKET"), r)
+			msg := fmt.Sprintf("Failure writing `%s` to `%s`: %v", key, bucket, r)
 			*logs = append(*logs, msg)
 		}
 	}(logs)
@@ -35,7 +34,7 @@ func WriteToS3(svc *s3.S3, b []byte, key string, logs *[]string, contType string
 
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
-		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
+		Bucket:      aws.String(bucket),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(b),
 		Expires:     expirationDate,
@@ -43,19 +42,20 @@ func WriteToS3(svc *s3.S3, b []byte, key string, logs *[]string, contType string
 	})
 
 	if err != nil {
-		*logs = append(*logs, "Failure writing to S3. Error: "+err.Error())
+		msg := fmt.Sprintf("Failure writing `%s` to `%s`: %v", key, bucket, err.Error())
+		*logs = append(*logs, msg)
 		return err
 	}
-	msg := fmt.Sprintf("Metadata file `%s` successfully written to `%s`", key, os.Getenv("S3_BUCKET"))
+	msg := fmt.Sprintf("Metadata file `%s` successfully written to `%s`", key, bucket)
 	*logs = append(*logs, msg)
 	return nil
 }
 
 // Check if an S3 Key exists
-func KeyExists(key string, svc *s3.S3) (bool, error) {
+func KeyExists(key, bucket string, svc *s3.S3) (bool, error) {
 
 	_, err := svc.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 
@@ -85,10 +85,10 @@ func StringInSlice(a string, list []string) bool {
 }
 
 // Assumes file exist
-func GetS3JsonData(key string, svc *s3.S3) (interface{}, error) {
+func GetS3JsonData(key, bucket string, svc *s3.S3) (interface{}, error) {
 	// Create a new S3GetObjectInput object to specify the file you want to read
 	params := &s3.GetObjectInput{
-		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	}
 

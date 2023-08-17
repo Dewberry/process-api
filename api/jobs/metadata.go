@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
 	p := process{j.ProcessID(), j.ProcessVersionID()}
 	imageDigest, err := c.GetImageDigest(j.IMAGE())
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.NewMessage(fmt.Sprintf("error getting imageDigest: %s", err.Error()))
 		return
 	}
 
@@ -54,7 +55,7 @@ func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
 
 	g, s, e, err := c.GetJobTimes(j.ContainerID)
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.NewMessage(fmt.Sprintf("error getting runtimes: %s", err.Error()))
 		return
 	}
 
@@ -69,18 +70,20 @@ func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
 		EndedAtTime:     e,
 	}
 
-	fmt.Println("Metadata.......----------->>", md)
 	jsonBytes, err := json.Marshal(md)
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.NewMessage(fmt.Sprintf("error marshalling metadata: %s", err.Error()))
 		return
 	}
 
-	fmt.Println("metadata-->", md)
+	bucket := os.Getenv("MINIO_S3_BUCKET")
 
 	metaDataLocation := "metadata/" + j.JobID() + ".json"
-	fmt.Println("metaDataLocation", metaDataLocation)
-	utils.WriteToS3(j.MinioSvc, jsonBytes, metaDataLocation, &j.apiLogs, "application/json", 0)
+	fmt.Println("metaDataLocation", metaDataLocation, bucket)
+	err = utils.WriteToS3(j.MinioSvc, jsonBytes, bucket, metaDataLocation, &j.apiLogs, "application/json", 0)
+	if err != nil {
+		return
+	}
 }
 
 // Write metadata at the job's metadata location
@@ -139,8 +142,9 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
+	bucket := os.Getenv("AWS_S3_BUCKET")
 	// TODO: Determine if batch metadata should be put on aws...currently this is the case
-	utils.WriteToS3(j.S3Svc, jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
+	utils.WriteToS3(j.S3Svc, jsonBytes, bucket, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Get image digest from ecr
