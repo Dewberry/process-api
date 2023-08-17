@@ -8,6 +8,7 @@ import boto3
 
 
 def write_text_to_s3_file(s3_client, bucket: str, text: str, s3_key: str, content_type: str, exp_days: int = 0):
+    print(f"writing `{s3_key}` to `{bucket}`")
     if exp_days:
         expiration_time = datetime.now() + timedelta(days=exp_days)
         s3_client.put_object(Bucket=bucket, Key=s3_key, Body=text, ContentType=content_type, Expires=expiration_time)
@@ -57,61 +58,35 @@ def print_plugin_results(output_file: str, presigned_url: str):
 
 def verify_env():
     """TODO: verify these are checked"""
-    if "AWS_ACCESS_KEY_ID" not in os.environ:
-        print("missing enviornment variable: `AWS_ACCESS_KEY_ID` required")
+    if "MINIO_ACCESS_KEY_ID" not in os.environ:
+        print("missing enviornment variable: `MINIO_ACCESS_KEY_ID` required")
         sys.exit(1)
-    if "AWS_SECRET_ACCESS_KEY" not in os.environ:
-        print("missing enviornment variable: `AWS_SECRET_ACCESS_KEY` required")
+    if "MINIO_SECRET_ACCESS_KEY" not in os.environ:
+        print("missing enviornment variable: `MINIO_ASECRET_ACCESS_KEY` required")
         sys.exit(1)
-    if "AWS_REGION" not in os.environ:
-        print("missing enviornment variable: `AWS_REGION` required")
+    if "MINIO_S3_REGION" not in os.environ:
+        print("missing enviornment variable: `MINIO_S3_REGION` required")
         sys.exit(1)
-    if "S3_BUCKET" not in os.environ:
-        print("missing enviornment variable: `S3_BUCKET` required")
+    if "MINIO_S3_BUCKET" not in os.environ:
+        print("missing enviornment variable: `MINIO_S3_BUCKET` required")
         sys.exit(1)
-    if "S3_MOCK" not in os.environ:
-        print("missing enviornment variable: `S3_MOCK` bool required")
+    if "MINIO_S3_ENDPOINT" not in os.environ:
+        print("missing enviornment variable: `MINIO_S3_ENDPOINT` bool required")
         sys.exit(1)
-    elif os.environ["S3_MOCK"] == True:
-        if "S3_ENDPOINT" not in os.environ:
-            print("missing enviornment variable: `S3_ENDPOINT` required")
-            sys.exit(1)
 
 
-def init_s3_client(s3_mock: bool = True):
-    if s3_mock:
-        try:
-            s3_config = {
-                "aws_access_key_id": os.environ["AWS_ACCESS_KEY_ID"],
-                "aws_secret_access_key": os.environ["AWS_SECRET_ACCESS_KEY"],
-                "endpoint_url": os.environ["S3_ENDPOINT"],
-                "region_name": os.environ["AWS_REGION"],
-                "use_ssl": False,
-            }
+def init_s3_client():
+    s3_config = {
+        "aws_access_key_id": os.environ["MINIO_ACCESS_KEY_ID"],
+        "aws_secret_access_key": os.environ["MINIO_SECRET_ACCESS_KEY"],
+        "endpoint_url": os.environ["MINIO_S3_ENDPOINT"],
+        "region_name": os.environ["MINIO_S3_REGION"],
+        "use_ssl": False,
+    }
 
-            bucket = os.environ["S3_BUCKET"]
-            s3_client = boto3.client("s3", **s3_config)
-            return s3_client, bucket
-
-        except Exception as e:
-            print(e)
-            sys.exit(1)
-
-    else:
-        try:
-            s3_config = {
-                "aws_access_key_id": os.environ["AWS_ACCESS_KEY_ID"],
-                "aws_secret_access_key": os.environ["AWS_SECRET_ACCESS_KEY"],
-                "region_name": os.environ["AWS_REGION"],
-            }
-
-            bucket = os.environ["S3_BUCKET"]
-            s3_client = boto3.client("s3", **s3_config)
-            return s3_client, bucket
-
-        except Exception as e:
-            print(e)
-            sys.exit(1)
+    bucket = os.environ["MINIO_S3_BUCKET"]
+    s3_client = boto3.client("s3", **s3_config)
+    return s3_client, bucket
 
 
 if __name__ == "__main__":
@@ -135,22 +110,22 @@ if __name__ == "__main__":
         sys.exit(1)
 
     message, output_file = parse_input(params_string=sys.argv[-1])
-    s3_client, bucket = init_s3_client(os.environ["S3_MOCK"])
+    s3_client, bucket = init_s3_client()
 
     try:
         write_text_to_s3_file(s3_client, bucket, message, output_file, "text/plain")
     except Exception as e:
-        print(e)
+        print("failed writing to s3. Verify minio credentials / bucket access:", e)
         sys.exit(1)
 
     try:
         presigned_url = create_presigned_url(bucket, output_file, exp_days=7)
     except Exception as e:
-        print(e)
+        print("failed creating a temp download link:", e)
         sys.exit(1)
 
     try:
         print_plugin_results(output_file, presigned_url)
     except Exception as e:
-        print(e)
+        print("failed printing results output to container log", e)
         sys.exit(1)

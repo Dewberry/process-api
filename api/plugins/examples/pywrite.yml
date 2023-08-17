@@ -16,12 +16,11 @@ container:
     - python
     - main.py
   envVars:
-    - AWS_REGION
-    - AWS_ACCESS_KEY_ID
-    - AWS_SECRET_ACCESS_KEY
-    - S3_BUCKET
-    - S3_MOCK
-    - S3_ENDPOINT
+    - MINIO_S3_REGION
+    - MINIO_ACCESS_KEY_ID
+    - MINIO_SECRET_ACCESS_KEY
+    - MINIO_S3_BUCKET
+    - MINIO_S3_ENDPOINT
   maxResources:
     cpus: 0.1
     memory: 512
