@@ -94,7 +94,7 @@ const docTemplate = `{
         },
         "/jobs/{jobID}": {
             "get": {
-                "description": "[xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)",
+                "description": "[Job Status Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)",
                 "consumes": [
                     "*/*"
                 ],
@@ -105,6 +105,15 @@ const docTemplate = `{
                     "jobs"
                 ],
                 "summary": "Job Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -148,6 +157,15 @@ const docTemplate = `{
                     "jobs"
                 ],
                 "summary": "Job Logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -160,7 +178,7 @@ const docTemplate = `{
         },
         "/jobs/{jobID}/results": {
             "get": {
-                "description": "[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)",
+                "description": "Provides metadata associated with a job",
                 "consumes": [
                     "*/*"
                 ],
@@ -170,12 +188,22 @@ const docTemplate = `{
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Job Results",
+                "summary": "Job Metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.jobResponse"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -221,7 +249,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "processID",
+                        "description": "example: pyecho",
                         "name": "processID",
                         "in": "path",
                         "required": true
@@ -259,7 +287,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "{",
+                        "description": "example: {“text”:“Hello World!”}",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -321,6 +349,9 @@ const docTemplate = `{
                     }
                 },
                 "jobID": {
+                    "type": "string"
+                },
+                "processID": {
                     "type": "string"
                 }
             }
@@ -392,6 +423,9 @@ const docTemplate = `{
         "processes.Inputs": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -451,6 +485,9 @@ const docTemplate = `{
         "processes.Outputs": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -528,7 +565,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "dev-4.19.23",
+	Version:          "dev-8.16.23",
 	Host:             "localhost:5050",
 	BasePath:         "/",
 	Schemes:          []string{"http"},

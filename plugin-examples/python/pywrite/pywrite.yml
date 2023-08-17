@@ -1,8 +1,8 @@
 info:
   version: '8.15.2023'
   id: pywrite
-  title: python write file
-  description: Writes the passed input from a python container to a text file
+  title: File Writer Demo
+  description: Writes the passed input to a text file on s3 (from an example python plugin)
   jobControlOptions:
     - sync-execute
   outputTransmission:
@@ -16,7 +16,6 @@ container:
     - python
     - main.py
   envVars:
-    #  todo: neeed to verify these are passed and checked
     - AWS_REGION
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
@@ -29,7 +28,8 @@ container:
 
 inputs:
   - id: userInput
-    title: User provided text string
+    title: userInput
+    description: user provided text string
     input:
       literalDataDomain:
         dataType: value
@@ -39,7 +39,8 @@ inputs:
     maxOccurs: 1
 
   - id: outputFile
-    title: User provided output destination
+    title: outputFile
+    description: user provided output destination
     input:
       literalDataDomain:
         dataType: value
@@ -50,7 +51,8 @@ inputs:
 
 outputs:
   - id: textFile
-    title: output text file
+    title: output
+    description: output text file
     output:
       transmissionMode:
       - value

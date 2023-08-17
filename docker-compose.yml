@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   api:
     container_name: api
     build:
@@ -15,6 +16,9 @@ services:
       - ./.data:/.data
       - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - process_api_net
+
   minio:
     container_name: minio
     image: minio/minio

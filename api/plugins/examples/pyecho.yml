@@ -1,8 +1,8 @@
 info:
   version: '8.15.2023'
   id: pyecho
-  title: python echo plugin
-  description: Echos the passed input from a python container
+  title: Echo Demo
+  description: Echos the passed input (from an example python plugin)
   jobControlOptions:
     - sync-execute
   outputTransmission:
@@ -21,7 +21,8 @@ container:
 
 inputs:
   - id: text
-    title: user provided text string
+    title: text
+    description: user provided text string
     input:
       literalDataDomain:
         dataType: value
@@ -32,7 +33,8 @@ inputs:
 
 outputs:
   - id: message
-    title: output message (same as user provided text string)
+    title: message
+    description: output message (same as user provided text string)
     output:
       transmissionMode:
       - value
