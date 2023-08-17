@@ -91,12 +91,6 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	}
 }
 
-// // runRequestBody provides the required inputs for containerized processes
-// type runRequestBody struct {
-// 	Inputs  map[string]interface{} `json:"inputs"`
-// 	EnvVars map[string]string      `json:"environmentVariables"`
-// }
-
 // LandingPage godoc
 // @Summary Landing Page
 // @Description [LandingPage Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_landing_page)
@@ -210,7 +204,7 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Summary Describe Process Information
 // @Description [Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)
 // @Tags processes
-// @Param processID path string true "processID"
+// @Param processID path string true "example: pyecho"
 // @Accept */*
 // @Produce json
 // @Success 200 {object} processes.processDescription
@@ -241,7 +235,7 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Accept */*
 // @Produce json
 // @Param processID path string true "pyecho"
-// @Param input body string true "{"text":"hello world!"}"
+// @Param input body string true "example: {“text”:“Hello World!”}"
 // @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
@@ -386,10 +380,11 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 }
 
 // @Summary Job Status
-// @Description [xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)
+// @Description [Job Status Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)
 // @Tags jobs
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
 // @Produce json
 // @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [get]
@@ -426,7 +421,8 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobResponse
+// @Param jobID path string true "ex: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
+// @Success 200 {object} map[string]interface{}
 // @Router /jobs/{jobID}/results [get]
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
@@ -456,12 +452,20 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 			return prepareResponse(c, http.StatusNotFound, "error", output)
 		}
 
-		fmt.Println("Stuck herer-->", results)
 		return c.JSON(http.StatusOK, results)
 	}
 	return prepareResponse(c, http.StatusOK, "jobResults", "results not found")
 }
 
+// @Summary Job Metadata
+// @Description Provides metadata associated with a job
+// @Tags jobs
+// @Accept */*
+// @Produce json
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
+// @Success 200 {object} map[string]interface{}
+// @Router /jobs/{jobID}/results [get]
+// Does not produce HTML
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	err := validateFormat(c)
 	if err != nil {
@@ -511,6 +515,7 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
 // @Success 200 {object} jobs.JobLogs
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {

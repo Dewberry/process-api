@@ -52,6 +52,7 @@ func (db *DB) createTables() {
 	queryLogs := `
 	CREATE TABLE IF NOT EXISTS logs (
 		job_id TEXT PRIMARY KEY,
+		process_id TEXT,
 		api_logs TEXT,
 		container_logs TEXT,
 		FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
@@ -113,9 +114,9 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 }
 
 // Upsert logs, on conflict replace the existing logs.
-func (db *DB) upsertLogs(jid string, apiLogs []string, containerLogs []string) {
+func (db *DB) upsertLogs(jid string, pid string, apiLogs []string, containerLogs []string) {
 	query := `
-	INSERT INTO logs (job_id, api_logs, container_logs) VALUES (?, ?, ?)
+	INSERT INTO logs (job_id, process_id, api_logs, container_logs) VALUES (?, ?, ?, ?)
 		ON CONFLICT(job_id) DO UPDATE SET
 			api_logs = excluded.api_logs,
 			container_logs = excluded.container_logs;
@@ -131,7 +132,7 @@ func (db *DB) upsertLogs(jid string, apiLogs []string, containerLogs []string) {
 		log.Error(err)
 	}
 
-	_, err = db.Handle.Exec(query, jid, string(apiLogsJSON), string(containerLogsJSON))
+	_, err = db.Handle.Exec(query, jid, pid, string(apiLogsJSON), string(containerLogsJSON))
 	if err != nil {
 		log.Error(err)
 	}
@@ -208,7 +209,7 @@ func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
 
 // Get logs from database. If job id is not found then error will be returned.
 func (db *DB) GetLogs(jid string) (JobLogs, error) {
-	query := `SELECT api_logs, container_logs FROM logs WHERE job_id = ?`
+	query := `SELECT process_id, api_logs, container_logs FROM logs WHERE job_id = ?`
 
 	logs := JobLogs{}
 	logs.JobID = jid
@@ -217,7 +218,7 @@ func (db *DB) GetLogs(jid string) (JobLogs, error) {
 	var apiLogsJSON, containerLogsJSON string
 
 	row := db.Handle.QueryRow(query, jid)
-	err := row.Scan(&apiLogsJSON, &containerLogsJSON)
+	err := row.Scan(&logs.ProcessID, &apiLogsJSON, &containerLogsJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return JobLogs{}, errors.New("not found")
@@ -225,7 +226,6 @@ func (db *DB) GetLogs(jid string) (JobLogs, error) {
 			return JobLogs{}, err
 		}
 	}
-
 	// Convert JSON strings back into arrays of strings
 	err = json.Unmarshal([]byte(apiLogsJSON), &logs.APILogs)
 	if err != nil {

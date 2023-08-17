@@ -49,6 +49,7 @@ type JobRecord struct {
 // JobLogs describes logs for the job
 type JobLogs struct {
 	JobID         string   `json:"jobID"`
+	ProcessID     string   `json:"processID"`
 	ContainerLogs []string `json:"container_logs"`
 	APILogs       []string `json:"api_logs"`
 }
