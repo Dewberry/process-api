@@ -80,7 +80,7 @@ func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
 
 	metaDataLocation := "metadata/" + j.JobID() + ".json"
 	fmt.Println("metaDataLocation", metaDataLocation)
-	utils.WriteToS3(j.S3Svc, jsonBytes, metaDataLocation, &j.apiLogs, "application/json", 0)
+	utils.WriteToS3(j.MinioSvc, jsonBytes, metaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Write metadata at the job's metadata location
@@ -139,6 +139,7 @@ func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
 		return
 	}
 
+	// TODO: Determine if batch metadata should be put on aws...currently this is the case
 	utils.WriteToS3(j.S3Svc, jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 

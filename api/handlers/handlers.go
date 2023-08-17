@@ -299,7 +299,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			Resources:      jobs.Resources(p.Container.Resources),
 			Cmd:            cmd,
 			DB:             rh.DB,
-			S3Svc:          rh.S3Svc,
+			MinioSvc:       rh.S3Svc,
 		}
 
 	} else {

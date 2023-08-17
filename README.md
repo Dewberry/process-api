@@ -76,28 +76,7 @@ The API responds to all GET requests (except `/jobs/<jobID>/results`) as HTML or
 
 ## Example .env file
 
-For AWS services, an env file should be located at the root of this repository (`./.env`) and be formatted like so:
-
-```properties
-# AWS
-AWS_ACCESS_KEY_ID='************'
-AWS_SECRET_ACCESS_KEY='**************************'
-AWS_DEFAULT_REGION='us-east-1'
-
-# S3
-S3_BUCKET='********'
-S3_RESULTS_DIR='results'
-S3_META_DIR='metadata'
-
-# BATCH
-BATCH_LOG_STREAM_GROUP='/aws/batch/job'
-
-# GDAL
-CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES'
-
-# Policies
-EXPIRY_DAYS='7'
-```
+An env file is required and should be available at the root of this repository (`./.env`). See the [example.env](example.env) for a guide.
 
 ## Notes
 *NOTE: This server was adapted for ogc-compliance from an existing api developed by @albrazeau*

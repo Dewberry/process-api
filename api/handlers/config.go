@@ -36,6 +36,7 @@ type RESTHandler struct {
 	ConformsTo  []string
 	T           Template
 	S3Svc       *s3.S3
+	MinioSvc    *s3.S3
 	DB          *jobs.DB
 	ActiveJobs  *jobs.ActiveJobs
 	ProcessList *pr.ProcessList
@@ -75,11 +76,20 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob("views/*.html")),
 	}
 
-	sess, err := SessionManager()
+	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
+	if err != nil {
+		log.Fatal("TODO", err)
+	}
+
+	sess, err := SessionManager("local")
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.S3Svc = sess
+	config.MinioSvc = sess
+
+	if s3Mock {
+		config.S3Svc = config.MinioSvc
+	}
 
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
@@ -98,20 +108,16 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	return &config
 }
 
-func SessionManager() (*s3.S3, error) {
-	region := os.Getenv("AWS_REGION")
-	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
-	if err != nil {
-		log.Fatal("TODO", err)
-	}
+func SessionManager(host string) (*s3.S3, error) {
 
-	if s3Mock {
-		fmt.Println("Using minio to mock s3")
-		endpoint := os.Getenv("S3_ENDPOINT")
+	var region, accessKeyID, secretAccessKey string
+	if host == "minio" {
+		region = os.Getenv("MINIO_REGION")
+		accessKeyID = os.Getenv("MINIO_ACCESS_KEY_ID")
+		secretAccessKey = os.Getenv("MINIO_SECRET_ACCESS_KEY")
+		endpoint := os.Getenv("MINIO_S3_ENDPOINT")
 		if endpoint == "" {
-			return nil, errors.New("`S3_ENDPOINT` env var required if using Minio (S3_MOCK). Set `S3_MOCK` to false or add an `S3_ENDPOINT` to the env")
+			return nil, errors.New("`MINIO_S3_ENDPOINT` env var required if using Minio (S3_MOCK). Set `S3_MOCK` to false or add an `S3_ENDPOINT` to the env")
 		}
 
 		sess, err := session.NewSession(&aws.Config{
@@ -123,10 +129,12 @@ func SessionManager() (*s3.S3, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error connecting to minio session: %s", err.Error())
 		}
-
 		return s3.New(sess), nil
 
 	} else {
+		region = os.Getenv("AWS_REGION")
+		accessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
+		secretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 
 		sess, err := session.NewSession(&aws.Config{
 			Region:      aws.String(region),
@@ -135,8 +143,6 @@ func SessionManager() (*s3.S3, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error creating s3 session: %s", err.Error())
 		}
-
 		return s3.New(sess), nil
-
 	}
 }

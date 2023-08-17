@@ -28,8 +28,8 @@ type DockerJob struct {
 	containerLogs  []string
 	results        map[string]interface{}
 	Resources
-	DB    *DB
-	S3Svc *s3.S3
+	DB       *DB
+	MinioSvc *s3.S3
 }
 
 func (j *DockerJob) JobID() string {
@@ -72,6 +72,8 @@ func StripResultsFromLog(containerLogs []string, jid string) (map[string]interfa
 
 	lastLog := containerLogs[lastLogIdx]
 	lastLog = strings.ReplaceAll(lastLog, "'", "\"")
+
+	fmt.Println("containerLogs....", containerLogs)
 
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(lastLog), &data)
