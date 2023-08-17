@@ -151,6 +151,19 @@ func (p process) VerifyInputs(inp map[string]interface{}) error {
 	return nil
 }
 
+func (p process) VerifyLocalEnvars(container Container) error {
+	var missingEnvVars []string
+	for _, envVar := range container.EnvVars {
+		if os.Getenv(envVar) == "" {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	if len(missingEnvVars) > 0 {
+		return fmt.Errorf("error: env variables not found: %v. please restart the server with these in place", missingEnvVars)
+	}
+	return nil
+}
+
 // ProcessList describes processes
 type ProcessList struct {
 	List     []process

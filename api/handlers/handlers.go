@@ -263,6 +263,13 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
+	if p.Host.Type == "local" {
+		err = p.VerifyLocalEnvars(p.Container)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
+		}
+	}
+
 	var j jobs.Job
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
