@@ -51,11 +51,12 @@ type Input struct {
 }
 
 type Inputs struct {
-	ID        string `yaml:"id"`
-	Title     string `yaml:"title"`
-	Input     Input  `yaml:"input"`
-	MinOccurs int    `yaml:"minOccurs"`
-	MaxOccurs int    `yaml:"maxOccurs,omitempty"`
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Input       Input  `yaml:"input"`
+	MinOccurs   int    `yaml:"minOccurs"`
+	MaxOccurs   int    `yaml:"maxOccurs,omitempty"`
 }
 
 type Output struct {
@@ -63,10 +64,11 @@ type Output struct {
 }
 
 type Outputs struct {
-	ID      string `yaml:"id"`
-	Title   string `yaml:"title"`
-	Output  Output `yaml:"output"`
-	InputID string `yaml:"inputId"` //json omit
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Output      Output `yaml:"output"`
+	InputID     string `yaml:"inputId"` //json omit
 }
 
 // Resources
