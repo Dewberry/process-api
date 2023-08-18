@@ -4,9 +4,6 @@
 
 A lightweight, extensible, OGC compliant Process API for local and cloud based containerized processing.
 
-![](/docs/swagger-screenshot.png)
-*created using [swaggo](https://github.com/swaggo/swag)*
-
 For more information on the specification visit the [OGC API - Processes - Part 1: Core](https://docs.ogc.org/is/18-062r2/18-062r2.html#toc0).
 
 The API responses follow the examples provided here:
@@ -26,6 +23,9 @@ https://developer.ogc.org/api/processes/index.html
 4. Test endpoints using the swagger documentation page. (http://localhost:5050/swagger/index.html)
 
 ![](imgs/swagger-demo.gif)
+
+*API docs created using [swaggo](https://github.com/swaggo/swag)*
+
 ---
 
 ## System Components
