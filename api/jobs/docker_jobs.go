@@ -63,13 +63,6 @@ func (j *DockerJob) Logs() (JobLogs, error) {
 	return logs, nil
 }
 
-// Return current logs of the job
-func (j *DockerJob) UpdateApiLogs(newItem string) {
-	apiLogs := j.apiLogs
-	apiLogs = append(apiLogs, newItem)
-	j.apiLogs = apiLogs
-}
-
 // stripResultsFromLog convenience function
 func StripResultsFromLog(containerLogs []string, jid string) (map[string]interface{}, error) {
 	lastLogIdx := len(containerLogs) - 1
@@ -176,8 +169,9 @@ func (j *DockerJob) Create() error {
 		return fmt.Errorf("unable to execute docker_job CMD %s ", err.Error())
 	}
 
+	// TODO: TURN ON
 	_ = c
-	// // pull image
+	// pull image
 	// if j.Image != "" {
 	// 	err = c.EnsureImage(ctx, j.Image, false)
 	// 	if err != nil {
@@ -201,7 +195,7 @@ func (j *DockerJob) Create() error {
 func (j *DockerJob) Run() {
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.UpdateApiLogs("failed creating NewDockerController")
+		j.NewMessage("failed creating NewDockerController")
 		j.HandleError(err.Error())
 		return
 	}
@@ -212,7 +206,7 @@ func (j *DockerJob) Run() {
 		envVars[eVar] = os.Getenv(eVar)
 	}
 
-	j.UpdateApiLogs(fmt.Sprintf("Registered %v env vars", len(envVars)))
+	j.NewMessage(fmt.Sprintf("Registered %v env vars", len(envVars)))
 	resources := controllers.DockerResources{}
 	resources.NanoCPUs = int64(j.Resources.CPUs * 1e9)         // Docker controller needs cpu in nano ints
 	resources.Memory = int64(j.Resources.Memory * 1024 * 1024) // Docker controller needs memory in bytes
@@ -221,13 +215,13 @@ func (j *DockerJob) Run() {
 	j.NewStatusUpdate(RUNNING)
 	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
-		j.UpdateApiLogs("failed to run container")
+		j.NewMessage("failed to run container")
 		j.HandleError(err.Error())
 		return
 	}
 
 	j.ContainerID = containerID
-	j.UpdateApiLogs(fmt.Sprintf("ContainerID = %v", containerID))
+	j.NewMessage(fmt.Sprintf("ContainerID = %v", containerID))
 
 	// wait for process to finish
 	statusCode, errWait := c.ContainerWait(j.ctx, j.ContainerID)
@@ -235,7 +229,7 @@ func (j *DockerJob) Run() {
 	// todo: get logs while container running so that logs or running containers is visible by users this would only be needed when docker jobs can also be async
 	containerLogs, errLog := c.ContainerLog(j.ctx, j.ContainerID)
 	if err != nil {
-		j.UpdateApiLogs("failed fetching conttainer logs")
+		j.NewMessage("failed fetching conttainer logs")
 		j.HandleError(err.Error())
 		return
 	}
@@ -246,11 +240,11 @@ func (j *DockerJob) Run() {
 		if err != nil {
 			errRem := c.ContainerRemove(j.ctx, j.ContainerID)
 			if errRem != nil {
-				j.UpdateApiLogs("failed removing container")
+				j.NewMessage("failed removing container")
 				j.HandleError(err.Error() + " " + errRem.Error())
 				return
 			}
-			j.UpdateApiLogs("failed wating for container")
+			j.NewMessage("failed wating for container")
 			j.HandleError(err.Error())
 			return
 		}
@@ -271,20 +265,20 @@ func (j *DockerJob) Run() {
 	// clean up the finished job
 	err = c.ContainerRemove(j.ctx, j.ContainerID)
 	if err != nil {
-		j.UpdateApiLogs("failed removing for container")
+		j.NewMessage("failed removing for container")
 		j.HandleError(err.Error())
 		return
 	}
 
 	results, err := j.Results()
 	if err != nil {
-		j.UpdateApiLogs("unable to fetch results")
+		j.NewMessage("unable to fetch results")
 		j.HandleError(err.Error())
 		return
 	}
 	j.results = results
 	j.NewStatusUpdate(SUCCESSFUL)
-	j.UpdateApiLogs("process completed successfully.")
+	j.NewMessage("process completed successfully.")
 
 	go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
 	j.ctxCancel()
