@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,8 +34,7 @@ type RESTHandler struct {
 	Description string
 	ConformsTo  []string
 	T           Template
-	S3Svc       *s3.S3
-	MinioSvc    *s3.S3
+	StorageSvc  *s3.S3
 	DB          *jobs.DB
 	ActiveJobs  *jobs.ActiveJobs
 	ProcessList *pr.ProcessList
@@ -76,20 +74,16 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 		templates: template.Must(template.New("").Funcs(funcMap).ParseGlob("views/*.html")),
 	}
 
-	s3Mock, err := strconv.ParseBool(os.Getenv("S3_MOCK"))
-	if err != nil {
-		log.Fatal("TODO", err)
+	stType, exist := os.LookupEnv("STORAGE_SERVICE")
+	if !exist {
+		log.Fatal("env variable STORAGE_SERVICE not set")
 	}
 
-	sess, err := SessionManager("local")
+	stSvc, err := NewStorageService(stType)
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.MinioSvc = sess
-
-	if s3Mock {
-		config.S3Svc = config.MinioSvc
-	}
+	config.StorageSvc = stSvc
 
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
@@ -108,16 +102,17 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	return &config
 }
 
-func SessionManager(host string) (*s3.S3, error) {
+// Constructor to create storage service based on the type provided
+func NewStorageService(provideType string) (*s3.S3, error) {
 
-	var region, accessKeyID, secretAccessKey string
-	if host == "local" {
-		region = os.Getenv("MINIO_REGION")
-		accessKeyID = os.Getenv("MINIO_ACCESS_KEY_ID")
-		secretAccessKey = os.Getenv("MINIO_SECRET_ACCESS_KEY")
+	switch provideType {
+	case "minio":
+		region := os.Getenv("MINIO_REGION")
+		accessKeyID := os.Getenv("MINIO_ACCESS_KEY_ID")
+		secretAccessKey := os.Getenv("MINIO_SECRET_ACCESS_KEY")
 		endpoint := os.Getenv("MINIO_S3_ENDPOINT")
 		if endpoint == "" {
-			return nil, errors.New("`MINIO_S3_ENDPOINT` env var required if using Minio (S3_MOCK). Set `S3_MOCK` to false or add an `S3_ENDPOINT` to the env")
+			return nil, errors.New("`MINIO_S3_ENDPOINT` env var required if STORAGE_SERVICE='minio'")
 		}
 
 		sess, err := session.NewSession(&aws.Config{
@@ -131,10 +126,10 @@ func SessionManager(host string) (*s3.S3, error) {
 		}
 		return s3.New(sess), nil
 
-	} else {
-		region = os.Getenv("AWS_REGION")
-		accessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
-		secretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	case "aws-s3":
+		region := os.Getenv("AWS_REGION")
+		accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+		secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 
 		sess, err := session.NewSession(&aws.Config{
 			Region:      aws.String(region),
@@ -144,5 +139,8 @@ func SessionManager(host string) (*s3.S3, error) {
 			return nil, fmt.Errorf("error creating s3 session: %s", err.Error())
 		}
 		return s3.New(sess), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported storage provider type")
 	}
 }

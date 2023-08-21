@@ -299,7 +299,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			Resources:      jobs.Resources(p.Container.Resources),
 			Cmd:            cmd,
 			DB:             rh.DB,
-			MinioSvc:       rh.MinioSvc,
 		}
 
 	} else {
@@ -499,7 +498,7 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			md, err := jobs.FetchMeta(rh.MinioSvc, bucket, jobID)
+			md, err := jobs.FetchMeta(rh.StorageSvc, bucket, jobID)
 			if err != nil {
 				output := errResponse{HTTPStatus: http.StatusNotFound, Message: err.Error()}
 				return prepareResponse(c, http.StatusNotFound, "error", output)
