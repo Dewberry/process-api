@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -170,6 +171,19 @@ func (c *DockerController) ContainerKillAndRemove(ctx context.Context, container
 
 // https://gist.github.com/miguelmota/4980b18d750fb3b1eb571c3e207b1b92
 func (c *DockerController) EnsureImage(ctx context.Context, image string, verbose bool) error {
+	images, err := c.cli.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, img := range images {
+		for _, tag := range img.RepoTags {
+			if strings.EqualFold(tag, image) {
+				// Image already exists, return nil
+				return nil
+			}
+		}
+	}
 
 	reader, err := c.cli.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
@@ -263,37 +277,30 @@ func (c *DockerController) GetImageDigest(imageURI string) (string, error) {
 
 // Get job execution times
 func (c *DockerController) GetJobTimes(containerID string) (cp time.Time, cr time.Time, st time.Time, err error) {
-	// Initialize the Docker client
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error initializing Docker client: %v", err)
-	}
 
 	// Get the container details
-	containerInfo, err := cli.ContainerInspect(context.Background(), containerID)
+	containerInfo, err := c.cli.ContainerInspect(context.Background(), containerID)
 	if err != nil {
 		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error getting container details: %v", err)
 	}
 
-	launchTime, err := time.Parse(time.RFC3339Nano, containerInfo.Created)
+	cp, err = time.Parse(time.RFC3339Nano, containerInfo.Created)
 	if err != nil {
 		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing launch time: %v", err)
 	}
-
-	var startTime, stopTime time.Time
 	if containerInfo.State.StartedAt != "" {
-		startTime, err = time.Parse(time.RFC3339Nano, containerInfo.State.StartedAt)
+		cr, err = time.Parse(time.RFC3339Nano, containerInfo.State.StartedAt)
 		if err != nil {
 			return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing start time: %v", err)
 		}
 	}
 
 	if containerInfo.State.FinishedAt != "" {
-		stopTime, err = time.Parse(time.RFC3339Nano, containerInfo.State.FinishedAt)
+		st, err = time.Parse(time.RFC3339Nano, containerInfo.State.FinishedAt)
 		if err != nil {
 			return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("error parsing stop time: %v", err)
 		}
 	}
 
-	return launchTime, startTime, stopTime, nil
+	return
 }
