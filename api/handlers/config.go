@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"text/template"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 // Store for templates and a receiver function to render them
@@ -107,7 +107,7 @@ func NewStorageService(provideType string) (*s3.S3, error) {
 
 	switch provideType {
 	case "minio":
-		region := os.Getenv("MINIO_REGION")
+		region := os.Getenv("MINIO_S3_REGION")
 		accessKeyID := os.Getenv("MINIO_ACCESS_KEY_ID")
 		secretAccessKey := os.Getenv("MINIO_SECRET_ACCESS_KEY")
 		endpoint := os.Getenv("MINIO_S3_ENDPOINT")
