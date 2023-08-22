@@ -158,12 +158,6 @@ func (j *AWSBatchJob) Create() error {
 	j.AWSBatchID = aWSBatchID
 	j.batchContext = batchContext
 
-	// verify command in body
-	if j.Cmd == nil {
-		j.ctxCancel()
-		return err
-	}
-
 	// At this point job is ready to be added to database
 	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName)
 	if err != nil {

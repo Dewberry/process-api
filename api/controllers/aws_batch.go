@@ -47,12 +47,12 @@ func (c *AWSBatchController) GetJobDefInfo(jobDef string) (JobDefinitionInfo, er
 	// Extract vCPU and memory requirements
 	f64, err := strconv.ParseFloat(getResourceRequirement(resourceRequirements, "VCPU"), 32)
 	if err != nil {
-		return jdi, fmt.Errorf("vCPU....todo")
+		return jdi, fmt.Errorf("could not parse vCPU reqruiement")
 	}
 	jdi.VCPUs = float32(f64)
 	jdi.Memory, err = strconv.Atoi(getResourceRequirement(resourceRequirements, "MEMORY"))
 	if err != nil {
-		return jdi, fmt.Errorf("mEMORY...todo")
+		return jdi, fmt.Errorf("could not parse memory requirement")
 	}
 
 	return jdi, nil

@@ -79,7 +79,6 @@ func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
 	bucket := os.Getenv("MINIO_S3_BUCKET")
 
 	metaDataLocation := "metadata/" + j.JobID() + ".json"
-	fmt.Println("metaDataLocation", metaDataLocation, bucket)
 	err = utils.WriteToS3(j.MinioSvc, jsonBytes, bucket, metaDataLocation, &j.apiLogs, "application/json", 0)
 	if err != nil {
 		return

@@ -13,14 +13,14 @@ https://developer.ogc.org/api/processes/index.html
 
 ## Getting Started
 
+1. Create docker network `docker network create process_api_net`
+
 1. Create a `.env` file (example below) at the root of this repo.
-
 ![](imgs/getting-started.gif)
-
-2. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
-3. run `docker compose up`
-3. Create a bucket in the minio console (http://localhost:9001).
-4. Test endpoints using the swagger documentation page. (http://localhost:5050/swagger/index.html)
+1. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
+1. run `docker compose up`
+1. Create a bucket in the minio console (http://localhost:9001).
+1. Test endpoints using the swagger documentation page. (http://localhost:5050/swagger/index.html)
 
 ![](imgs/swagger-demo.gif)
 
