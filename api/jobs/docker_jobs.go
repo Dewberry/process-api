@@ -156,32 +156,8 @@ func (j *DockerJob) Create() error {
 	j.ctx = ctx
 	j.ctxCancel = cancelFunc
 
-	c, err := controllers.NewDockerController()
-	if err != nil {
-		j.ctxCancel()
-		return fmt.Errorf("error creating NewDockerController %s ", err.Error())
-	}
-
-	// verify command in body
-	if j.Cmd == nil {
-		fmt.Println("CMD")
-		j.ctxCancel()
-		return fmt.Errorf("unable to execute docker_job CMD %s ", err.Error())
-	}
-
-	// TODO: TURN ON
-	_ = c
-	// pull image
-	// if j.Image != "" {
-	// 	err = c.EnsureImage(ctx, j.Image, false)
-	// 	if err != nil {
-	// 		j.ctxCancel()
-	// 		return fmt.Errorf("unable to EnsureImage avaailable, comment this check for offline dev.")
-	// 	}
-	// }
-
 	// At this point job is ready to be added to database
-	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
+	err := j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
 	if err != nil {
 		fmt.Println("j.DB.addJob")
 		j.ctxCancel()
@@ -211,14 +187,21 @@ func (j *DockerJob) Run() {
 	resources.NanoCPUs = int64(j.Resources.CPUs * 1e9)         // Docker controller needs cpu in nano ints
 	resources.Memory = int64(j.Resources.Memory * 1024 * 1024) // Docker controller needs memory in bytes
 
+	err = c.EnsureImage(j.ctx, j.Image, false)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("could not ensure image %s available", j.Image))
+		j.HandleError(err.Error())
+		return
+	}
+
 	// start container
-	j.NewStatusUpdate(RUNNING)
 	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
 		j.NewMessage("failed to run container")
 		j.HandleError(err.Error())
 		return
 	}
+	j.NewStatusUpdate(RUNNING)
 
 	j.ContainerID = containerID
 	j.NewMessage(fmt.Sprintf("ContainerID = %v", containerID))
