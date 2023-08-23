@@ -12,6 +12,7 @@ import (
 	"app/utils"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -92,6 +93,7 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 }
 
 // runRequestBody provides the required inputs for containerized processes
+// specs: https://developer.ogc.org/api/processes/index.html#tag/Execute
 type runRequestBody struct {
 	Inputs  map[string]interface{} `json:"inputs"`
 	EnvVars map[string]string      `json:"environmentVariables"`
@@ -619,4 +621,47 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	output["jobs"] = result
 	output["links"] = links
 	return prepareResponse(c, http.StatusOK, "jobs", output)
+}
+
+func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
+
+	// to do: check job id is valid
+	// setup some kind of token/auth to allow only the container to post to this route
+	// check status valid
+
+	defer c.Request().Body.Close()
+	dataBytes, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+	}
+	var sm jobs.StatusMessage
+	if err = json.Unmarshal(dataBytes, &sm); err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+	}
+	jobID := c.Param("jobID")
+	sm.JobID = jobID
+
+	rh.MessageQueue.StatusTopic <- sm
+	return c.JSON(http.StatusAccepted, "status update received")
+}
+
+func (rh *RESTHandler) JobResultsUpdateHandler(c echo.Context) error {
+
+	// to do: check job id is valid
+	// setup some kind of token/auth to allow only the container to post to this route
+
+	defer c.Request().Body.Close()
+	dataBytes, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+	}
+	var rm jobs.ResultsMessage
+	if err = json.Unmarshal(dataBytes, &rm); err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+	}
+	jobID := c.Param("jobID")
+	rm.JobID = jobID
+
+	rh.MessageQueue.ResultsTopic <- rm
+	return c.JSON(http.StatusAccepted, "results received")
 }

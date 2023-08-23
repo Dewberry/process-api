@@ -32,6 +32,9 @@ type Job interface {
 	NewMessage(string)
 	NewStatusUpdate(string)
 	Run()
+
+	// Create must change job status to accepted
+	// At this point job should be ready to be processed and added to database
 	Create() error
 	Results() (map[string]interface{}, error)
 }

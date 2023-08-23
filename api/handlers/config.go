@@ -30,14 +30,15 @@ func (t Template) Render(w io.Writer, name string, data interface{}, c echo.Cont
 
 // Store configuration for the handler
 type RESTHandler struct {
-	Title       string
-	Description string
-	ConformsTo  []string
-	T           Template
-	StorageSvc  *s3.S3
-	DB          *jobs.DB
-	ActiveJobs  *jobs.ActiveJobs
-	ProcessList *pr.ProcessList
+	Title        string
+	Description  string
+	ConformsTo   []string
+	T            Template
+	StorageSvc   *s3.S3
+	DB           *jobs.DB
+	MessageQueue *jobs.MessageQueue
+	ActiveJobs   *jobs.ActiveJobs
+	ProcessList  *pr.ProcessList
 }
 
 // Pretty print a JSON
@@ -93,6 +94,11 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	adb := jobs.InitDB(dbPath)
 	config.DB = adb
 
+	config.MessageQueue = &jobs.MessageQueue{
+		StatusTopic:  make(chan jobs.StatusMessage, 500),
+		ResultsTopic: make(chan jobs.ResultsMessage, 500),
+	}
+
 	processList, err := pr.LoadProcesses(pluginsDir)
 	if err != nil {
 		log.Fatal(err)
@@ -100,6 +106,20 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	config.ProcessList = &processList
 
 	return &config
+}
+
+func (rh *RESTHandler) StatusUpdateRoutine() {
+	for {
+		update := <-rh.MessageQueue.StatusTopic
+		jobs.ProcessStatusMessage(update)
+	}
+}
+
+func (rh *RESTHandler) ResultsUpdateRoutine() {
+	for {
+		update := <-rh.MessageQueue.ResultsTopic
+		jobs.ProcessResultsMessage(update)
+	}
 }
 
 // Constructor to create storage service based on the type provided
