@@ -91,6 +91,12 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 	}
 }
 
+// runRequestBody provides the required inputs for containerized processes
+type runRequestBody struct {
+	Inputs  map[string]interface{} `json:"inputs"`
+	EnvVars map[string]string      `json:"environmentVariables"`
+}
+
 // LandingPage godoc
 // @Summary Landing Page
 // @Description [LandingPage Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_landing_page)
@@ -251,33 +257,27 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
-	var params map[string]interface{}
-	decoder := json.NewDecoder(c.Request().Body)
-	err = decoder.Decode(&params)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, errResponse{Message: "invalid json or input data not found in the body of the request"})
-	}
-
-	err = p.VerifyInputs(params)
+	var params runRequestBody
+	err = c.Bind(&params)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	if p.Host.Type == "local" {
-		err = p.VerifyLocalEnvars(p.Container)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
-		}
+	if params.Inputs == nil {
+		return c.JSON(http.StatusBadRequest, errResponse{Message: "'inputs' is required in the body of the request"})
+	}
+
+	err = p.VerifyInputs(params.Inputs)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
 	var j jobs.Job
 	jobType := p.Info.JobControlOptions[0]
 	jobID := uuid.New().String()
 
-	params["jobID"] = jobID
-	params["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
-	params["expDays"] = os.Getenv("EXPIRY_DAYS")
-	jsonParams, err := json.Marshal(params)
+	params.Inputs["jobID"] = jobID
+	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
 	}
@@ -333,24 +333,28 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// Add to active jobs
 	rh.ActiveJobs.Add(&j)
 
+	resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: j.CurrentStatus()}
 	switch p.Info.JobControlOptions[0] {
 	case "sync-execute":
 		defer rh.ActiveJobs.Remove(&j)
 
 		j.Run()
-		if j.CurrentStatus() == "successful" {
-			if p.Outputs != nil {
-				results, err := j.Results()
-				if err != nil {
-					return c.JSON(http.StatusSeeOther, "Job completed successfullly, but results not available. check job logs for more info")
-				}
-				return c.JSON(http.StatusOK, results)
-			}
-			resp := map[string]interface{}{"jobID": j.JobID(), "status": "success"}
+		resp.Status = j.CurrentStatus()
 
+		if resp.Status == "successful" {
+			var outputs interface{}
+
+			if p.Outputs != nil {
+				outputs, err = jobs.FetchResults(rh.StorageSvc, j.JobID())
+				if err != nil {
+					resp.Message = "error fetching results. Error: " + err.Error()
+					return c.JSON(http.StatusInternalServerError, resp)
+				}
+			}
+			resp.Outputs = outputs
 			return c.JSON(http.StatusOK, resp)
 		} else {
-			resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "job Failed. Call logs route for details"}
+			resp.Message = "job unsuccessful. Call logs route for details"
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
@@ -358,7 +362,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			defer rh.ActiveJobs.Remove(&j)
 			j.Run()
 		}()
-		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
+		resp.Status = j.CurrentStatus()
 		return c.JSON(http.StatusCreated, resp)
 	default:
 		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "incorrect controller option defined in process configuration"}
