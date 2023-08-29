@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-
   api:
     container_name: api
     build:
@@ -30,7 +29,7 @@ services:
       - '9000:9000'
       - '9001:9001'
     volumes:
-      - ./.miniodata:/data
+      - ./.data/minio:/data
     networks:
       - process_api_net
 

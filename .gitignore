@@ -18,8 +18,7 @@
 .env
 .vscode/settings.json
 .data/*
-data/*
 api/plguins/*
 *main
-.miniodata/
 settings.json
+api/plugins/*
