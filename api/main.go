@@ -64,11 +64,9 @@ func main() {
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 
-	// Goroutine to handle status updates
+	// Goroutines
 	go rh.StatusUpdateRoutine()
-
-	// Goroutine to handle job results
-	go rh.ResultsUpdateRoutine()
+	go rh.JobCompletionRoutine()
 
 	// Set server configuration
 	e := echo.New()
@@ -112,7 +110,7 @@ func main() {
 
 	// Callbacks
 	e.PUT("/jobs/:jobID/status_update", rh.JobStatusUpdateHandler)
-	e.POST("/jobs/:jobID/results_update", rh.JobResultsUpdateHandler)
+	// e.POST("/jobs/:jobID/results_update", rh.JobResultsUpdateHandler)
 
 	// Start server
 	go func() {
