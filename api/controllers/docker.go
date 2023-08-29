@@ -158,15 +158,15 @@ func (c *DockerController) ContainerWait(ctx context.Context, id string) (int64,
 }
 
 func (c *DockerController) ContainerRemove(ctx context.Context, containerID string) error {
-	return c.cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+	return c.cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+		Force: true,
+	})
 }
 
-func (c *DockerController) ContainerKillAndRemove(ctx context.Context, containerID string, signal string) error {
-	err := c.cli.ContainerKill(ctx, containerID, signal)
-	if err != nil {
-		return err
-	}
-	return c.ContainerRemove(ctx, containerID)
+func (c *DockerController) ContainerKill(ctx context.Context, containerID string) (err error) {
+	err = c.cli.ContainerKill(ctx, containerID, "KILL")
+	// to do ignore error if container is already killed
+	return
 }
 
 // https://gist.github.com/miguelmota/4980b18d750fb3b1eb571c3e207b1b92
