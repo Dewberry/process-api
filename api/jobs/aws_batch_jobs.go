@@ -81,11 +81,9 @@ func (j *AWSBatchJob) IMAGE() string {
 func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	var logs JobLogs
 	// we are fetching logs here and not in run function because we only want to fetch logs when needed
-	if j.logStreamName != "" {
-		err := j.FetchCloudWatchLogs()
-		if err != nil {
-			return logs, fmt.Errorf("error while fetching cloud watch logs for: %s: %s", j.logStreamName, err.Error())
-		}
+	err := j.fetchCloudWatchLogs()
+	if err != nil {
+		return logs, fmt.Errorf("could not get cloud watch logs")
 	}
 
 	logs.JobID = j.UUID
@@ -210,8 +208,34 @@ func (j *AWSBatchJob) Kill() error {
 	return nil
 }
 
+// Get log stream name for this job
+func (j *AWSBatchJob) getLogStreamName() (err error) {
+	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+	if err != nil {
+		return
+	}
+
+	_, logStreamName, err := c.JobMonitor(j.AWSBatchID)
+	if err != nil {
+		return
+	}
+	j.logStreamName = logStreamName
+	return
+}
+
 // Fetches logs from CloudWatch using the AWS Go SDK
-func (j *AWSBatchJob) FetchCloudWatchLogs() error {
+func (j *AWSBatchJob) fetchCloudWatchLogs() (err error) {
+	if j.logStreamName == "" {
+		err = j.getLogStreamName()
+		if err != nil {
+			return fmt.Errorf("could not get log stream name")
+		}
+	}
+
+	if j.logStreamName == "" {
+		return fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
+	}
+
 	// Create a new session in the desired region
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION")),
@@ -222,10 +246,6 @@ func (j *AWSBatchJob) FetchCloudWatchLogs() error {
 
 	// Create a CloudWatchLogs client
 	svc := cloudwatchlogs.New(sess)
-
-	if j.logStreamName == "" {
-		return fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
-	}
 
 	// Define the parameters for the log stream you want to read
 	params := &cloudwatchlogs.GetLogEventsInput{
@@ -342,7 +362,7 @@ func (j *AWSBatchJob) RunFinished() {
 func (j *AWSBatchJob) Close() {
 	j.ctxCancel()
 
-	err := j.FetchCloudWatchLogs()
+	err := j.fetchCloudWatchLogs()
 	if err != nil {
 		j.NewMessage("Could not fetch cloud watch logs. Error: " + err.Error())
 	}

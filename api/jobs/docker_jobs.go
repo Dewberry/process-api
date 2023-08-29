@@ -63,8 +63,11 @@ func (j *DockerJob) IMAGE() string {
 }
 
 // Return current logs of the job
-func (j *DockerJob) Logs() (JobLogs, error) {
-	var logs JobLogs
+func (j *DockerJob) Logs() (logs JobLogs, err error) {
+	err = j.fetchContainerLogs()
+	if err != nil {
+		return
+	}
 
 	logs.JobID = j.UUID
 	logs.ProcessID = j.ProcessName
@@ -185,13 +188,13 @@ func (j *DockerJob) Run() {
 	}
 
 	// start container
-	j.NewStatusUpdate(RUNNING, time.Time{})
 	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
 		j.NewMessage("Failed to run container. Error: " + err.Error())
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
+	j.NewStatusUpdate(RUNNING, time.Time{})
 
 	j.ContainerID = containerID
 
@@ -301,6 +304,19 @@ func (j *DockerJob) WriteMetaData() {
 // 	}
 // 	return
 // }
+
+func (j *DockerJob) fetchContainerLogs() error {
+	c, err := controllers.NewDockerController()
+	if err != nil {
+		return fmt.Errorf("could not create controller to fetch container logs")
+	}
+	containerLogs, err := c.ContainerLog(context.TODO(), j.ContainerID)
+	if err != nil {
+		return fmt.Errorf("could not fetch container logs")
+	}
+	j.containerLogs = containerLogs
+	return nil
+}
 
 func (j *DockerJob) RunFinished() {
 	// do nothing because for local docker jobs decrementing wgRun is handeled by Run Fucntion

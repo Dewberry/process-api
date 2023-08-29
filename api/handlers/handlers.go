@@ -549,6 +549,10 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	var errLogs error
 
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		if (*job).CurrentStatus() == jobs.ACCEPTED {
+			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: "job not yet started"}
+			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		}
 		logs, errLogs = (*job).Logs()
 	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
 		logs, errLogs = rh.DB.GetLogs(jobID)

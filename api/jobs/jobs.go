@@ -27,6 +27,8 @@ type Job interface {
 	JobID() string
 	ProcessID() string
 	ProcessVersionID() string
+
+	// Logs must first fetch the current logs before returning
 	Logs() (JobLogs, error)
 	Kill() error
 	LastUpdate() time.Time
@@ -43,9 +45,6 @@ type Job interface {
 	// Create must change job status to accepted
 	// At this point job should be ready to be processed and added to database
 	Create() error
-
-	// // Used for fetching logs while the job is active
-	// FetchContainerLogs() error
 
 	WriteMetaData()
 	// WriteResults([]byte) error
@@ -147,7 +146,7 @@ func FetchResults(db *DB, jid string) (interface{}, error) {
 	var data map[string]interface{}
 	err = json.Unmarshal([]byte(lastLog), &data)
 	if err != nil {
-		return nil, fmt.Errorf(`unable to parse results, expected {"plugin_results": {....}}, found : %s`, err.Error())
+		return nil, fmt.Errorf(`unable to parse results, expected {"plugin_results": {....}}, found : %s. Error: %s`, lastLog, err.Error())
 	}
 
 	pluginResults, ok := data["plugin_results"]
