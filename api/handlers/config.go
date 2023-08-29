@@ -95,8 +95,8 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	config.DB = adb
 
 	config.MessageQueue = &jobs.MessageQueue{
-		StatusTopic:  make(chan jobs.StatusMessage, 500),
-		ResultsTopic: make(chan jobs.ResultsMessage, 500),
+		StatusChan: make(chan jobs.StatusMessage, 500),
+		JobDone:    make(chan jobs.Job, 1),
 	}
 
 	processList, err := pr.LoadProcesses(pluginsDir)
@@ -110,15 +110,16 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 
 func (rh *RESTHandler) StatusUpdateRoutine() {
 	for {
-		update := <-rh.MessageQueue.StatusTopic
-		jobs.ProcessStatusMessage(update)
+		sm := <-rh.MessageQueue.StatusChan
+		jobs.ProcessStatusMessageUpdate(sm)
+
 	}
 }
 
-func (rh *RESTHandler) ResultsUpdateRoutine() {
+func (rh *RESTHandler) JobCompletionRoutine() {
 	for {
-		update := <-rh.MessageQueue.ResultsTopic
-		jobs.ProcessResultsMessage(update)
+		j := <-rh.MessageQueue.JobDone
+		rh.ActiveJobs.Remove(&j)
 	}
 }
 

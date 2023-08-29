@@ -2,10 +2,13 @@ package jobs
 
 import (
 	"app/controllers"
+	"app/utils"
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,8 +19,13 @@ import (
 
 // Fields are exported so that gob can access it
 type AWSBatchJob struct {
-	ctx           context.Context // not exported because unsupported by gob
-	ctxCancel     context.CancelFunc
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	// Used for monitoring meta data and other routines
+	wg sync.WaitGroup
+	// Used for monitoring running complete for sync jobs
+	wgRun sync.WaitGroup
+
 	UUID          string `json:"jobID"`
 	AWSBatchID    string
 	ProcessName   string   `json:"processID"`
@@ -38,10 +46,14 @@ type AWSBatchJob struct {
 	batchContext  *controllers.AWSBatchController
 	logStreamName string
 	// MetaData
-	MetaDataLocation string
-	ProcessVersion   string
-	DB               *DB
-	S3Svc            *s3.S3
+	ProcessVersion string
+	DB             *DB
+	StorageSvc     *s3.S3
+	DoneChan       chan Job
+}
+
+func (j *AWSBatchJob) WaitForRunCompletion() {
+	j.wgRun.Wait()
 }
 
 func (j *AWSBatchJob) JobID() string {
@@ -70,7 +82,7 @@ func (j *AWSBatchJob) Logs() (JobLogs, error) {
 	var logs JobLogs
 	// we are fetching logs here and not in run function because we only want to fetch logs when needed
 	if j.logStreamName != "" {
-		err := j.fetchCloudWatchLogs()
+		err := j.FetchCloudWatchLogs()
 		if err != nil {
 			return logs, fmt.Errorf("error while fetching cloud watch logs for: %s: %s", j.logStreamName, err.Error())
 		}
@@ -95,34 +107,29 @@ func (j *AWSBatchJob) NewMessage(m string) {
 	j.apiLogs = append(j.apiLogs, m)
 }
 
-// Append error to apiLogs, cancelCtx, update Status, and time, write logs to database
-func (j *AWSBatchJob) HandleError(m string) {
-	j.apiLogs = append(j.apiLogs, m)
-	j.ctxCancel()
-	if j.Status != DISMISSED { // if job dismissed then the error is because of dismissing job
-		j.NewStatusUpdate(FAILED)
-		j.fetchCloudWatchLogs()
-		go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
-	}
-}
-
 func (j *AWSBatchJob) LastUpdate() time.Time {
 	return j.UpdateTime
 }
 
-func (j *AWSBatchJob) NewStatusUpdate(s string) {
-	j.Status = s
-	now := time.Now()
-	j.UpdateTime = now
-	j.DB.updateJobRecord(j.UUID, s, now)
+func (j *AWSBatchJob) NewStatusUpdate(status string, updateTime time.Time) {
+
+	// If old status is one of the terminated status, it should not update status.
+	switch j.Status {
+	case SUCCESSFUL, DISMISSED, FAILED:
+		return
+	}
+
+	j.Status = status
+	if updateTime.IsZero() {
+		j.UpdateTime = time.Now()
+	} else {
+		j.UpdateTime = updateTime
+	}
+	j.DB.updateJobRecord(j.UUID, status, j.UpdateTime)
 }
 
 func (j *AWSBatchJob) CurrentStatus() string {
 	return j.Status
-}
-
-func (j *AWSBatchJob) Results() (map[string]interface{}, error) {
-	return nil, errors.New("error: results not imlemented for aws-batch jobs")
 }
 
 func (j *AWSBatchJob) ProviderID() string {
@@ -155,6 +162,8 @@ func (j *AWSBatchJob) Create() error {
 		return err
 	}
 
+	j.wgRun.Add(1) // When status is one of the final status this should be decremented, this is the responsibility of who ever is updating status
+
 	j.AWSBatchID = aWSBatchID
 	j.batchContext = batchContext
 
@@ -165,63 +174,16 @@ func (j *AWSBatchJob) Create() error {
 		return err
 	}
 
-	j.NewStatusUpdate(ACCEPTED)
+	j.NewStatusUpdate(ACCEPTED, time.Time{})
+
+	// to do defer get log stream name
+
 	return nil
 }
 
-// Thid actually does not run a job but only monitors it
-func (j *AWSBatchJob) Run() {
-	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
-	if err != nil {
-		j.HandleError(err.Error())
-		return
-	}
-
-	if j.AWSBatchID == "" {
-		j.HandleError("AWSBatchID empty")
-		return
-	}
-
-	var oldStatus string
-	for {
-		status, logStreamName, err := c.JobMonitor(j.AWSBatchID)
-		if err != nil {
-			j.HandleError(err.Error())
-			return
-		}
-
-		if status != oldStatus {
-			j.logStreamName = logStreamName
-			switch status {
-			case "ACCEPTED":
-				j.NewStatusUpdate(ACCEPTED)
-			case "RUNNING":
-				j.NewStatusUpdate(RUNNING)
-			case "SUCCEEDED":
-				// fetch results here // todo
-				j.NewStatusUpdate(SUCCESSFUL)
-				j.ctxCancel()
-				j.fetchCloudWatchLogs()
-				go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
-				go j.WriteMeta(c)
-				return
-			case "DISMISSED":
-				j.NewStatusUpdate(DISMISSED)
-				j.ctxCancel()
-				j.fetchCloudWatchLogs()
-				go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
-				return
-			case "FAILED":
-				j.HandleError("Batch API returned failed status")
-				return
-			}
-		}
-		oldStatus = status
-		time.Sleep(10 * time.Second)
-	}
-}
-
 func (j *AWSBatchJob) Kill() error {
+	j.NewMessage("Received dismiss signal")
+
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
 		// if these jobs have been loaded from previous snapshot they would not have context etc
@@ -230,27 +192,26 @@ func (j *AWSBatchJob) Kill() error {
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
-		j.HandleError(err.Error())
+		j.NewMessage("Could not send kill signal to AWS Batch API. Error: " + err.Error())
 		return err
 	}
 
 	_, err = c.JobKill(j.AWSBatchID)
 	if err != nil {
-		j.HandleError(err.Error())
+		j.NewMessage("Could not send kill signal to AWS Batch API. Error: " + err.Error())
 		return err
 	}
 
-	j.NewStatusUpdate(DISMISSED)
-	// this would be redundent in most cases because the run function will also update status and add logs
-	// but leaving it here in case run function fails
-	j.fetchCloudWatchLogs()
-	go j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
-	j.ctxCancel()
+	j.NewStatusUpdate(DISMISSED, time.Time{})
+	// If a dismiss status is updated the job is considered dismissed at this point
+	// Close being graceful or not does not matter.
+
+	defer j.Close()
 	return nil
 }
 
 // Fetches logs from CloudWatch using the AWS Go SDK
-func (j *AWSBatchJob) fetchCloudWatchLogs() error {
+func (j *AWSBatchJob) FetchCloudWatchLogs() error {
 	// Create a new session in the desired region
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION")),
@@ -290,4 +251,103 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() error {
 	}
 	j.containerLogs = logs
 	return nil
+}
+
+// Write metadata at the job's metadata location
+func (j *AWSBatchJob) WriteMetaData() {
+	j.NewMessage("Starting metadata writing routine.")
+	j.wg.Add(1)
+	defer j.wg.Done()
+	defer j.NewMessage("Finished metadata writing routine.")
+
+	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	imgURI, err := c.GetImageURI(j.JobDef)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	// imgDgst would be incorrect if tag has been updated in between
+	// if there are multiple architechture available for same image tag
+	var imgDgst string
+	if strings.Contains(imgURI, "amazonaws.com/") {
+		imgDgst, err = getECRImageDigest(imgURI)
+		if err != nil {
+			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			return
+		}
+	} else {
+		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
+		if err != nil {
+			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			return
+		}
+	}
+
+	p := process{j.ProcessID(), j.ProcessVersion}
+	i := image{imgURI, imgDgst}
+
+	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	md := metaData{
+		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
+		JobID:           j.UUID,
+		Process:         p,
+		Image:           i,
+		Commands:        j.Cmd,
+		GeneratedAtTime: g,
+		StartedAtTime:   s,
+		EndedAtTime:     e,
+	}
+
+	jsonBytes, err := json.Marshal(md)
+	if err != nil {
+		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		return
+	}
+
+	metadataDir := os.Getenv("STORAGE_METADATA_DIR")
+	mdLocation := fmt.Sprintf("%s/%s.json", metadataDir, j.UUID)
+	// TODO: Determine if batch metadata should be put on aws...currently this is the case
+	utils.WriteToS3(j.StorageSvc, jsonBytes, mdLocation, "application/json", 0)
+}
+
+// func (j *AWSBatchJob) WriteResults(data []byte) (err error) {
+// 	j.NewMessage("Starting results writing routine.")
+// 	defer j.NewMessage("Finished results writing routine.")
+
+// 	resultsDir := os.Getenv("STORAGE_RESULTS_DIR")
+// 	resultsLocation := fmt.Sprintf("%s/%s.json", resultsDir, j.UUID)
+// 	err = utils.WriteToS3(j.StorageSvc, data, resultsLocation, "application/json", 0)
+// 	if err != nil {
+// 		j.NewMessage(fmt.Sprintf("Error writing results to storage: %v", err.Error()))
+// 	}
+// 	return
+// }
+
+func (j *AWSBatchJob) RunFinished() {
+	j.wgRun.Done()
+}
+
+// Write final logs, cancelCtx, write metadata
+func (j *AWSBatchJob) Close() {
+	j.ctxCancel()
+
+	err := j.FetchCloudWatchLogs()
+	if err != nil {
+		j.NewMessage("Could not fetch cloud watch logs. Error: " + err.Error())
+	}
+	j.wg.Wait() // wait if other routines like metadata are running because they can send logs
+	// this should be completed before job is sent to Done because logs are handled differently for active and unactive jobs
+	j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
+	j.DoneChan <- j // At this point job can be safely removed from active jobs
 }

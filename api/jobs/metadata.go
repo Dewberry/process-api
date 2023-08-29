@@ -1,13 +1,10 @@
 package jobs
 
 import (
-	"app/controllers"
-	"app/utils"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -39,111 +36,6 @@ type metaData struct {
 	GeneratedAtTime time.Time `json:"generatedAtTime"`
 	StartedAtTime   time.Time `json:"startedAtTime"`
 	EndedAtTime     time.Time `json:"endedAtTime"`
-}
-
-// Write metadata at the job's metadata location
-func (j *DockerJob) WriteMeta(c *controllers.DockerController) {
-
-	p := process{j.ProcessID(), j.ProcessVersionID()}
-	imageDigest, err := c.GetImageDigest(j.IMAGE())
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error getting imageDigest: %s", err.Error()))
-		return
-	}
-
-	i := image{j.IMAGE(), imageDigest}
-
-	g, s, e, err := c.GetJobTimes(j.ContainerID)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error getting runtimes: %s", err.Error()))
-		return
-	}
-
-	md := metaData{
-		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
-		JobID:           j.UUID,
-		Process:         p,
-		Image:           i,
-		Commands:        j.Cmd,
-		GeneratedAtTime: g,
-		StartedAtTime:   s,
-		EndedAtTime:     e,
-	}
-
-	jsonBytes, err := json.Marshal(md)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error marshalling metadata: %s", err.Error()))
-		return
-	}
-
-	bucket := os.Getenv("MINIO_S3_BUCKET")
-
-	metaDataLocation := "metadata/" + j.JobID() + ".json"
-	err = utils.WriteToS3(j.MinioSvc, jsonBytes, bucket, metaDataLocation, &j.apiLogs, "application/json", 0)
-	if err != nil {
-		return
-	}
-}
-
-// Write metadata at the job's metadata location
-func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
-
-	if j.MetaDataLocation == "" {
-		return
-	}
-
-	imgURI, err := c.GetImageURI(j.JobDef)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	// imgDgst would be incorrect if tag has been updated in between
-	// if there are multiple architechture available for same image tag
-	var imgDgst string
-	if strings.Contains(imgURI, "amazonaws.com/") {
-		imgDgst, err = getECRImageDigest(imgURI)
-		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-			return
-		}
-	} else {
-		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
-		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-			return
-		}
-	}
-
-	p := process{j.ProcessID(), j.ProcessVersion}
-	i := image{imgURI, imgDgst}
-
-	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	md := metaData{
-		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
-		JobID:           j.UUID,
-		Process:         p,
-		Image:           i,
-		Commands:        j.Cmd,
-		GeneratedAtTime: g,
-		StartedAtTime:   s,
-		EndedAtTime:     e,
-	}
-
-	jsonBytes, err := json.Marshal(md)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	bucket := os.Getenv("AWS_S3_BUCKET")
-	// TODO: Determine if batch metadata should be put on aws...currently this is the case
-	utils.WriteToS3(j.S3Svc, jsonBytes, bucket, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Get image digest from ecr
