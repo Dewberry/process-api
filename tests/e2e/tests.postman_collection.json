@@ -325,7 +325,7 @@
 									"name": "job-submit",
 									"item": [
 										{
-											"name": "echo",
+											"name": "pyecho",
 											"event": [
 												{
 													"listen": "test",
@@ -342,7 +342,7 @@
 												"header": [],
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"inputs\": {}\n}",
+													"raw": "{\n    \"inputs\": {\n        \"text\": \"Hello World!\"\n    }\n}",
 													"options": {
 														"raw": {
 															"language": "json"
@@ -362,7 +362,7 @@
 													"variable": [
 														{
 															"key": "processID",
-															"value": "echo"
+															"value": "pyecho"
 														}
 													]
 												}
@@ -460,6 +460,67 @@
 												}
 											},
 											"response": []
+										},
+										{
+											"name": "job-results",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/results",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"results"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "job-metadata",
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/metadata",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"metadata"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
 										}
 									],
 									"event": [
@@ -512,56 +573,6 @@
 						{
 							"name": "Negatives",
 							"item": [
-								{
-									"name": "job-metadata",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{url}}/jobs/:jobID/metadata",
-											"host": [
-												"{{url}}"
-											],
-											"path": [
-												"jobs",
-												":jobID",
-												"metadata"
-											],
-											"variable": [
-												{
-													"key": "jobID",
-													"value": "{{jobID}}"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "job-results",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{url}}/jobs/:jobID/results",
-											"host": [
-												"{{url}}"
-											],
-											"path": [
-												"jobs",
-												":jobID",
-												"results"
-											],
-											"variable": [
-												{
-													"key": "jobID",
-													"value": "{{jobID}}"
-												}
-											]
-										}
-									},
-									"response": []
-								},
 								{
 									"name": "job-dismiss",
 									"request": {
@@ -834,7 +845,7 @@
 													"listen": "test",
 													"script": {
 														"exec": [
-															"pm.test(\"async process should be running or succeeded after 20 seconds\", function () {\r",
+															"pm.test(\"async process should be running or succeeded after 30 seconds\", function () {\r",
 															"    pm.expect(pm.response.json()[\"status\"]).to.be.oneOf([\"running\",\"successful\"]);\r",
 															"});\r",
 															"\r",
@@ -924,7 +935,7 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 110000); "
+															"setTimeout(() => {}, 120000); "
 														],
 														"type": "text/javascript"
 													}
@@ -1219,7 +1230,7 @@
 									"const jobsData = pm.response.json().jobs;\r",
 									"\r",
 									"pm.test(\"number of jobs in record test\", function () {\r",
-									"    pm.expect(jobsData.length).to.eql(2);\r",
+									"    pm.expect(jobsData.length).to.eql(3);\r",
 									"});\r",
 									""
 								],
@@ -1231,7 +1242,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{url}}/jobs?limit=2&offset=1",
+							"raw": "{{url}}/jobs?limit=10&offset=1",
 							"host": [
 								"{{url}}"
 							],
@@ -1241,7 +1252,7 @@
 							"query": [
 								{
 									"key": "limit",
-									"value": "2"
+									"value": "10"
 								},
 								{
 									"key": "offset",
