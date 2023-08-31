@@ -13,10 +13,5 @@ jobs:
     steps:
       - name: Create bucket
         run: docker run -d \
-          --network process_api_net \
-          -e MINIO_ROOT_USER=user \
-          -e MINIO_ROOT_PASSWORD=password \
-          -e STORAGE_BUCKET=api-storage \
-          --entrypoint /bin/sh \
           minio/mc:RELEASE.2023-08-18T21-57-55Z
 
