@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 // base error
@@ -645,8 +646,7 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
 		var sm jobs.StatusMessage
 		sm.Job = job
-		// setup some kind of token/auth to allow only the container to post to this route
-		// check status valid
+		// setup some kind of token/auth to allow only the allowed agents to post to this route
 		defer c.Request().Body.Close()
 		dataBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
@@ -655,13 +655,23 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 		if err = json.Unmarshal(dataBytes, &sm); err != nil {
 			return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
 		}
+		// check status valid
+		switch sm.Status {
+		case jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL:
+			// do nothing
+		default:
+			return c.JSON(http.StatusBadRequest, fmt.Sprintf("status not valid, valid options are: %s, %s, %s, %s, %s", jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL))
+		}
 		(*sm.Job).NewMessage(fmt.Sprintf("Status update received: %s", sm.Status))
 		rh.MessageQueue.StatusChan <- sm
 		return c.JSON(http.StatusAccepted, "status update received")
+	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
+		log.Warnf("Status update received for inactive job: %s", jobID)
+		// returning Accepted here so that callers do not retry
+		return c.JSON(http.StatusAccepted, "job not an active job")
 	} else {
-		return c.JSON(http.StatusBadRequest, "job not an active job")
+		return c.JSON(http.StatusBadRequest, "job id not found")
 	}
-
 }
 
 // func (rh *RESTHandler) JobResultsUpdateHandler(c echo.Context) error {
