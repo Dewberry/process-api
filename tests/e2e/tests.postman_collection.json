@@ -96,7 +96,7 @@
 									"const processData = pm.response.json();\r",
 									"\r",
 									"pm.test(\"id test\", function () {\r",
-									"    pm.expect(processData[\"info\"][\"id\"]).to.eql(\"echo\");\r",
+									"    pm.expect(processData[\"info\"][\"id\"]).to.eql(\"pyecho\");\r",
 									"});\r",
 									"\r",
 									"pm.test(\"job control test\", function () {\r",
@@ -104,7 +104,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"image test\", function () {\r",
-									"    pm.expect(processData[\"image\"]).to.eql(\"alpine\");\r",
+									"    pm.expect(processData[\"image\"]).to.eql(\"lawlerseth/pyecho:v0.0.1\");\r",
 									"});\r",
 									""
 								],
@@ -127,7 +127,7 @@
 							"variable": [
 								{
 									"key": "processID",
-									"value": "echo"
+									"value": "pyecho"
 								}
 							]
 						}
@@ -258,7 +258,7 @@
 											"variable": [
 												{
 													"key": "processID",
-													"value": "echo"
+													"value": "pyecho"
 												}
 											]
 										}
@@ -784,17 +784,8 @@
 									"name": "job-details",
 									"item": [
 										{
-											"name": "job-logs-before-job-is-running",
+											"name": "mock-aws-batch-event-running",
 											"event": [
-												{
-													"listen": "prerequest",
-													"script": {
-														"exec": [
-															""
-														],
-														"type": "text/javascript"
-													}
-												},
 												{
 													"listen": "test",
 													"script": {
@@ -803,20 +794,40 @@
 														],
 														"type": "text/javascript"
 													}
+												},
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 40000); \r",
+															"\r",
+															"postman.setGlobalVariable('timestampUtc', (new Date()).toISOString());"
+														],
+														"type": "text/javascript"
+													}
 												}
 											],
 											"request": {
-												"method": "GET",
+												"method": "PUT",
 												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"status\": \"running\",\n    \"updated\": \"{{timestampUtc}}\"\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
 												"url": {
-													"raw": "{{url}}/jobs/:jobID/logs",
+													"raw": "{{url}}/jobs/:jobID/status_update",
 													"host": [
 														"{{url}}"
 													],
 													"path": [
 														"jobs",
 														":jobID",
-														"logs"
+														"status_update"
 													],
 													"variable": [
 														{
@@ -835,7 +846,6 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 30000); \r",
 															""
 														],
 														"type": "text/javascript"
@@ -845,7 +855,7 @@
 													"listen": "test",
 													"script": {
 														"exec": [
-															"pm.test(\"async process should be running or succeeded after 30 seconds\", function () {\r",
+															"pm.test(\"async process should be running or succeeded after 40 seconds\", function () {\r",
 															"    pm.expect(pm.response.json()[\"status\"]).to.be.oneOf([\"running\",\"successful\"]);\r",
 															"});\r",
 															"\r",
@@ -929,13 +939,70 @@
 											"response": []
 										},
 										{
+											"name": "mock-aws-batch-event-successful",
+											"event": [
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															""
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 140000); \r",
+															"\r",
+															"postman.setGlobalVariable('timestampUtc', (new Date()).toISOString());"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "PUT",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n    \"status\": \"successful\",\n    \"updated\": \"{{timestampUtc}}\"\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/status_update",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"status_update"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
 											"name": "job-results",
 											"event": [
 												{
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 120000); "
+															"setTimeout(() => {}, 10000); \r",
+															""
 														],
 														"type": "text/javascript"
 													}
@@ -1115,6 +1182,51 @@
 						{
 							"name": "Negatives",
 							"item": [
+								{
+									"name": "job-logs-before-job-is-running",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													""
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													""
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{url}}/jobs/:jobID/logs",
+											"host": [
+												"{{url}}"
+											],
+											"path": [
+												"jobs",
+												":jobID",
+												"logs"
+											],
+											"variable": [
+												{
+													"key": "jobID",
+													"value": "{{jobID}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
 								{
 									"name": "job-metadata",
 									"request": {
