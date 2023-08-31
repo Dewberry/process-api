@@ -12,6 +12,7 @@ jobs:
 
     steps:
       - name: Create bucket
-        run: docker run \
-          minio/mc:RELEASE.2023-08-18T21-57-55Z
+        run: |
+          docker run \
+            minio/mc:RELEASE.2023-08-18T21-57-55Z
 
