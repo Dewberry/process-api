@@ -11,8 +11,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create bucket
-        run: |
-          docker run \
-            minio/mc:RELEASE.2023-08-18T21-57-55Z
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
+      - name: Create env file
+        run: |
+          touch .env
+
+          echo STORAGE_SERVICE='minio' >> .env
+          echo STORAGE_BUCKET='api-storage'
+          echo STORAGE_METADATA_DIR='metadata' >> .env
+          echo STORAGE_RESULTS_DIR='results' >> .env
+
+          echo MINIO_ACCESS_KEY_ID=user >> .env
+          echo MINIO_SECRET_ACCESS_KEY=password >> .env
+          echo MINIO_S3_ENDPOINT=http://minio:9000 >> .env
+          echo MINIO_S3_REGION='us-east-1' >> .env
+          echo MINIO_S3_DISABLE_SSL=true >> .env
+          echo MINIO_S3_FORCE_PATH_STYLE=true >> .env
+
+          echo AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} >> .env
+          echo AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} >> .env
+          echo AWS_REGION=${{ secrets.AWS_DEFAULT_REGION }} >> .env
+
+          echo BATCH_LOG_STREAM_GROUP='/aws/batch/job' >> .env
+
+      - name: Add processes
+        run: |
+          cd api/plugins
+          cp -r ../../tests/e2e/processes ./processes
+
+      - name: Build the docker-compose stack
+        run: docker-compose build
+
+      - name: Create network
+        run: docker network create process_api_net
+
+      - name: Run the docker-compose stack
+        run: docker-compose up -d
+
+      - name: Create bucket
+        run: >
+          docker run -d
+          --network process_api_net
+          -e MINIO_ROOT_USER=user
+          -e MINIO_ROOT_PASSWORD=password
+          -e STORAGE_BUCKET=api-storage
+          --entrypoint /bin/sh \
+          minio/mc:RELEASE.2023-08-18T21-57-55Z
+          -c "mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD && mc mb myminio/\${STORAGE_BUCKET}"
+
+      - name: Run newman tests
+        run: |
+          docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"
