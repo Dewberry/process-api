@@ -39,7 +39,7 @@ jobs:
       - name: Build the test images
         run: |
           pwd
-          chmod + x plugin-examples/build.sh
+          chmod + x ./plugin-examples/build.sh
           ./build.sh &
 
       - name: Build the docker-compose stack
