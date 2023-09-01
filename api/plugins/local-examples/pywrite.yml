@@ -1,0 +1,59 @@
+info:
+  version: '8.15.2023'
+  id: pywrite
+  title: File Writer Demo
+  description: Writes the passed input to a text file on s3 (from an example python plugin)
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+
+host:
+  type: local
+
+container:
+  image: pywrite:latest
+  command:
+    - python
+    - main.py
+  envVars:
+    - MINIO_S3_REGION
+    - MINIO_ACCESS_KEY_ID
+    - MINIO_SECRET_ACCESS_KEY
+    - MINIO_S3_BUCKET
+    - MINIO_S3_ENDPOINT
+  maxResources:
+    cpus: 0.1
+    memory: 512
+
+inputs:
+  - id: userInput
+    title: userInput
+    description: user provided text string
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+  - id: outputFile
+    title: outputFile
+    description: user provided output destination
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: textFile
+    title: output
+    description: output text file
+    output:
+      transmissionMode:
+      - value
+
+

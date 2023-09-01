@@ -10,7 +10,7 @@
             "name": "Seth Lawler",
             "email": "slawler@dewberry.com"
         },
-        "version": "dev-4.19.23"
+        "version": "dev-8.16.23"
     },
     "host": "localhost:5050",
     "basePath": "/",
@@ -91,7 +91,7 @@
         },
         "/jobs/{jobID}": {
             "get": {
-                "description": "[xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)",
+                "description": "[Job Status Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)",
                 "consumes": [
                     "*/*"
                 ],
@@ -102,6 +102,15 @@
                     "jobs"
                 ],
                 "summary": "Job Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -145,6 +154,15 @@
                     "jobs"
                 ],
                 "summary": "Job Logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -157,7 +175,7 @@
         },
         "/jobs/{jobID}/results": {
             "get": {
-                "description": "[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)",
+                "description": "Provides metadata associated with a job",
                 "consumes": [
                     "*/*"
                 ],
@@ -167,12 +185,22 @@
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Job Results",
+                "summary": "Job Metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4",
+                        "name": "jobID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.jobResponse"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -218,7 +246,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "processID",
+                        "description": "example: pyecho",
                         "name": "processID",
                         "in": "path",
                         "required": true
@@ -247,6 +275,24 @@
                     "processes"
                 ],
                 "summary": "Execute Process",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "pyecho",
+                        "name": "processID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "example: {“text”:“Hello World!”}",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -300,6 +346,9 @@
                     }
                 },
                 "jobID": {
+                    "type": "string"
+                },
+                "processID": {
                     "type": "string"
                 }
             }
@@ -371,6 +420,9 @@
         "processes.Inputs": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -430,6 +482,9 @@
         "processes.Outputs": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -502,9 +557,5 @@
                 }
             }
         }
-    },
-    "externalDocs": {
-        "description": "Schemas",
-        "url": "http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/"
     }
 }

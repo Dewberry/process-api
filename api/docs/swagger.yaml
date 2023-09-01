@@ -29,6 +29,8 @@ definitions:
         type: array
       jobID:
         type: string
+      processID:
+        type: string
     type: object
   jobs.JobRecord:
     properties:
@@ -74,6 +76,8 @@ definitions:
     type: object
   processes.Inputs:
     properties:
+      description:
+        type: string
       id:
         type: string
       input:
@@ -112,6 +116,8 @@ definitions:
     type: object
   processes.Outputs:
     properties:
+      description:
+        type: string
       id:
         type: string
       inputID:
@@ -159,9 +165,6 @@ definitions:
           $ref: '#/definitions/processes.Outputs'
         type: array
     type: object
-externalDocs:
-  description: Schemas
-  url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 host: localhost:5050
 info:
   contact:
@@ -169,7 +172,7 @@ info:
     name: Seth Lawler
   description: An OGC compliant process server.
   title: Process-API Server
-  version: dev-4.19.23
+  version: dev-8.16.23
 paths:
   /:
     get:
@@ -238,7 +241,13 @@ paths:
     get:
       consumes:
       - '*/*'
-      description: '[xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)'
+      description: '[Job Status Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)'
+      parameters:
+      - description: 'example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4'
+        in: path
+        name: jobID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -253,6 +262,12 @@ paths:
     get:
       consumes:
       - '*/*'
+      parameters:
+      - description: 'example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4'
+        in: path
+        name: jobID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -267,15 +282,22 @@ paths:
     get:
       consumes:
       - '*/*'
-      description: '[Job Results Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_job_results)'
+      description: Provides metadata associated with a job
+      parameters:
+      - description: 'example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4'
+        in: path
+        name: jobID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handlers.jobResponse'
-      summary: Job Results
+            additionalProperties: true
+            type: object
+      summary: Job Metadata
       tags:
       - jobs
   /processes:
@@ -300,7 +322,7 @@ paths:
       - '*/*'
       description: '[Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)'
       parameters:
-      - description: processID
+      - description: 'example: pyecho'
         in: path
         name: processID
         required: true
@@ -320,6 +342,18 @@ paths:
       consumes:
       - '*/*'
       description: '[Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)'
+      parameters:
+      - description: pyecho
+        in: path
+        name: processID
+        required: true
+        type: string
+      - description: 'example: {“text”:“Hello World!”}'
+        in: body
+        name: input
+        required: true
+        schema:
+          type: string
       produces:
       - application/json
       responses:

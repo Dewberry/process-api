@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/labstack/gommon/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -51,11 +52,12 @@ type Input struct {
 }
 
 type Inputs struct {
-	ID        string `yaml:"id"`
-	Title     string `yaml:"title"`
-	Input     Input  `yaml:"input"`
-	MinOccurs int    `yaml:"minOccurs"`
-	MaxOccurs int    `yaml:"maxOccurs,omitempty"`
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Input       Input  `yaml:"input"`
+	MinOccurs   int    `yaml:"minOccurs"`
+	MaxOccurs   int    `yaml:"maxOccurs,omitempty"`
 }
 
 type Output struct {
@@ -63,10 +65,11 @@ type Output struct {
 }
 
 type Outputs struct {
-	ID      string `yaml:"id"`
-	Title   string `yaml:"title"`
-	Output  Output `yaml:"output"`
-	InputID string `yaml:"inputId"` //json omit
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Output      Output `yaml:"output"`
+	InputID     string `yaml:"inputId"` //json omit
 }
 
 // Resources
@@ -149,6 +152,19 @@ func (p process) VerifyInputs(inp map[string]interface{}) error {
 	return nil
 }
 
+func (p process) VerifyLocalEnvars(container Container) error {
+	var missingEnvVars []string
+	for _, envVar := range container.EnvVars {
+		if os.Getenv(envVar) == "" {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	if len(missingEnvVars) > 0 {
+		return fmt.Errorf("error: env variables not found: %v. please restart the server with these in place", missingEnvVars)
+	}
+	return nil
+}
+
 // ProcessList describes processes
 type ProcessList struct {
 	List     []process
@@ -179,7 +195,7 @@ func newProcess(f string) (process, error) {
 	// the problem with doing this here is that if the job definition is updated while we are doing this, our process info will not update
 	switch p.Host.Type {
 	case "aws-batch":
-		c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_DEFAULT_REGION"))
+		c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 		if err != nil {
 			return process{}, err
 		}
@@ -207,19 +223,15 @@ func LoadProcesses(dir string) (ProcessList, error) {
 	if err != nil {
 		return pl, err
 	}
-	y := append(ymls, yamls...)
-	processes := make([]process, len(y))
+	allYamls := append(ymls, yamls...)
+	processes := make([]process, len(allYamls))
 
-	for i, y := range y {
+	for i, y := range allYamls {
 		p, err := newProcess(y)
 		if err != nil {
-			return pl, err
+			log.Errorf("could not register process %s Error: %v", filepath.Base(y), err)
 		}
 		processes[i] = p
-	}
-
-	if err != nil {
-		return pl, err
 	}
 
 	infos := make([]Info, len(processes))

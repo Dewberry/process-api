@@ -4,9 +4,6 @@
 
 A lightweight, extensible, OGC compliant Process API for local and cloud based containerized processing.
 
-![](/docs/swagger-screenshot.png)
-*created using [swaggo](https://github.com/swaggo/swag)*
-
 For more information on the specification visit the [OGC API - Processes - Part 1: Core](https://docs.ogc.org/is/18-062r2/18-062r2.html#toc0).
 
 The API responses follow the examples provided here:
@@ -16,26 +13,24 @@ https://developer.ogc.org/api/processes/index.html
 
 ## Getting Started
 
-1. Create a `.env` file (example below) at the root of this repo
-### Native
-2. Add process configuration file(s) (yaml) to the [plugins](api/plugins/) directory (or use -d flag to specify path of the directory with process configuration files in step 4)
-3. `cd api`
-4. Update swagger documents and compile the server: `swag init && go build main.go`.
-5. Run the server: `./main`, with the following available flags:
-   ```
-      `-d [type string] specify the path of the processes directory to load (default "plugins" assuming program called from inside repo)`
-      `-e [type string] specify the path of the dot env file to load (default "../.env")`
-      `-p [type string] specify the port to run the api on (default "5050")`
-      `-db [type string] specify the path of the sqlite database (default "../.data/db.sqlite")`
-   ```
+1. Create docker network `docker network create process_api_net`
 
-### Docker Compose
-2. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
-3. `docker-compose build`
-4. `docker-compose up`
+1. Build docker images for example plugins
+```sh
+cd plugin-examples &&
+chmod +x build.sh &&
+./build.sh &
+```
+1. Create a `.env` file (example below) at the root of this repo.
+![](imgs/getting-started.gif)
+1. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
+1. run `docker compose up`
+1. Create a bucket in the minio console (http://localhost:9001).
+1. Test endpoints using the swagger documentation page. (http://localhost:5050/swagger/index.html)
 
+![](imgs/swagger-demo.gif)
 
-Once the server is up and running, go to http://localhost:5050/swagger/ for documentation details.
+*API docs created using [swaggo](https://github.com/swaggo/swag)*
 
 ---
 
@@ -47,12 +42,14 @@ The system design consists of four major system components:
 The API is the main orchestrator for all the downstream functionality and a single point of communication with the system.
 
 ### Processes
+![](imgs/processes.png)
 Processes are computational tasks described through a configuration file that can be executed in a container. Each configuration file contains information about the process such as the title of this process, its description, execution mode, execution resources, secrets required, inputs, and outputs. Each config file is to be unmarshalled to register a process in the API. These processes then can be called several times by the client application to perform jobs.
 
 ### Execution Platforms
 Execution platforms are hosts that can provide resources to run a job using configuration defined in the process and with arguments supplied by the client request. The execution platforms can be on the cloud or a local machine.
 
 ### Jobs
+![](imgs/jobs.png)
 Each execution of a process is called a job. A job can be synchronous or asynchronous depending on which platform it is being executed upon. Synchronous jobs return responses after the job has reached a finished state, meaning either successful or failed. The asynchronous jobs return a response immediately with a job id for the client so that the client can monitor the jobs.
 
 *Note on Procesess: The developers must make sure they choose the right platform to execute a process. The processes that are short-lived and fast and do not create a file resource as an output, for example getting the water surface elevation values for a coordinate from cloud raster, must be registered to run on the local machine so that they are synchronous. These kinds of processes should output data in JSON format.*
@@ -62,7 +59,7 @@ Each execution of a process is called a job. A job can be synchronous or asynchr
 
 ## Behaviour
 
-![](/design.svg)
+![](imgs/design.svg)
 
 At the start of the app, all the `.yaml` `.yml` (configuration) files are read and processes are registered. Each file describes what resources the process requires and where it wants to be executed. There are two execution platforms available; local processes run in a docker container, hence they must specify a docker image and the tag. The API will download these images from the repository and then run them on the host machine. Commands specified will be appended to the entrypoint of the container. The API responds to the request of local processes synchronously.
 
@@ -74,30 +71,17 @@ When a job is submitted, a local container is fired up immediately for sync jobs
 
 The API responds to all GET requests (except `/jobs/<jobID>/results`) as HTML or JSON depending upon if the request is being originated from Browser or not or if it specifies the format using query parameter ‘f’.
 
+### Logs
+![](imgs/logs.png)
+Logs are not included in the specification, however for this implementation we have added logs to provide information on the API and Containers.
+
+### Metadata
+![](imgs/metadata.png)
+Similar to logs, metadata is not included in the specification. We have added metadata as an endpoint to provide information on the version of the pliugin, the runtime, and the input arguments passed to the container at runtime.
+
 ## Example .env file
 
-For AWS services, an env file should be located at the root of this repository (`./.env`) and be formatted like so:
-
-```properties
-# AWS
-AWS_ACCESS_KEY_ID='************'
-AWS_SECRET_ACCESS_KEY='**************************'
-AWS_DEFAULT_REGION='us-east-1'
-
-# S3
-S3_BUCKET='********'
-S3_RESULTS_DIR='results'
-S3_META_DIR='metadata'
-
-# BATCH
-BATCH_LOG_STREAM_GROUP='/aws/batch/job'
-
-# GDAL
-CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE='YES'
-
-# Policies
-EXPIRY_DAYS='7'
-```
+An env file is required and should be available at the root of this repository (`./.env`). See the [example.env](example.env) for a guide.
 
 ## Notes
 *NOTE: This server was adapted for ogc-compliance from an existing api developed by @albrazeau*

@@ -3,14 +3,12 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -18,20 +16,7 @@ import (
 // 0 value for expDays means no expiry
 // If failure occurs append error message to the logs stream
 // This function does not panic to safeguard server
-func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays int) {
-
-	defer func(logs *[]string) {
-		if r := recover(); r != nil {
-			// Handle the panic gracefully
-			*logs = append(*logs, fmt.Sprintf("Failure writing to S3. Log writing routine panicked: %v", r))
-		}
-	}(logs)
-
-	// Set up a session with AWS credentials and region
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	svc := s3.New(sess)
+func WriteToS3(svc *s3.S3, b []byte, key string, contType string, expDays int) error {
 
 	var expirationDate *time.Time
 	if expDays != 0 {
@@ -41,7 +26,7 @@ func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays in
 
 	// Upload the data to S3
 	_, err := svc.PutObject(&s3.PutObjectInput{
-		Bucket:      aws.String(os.Getenv("S3_BUCKET")),
+		Bucket:      aws.String(os.Getenv("STORAGE_BUCKET")),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(b),
 		Expires:     expirationDate,
@@ -49,15 +34,17 @@ func WriteToS3(b []byte, key string, logs *[]string, contType string, expDays in
 	})
 
 	if err != nil {
-		*logs = append(*logs, "Failure writing to S3. Error: "+err.Error())
+		// to do log error
+		return err
 	}
+	// to do log
+	return nil
 }
 
 // Check if an S3 Key exists
 func KeyExists(key string, svc *s3.S3) (bool, error) {
-
 	_, err := svc.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Bucket: aws.String(os.Getenv("STORAGE_BUCKET")),
 		Key:    aws.String(key),
 	})
 
@@ -90,7 +77,7 @@ func StringInSlice(a string, list []string) bool {
 func GetS3JsonData(key string, svc *s3.S3) (interface{}, error) {
 	// Create a new S3GetObjectInput object to specify the file you want to read
 	params := &s3.GetObjectInput{
-		Bucket: aws.String(os.Getenv("S3_BUCKET")),
+		Bucket: aws.String(os.Getenv("STORAGE_BUCKET")),
 		Key:    aws.String(key),
 	}
 

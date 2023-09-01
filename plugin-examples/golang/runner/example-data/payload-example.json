@@ -1,0 +1,11 @@
+{
+    "simulationName": "demo",
+    "inputs": [
+        "demo/simulation/model-forcing.txt",
+        "demo/simulation/model-geometry.txt"
+    ],
+    "outputs": [
+        "demo/simulation/model-run-log.txt"
+    ],
+    "jobRootPrefix": "demo/simulation/output"
+}

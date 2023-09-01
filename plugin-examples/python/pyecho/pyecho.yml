@@ -1,0 +1,42 @@
+info:
+  version: '8.15.2023'
+  id: pyecho
+  title: Echo Demo
+  description: Echos the passed input (from an example python plugin)
+  jobControlOptions:
+    - sync-execute
+  outputTransmission:
+
+host:
+  type: local
+
+container:
+  image: lawlerseth/pyecho:v0.0.1
+  command:
+    - python
+    - main.py
+  maxResources:
+    cpus: 0.1
+    memory: 256
+
+inputs:
+  - id: text
+    title: text
+    description: user provided text string
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: message
+    title: message
+    description: output message (same as user provided text string)
+    output:
+      transmissionMode:
+      - value
+
+

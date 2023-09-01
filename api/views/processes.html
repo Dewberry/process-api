@@ -13,6 +13,7 @@
     <table>
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Title</th>
                 <th>Description</th>
                 <th>Version</th>
@@ -23,7 +24,8 @@
         <tbody>
             {{range .processes}}
             <tr>
-                <td><a href="/processes/{{.ID}}" target="_blank">{{.Title}}</a></td>
+                <td><a href="/processes/{{.ID}}" target="_blank">{{.ID}}</a></td>
+                <td>{{.Title}}</td>
                 <td>{{.Description}}</td>
                 <td>{{.Version}}</td>
                 <td>{{range .JobControlOptions}}{{.}} {{end}}</td>

@@ -12,14 +12,15 @@ import (
 	"app/utils"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 // base error
@@ -68,7 +69,7 @@ func validateFormat(c echo.Context) error {
 // If query parameter not defined then fall back to Accept header as suggested in OGC Specs
 // Both are not defined then return JSON
 func prepareResponse(c echo.Context, httpStatus int, renderName string, output interface{}) error {
-	// this is to confomrm to OGC Process API classes: /req/html/definition and /req/json/definition
+	// this is to conform to OGC Process API classes: /req/html/definition and /req/json/definition
 	outputFormat := c.QueryParam("f")
 	switch outputFormat {
 	case "html":
@@ -79,7 +80,8 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 		accept := c.Request().Header.Get("Accept")
 		if strings.Contains(accept, "application/json") {
 			// Browsers generally send text/html as an accept header
-			return c.Render(httpStatus, renderName, output)
+			// return c.Render(httpStatus, renderName, output)
+			return c.JSON(httpStatus, output)
 		} else if strings.Contains(accept, "text/html") {
 			// Browsers generally send text/html as an accept header
 			return c.Render(httpStatus, renderName, output)
@@ -91,6 +93,7 @@ func prepareResponse(c echo.Context, httpStatus int, renderName string, output i
 }
 
 // runRequestBody provides the required inputs for containerized processes
+// specs: https://developer.ogc.org/api/processes/index.html#tag/Execute
 type runRequestBody struct {
 	Inputs  map[string]interface{} `json:"inputs"`
 	EnvVars map[string]string      `json:"environmentVariables"`
@@ -209,7 +212,7 @@ func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
 // @Summary Describe Process Information
 // @Description [Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)
 // @Tags processes
-// @Param processID path string true "processID"
+// @Param processID path string true "example: pyecho"
 // @Accept */*
 // @Produce json
 // @Success 200 {object} processes.processDescription
@@ -239,6 +242,8 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Tags processes
 // @Accept */*
 // @Produce json
+// @Param processID path string true "pyecho"
+// @Param input body string true "example: {“text”:“Hello World!”}"
 // @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
@@ -269,13 +274,18 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	var j jobs.Job
-	jobType := p.Info.JobControlOptions[0]
+	mode := p.Info.JobControlOptions[0]
+	host := p.Host.Type
+
 	jobID := uuid.New().String()
 
-	params.Inputs["jobID"] = jobID
-	params.Inputs["resultsDir"] = os.Getenv("S3_RESULTS_DIR")
-	params.Inputs["expDays"] = os.Getenv("EXPIRY_DAYS")
+	// switch host {
+	// case "local":
+	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_LOCAL"), jobID)
+	// default:
+	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_PUBLIC"), jobID)
+	// }
+
 	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
@@ -288,37 +298,35 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		cmd = append(p.Container.Command, string(jsonParams))
 	}
 
-	if jobType == "sync-execute" {
+	var j jobs.Job
+	switch host {
+	case "local":
 		j = &jobs.DockerJob{
-			UUID:        jobID,
-			ProcessName: processID,
-			Image:       p.Container.Image,
-			EnvVars:     p.Container.EnvVars,
-			Resources:   jobs.Resources(p.Container.Resources),
-			Cmd:         cmd,
-			DB:          rh.DB,
+			UUID:           jobID,
+			ProcessName:    processID,
+			ProcessVersion: p.Info.Version,
+			Image:          p.Container.Image,
+			EnvVars:        p.Container.EnvVars,
+			Resources:      jobs.Resources(p.Container.Resources),
+			Cmd:            cmd,
+			StorageSvc:     rh.StorageSvc,
+			DB:             rh.DB,
+			DoneChan:       rh.MessageQueue.JobDone,
 		}
 
-	} else {
-		host := p.Host.Type
-		switch host {
-		case "aws-batch":
-			md := fmt.Sprintf("%s/%s.json", os.Getenv("S3_META_DIR"), jobID)
-
-			j = &jobs.AWSBatchJob{
-				UUID:             jobID,
-				ProcessName:      processID,
-				Image:            p.Container.Image,
-				Cmd:              cmd,
-				JobDef:           p.Host.JobDefinition,
-				JobQueue:         p.Host.JobQueue,
-				JobName:          "ogc-api-id-" + jobID,
-				MetaDataLocation: md,
-				ProcessVersion:   p.Info.Version,
-				DB:               rh.DB,
-			}
-		default:
-			return c.JSON(http.StatusBadRequest, errResponse{Message: fmt.Sprintf("unsupported type %s", jobType)})
+	case "aws-batch":
+		j = &jobs.AWSBatchJob{
+			UUID:           jobID,
+			ProcessName:    processID,
+			Image:          p.Container.Image,
+			Cmd:            cmd,
+			JobDef:         p.Host.JobDefinition,
+			JobQueue:       p.Host.JobQueue,
+			JobName:        "ogc-api-id-" + jobID,
+			ProcessVersion: p.Info.Version,
+			StorageSvc:     rh.StorageSvc,
+			DB:             rh.DB,
+			DoneChan:       rh.MessageQueue.JobDone,
 		}
 	}
 
@@ -331,33 +339,31 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// Add to active jobs
 	rh.ActiveJobs.Add(&j)
 
-	switch p.Info.JobControlOptions[0] {
+	resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: j.CurrentStatus()}
+	switch mode {
 	case "sync-execute":
-		defer rh.ActiveJobs.Remove(&j)
+		j.WaitForRunCompletion()
+		resp.Status = j.CurrentStatus()
 
-		j.Run()
-
-		if j.CurrentStatus() == "successful" {
+		if resp.Status == "successful" {
 			var outputs interface{}
 
 			if p.Outputs != nil {
-				outputs, err = jobs.FetchResults(rh.S3Svc, j.JobID())
+				// outputs, err = jobs.FetchResults(rh.StorageSvc, j.JobID())
+				outputs, err = jobs.FetchResults(rh.DB, j.JobID())
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
+					resp.Message = "error fetching results. Error: " + err.Error()
+					return c.JSON(http.StatusInternalServerError, resp)
 				}
 			}
-			resp := map[string]interface{}{"jobID": j.JobID(), "outputs": outputs}
+			resp.Outputs = outputs
 			return c.JSON(http.StatusOK, resp)
 		} else {
-			resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "job Failed. Call logs route for details"}
+			resp.Message = "job unsuccessful. Call logs route for details"
 			return c.JSON(http.StatusInternalServerError, resp)
 		}
 	case "async-execute":
-		go func() {
-			defer rh.ActiveJobs.Remove(&j)
-			j.Run()
-		}()
-		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "accepted"}
+		resp.Status = j.CurrentStatus()
 		return c.JSON(http.StatusCreated, resp)
 	default:
 		resp := jobResponse{ProcessID: j.ProcessID(), Type: "process", JobID: jobID, Status: "0", Message: "incorrect controller option defined in process configuration"}
@@ -387,10 +393,11 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 }
 
 // @Summary Job Status
-// @Description [xxx Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)
+// @Description [Job Status Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_retrieve_status_info)
 // @Tags jobs
 // @Info [Format YAML](http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/statusInfo.yaml)
 // @Accept */*
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
 // @Produce json
 // @Success 200 {object} jobResponse
 // @Router /jobs/{jobID} [get]
@@ -427,7 +434,8 @@ func (rh *RESTHandler) JobStatusHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
-// @Success 200 {object} jobResponse
+// @Param jobID path string true "ex: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
+// @Success 200 {object} map[string]interface{}
 // @Router /jobs/{jobID}/results [get]
 // Does not produce HTML
 func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
@@ -438,14 +446,15 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if _, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not ready"}
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not ready, job in progress"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
 
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			outputs, err := jobs.FetchResults(rh.S3Svc, jRcrd.JobID)
+			// outputs, err := jobs.FetchResults(rh.StorageSvc, jRcrd.JobID)
+			outputs, err := jobs.FetchResults(rh.DB, jRcrd.JobID)
 			if err != nil {
 				if err.Error() == "not found" {
 					output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not available, resource might have expired"}
@@ -472,6 +481,15 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	return prepareResponse(c, http.StatusNotFound, "error", output)
 }
 
+// @Summary Job Metadata
+// @Description Provides metadata associated with a job
+// @Tags jobs
+// @Accept */*
+// @Produce json
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
+// @Success 200 {object} map[string]interface{}
+// @Router /jobs/{jobID}/results [get]
+// Does not produce HTML
 func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	err := validateFormat(c)
 	if err != nil {
@@ -480,17 +498,13 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if _, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		// for sync jobs jobid is not returned to user untill the job is no longer in activeJobs, so it means job is not async
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "metadata not ready"}
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "metadata not ready, job in progress"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
-		// todo
-		// if jRcrd.Mode == "sync"
-
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			md, err := jobs.FetchMeta(rh.S3Svc, jobID)
+			md, err := jobs.FetchMeta(rh.StorageSvc, jobID)
 			if err != nil {
 				if err.Error() == "not found" {
 					output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "metadata not found"}
@@ -521,6 +535,7 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 // @Tags jobs
 // @Accept */*
 // @Produce json
+// @Param jobID path string true "example: 44d9ca0e-2ca7-4013-907f-a8ccc60da3b4"
 // @Success 200 {object} jobs.JobLogs
 // @Router /jobs/{jobID}/logs [get]
 func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
@@ -535,6 +550,10 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 	var errLogs error
 
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		if (*job).CurrentStatus() == jobs.ACCEPTED {
+			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: "job not yet started"}
+			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		}
 		logs, errLogs = (*job).Logs()
 	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
 		logs, errLogs = rh.DB.GetLogs(jobID)
@@ -611,3 +630,70 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	output["links"] = links
 	return prepareResponse(c, http.StatusOK, "jobs", output)
 }
+
+// Sample message body:
+//
+//	{
+//		"status": "successful",
+//		"updated": "2023-08-28T18:25:44.731Z"
+//	}
+//
+// Time must be in RFC3339(ISO) format
+func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
+
+	jobID := c.Param("jobID")
+
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		var sm jobs.StatusMessage
+		sm.Job = job
+		// setup some kind of token/auth to allow only the allowed agents to post to this route
+		defer c.Request().Body.Close()
+		dataBytes, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "could not read message body"})
+		}
+		if err = json.Unmarshal(dataBytes, &sm); err != nil {
+			return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+		}
+		// check status valid
+		switch sm.Status {
+		case jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL:
+			// do nothing
+		default:
+			return c.JSON(http.StatusBadRequest, fmt.Sprintf("status not valid, valid options are: %s, %s, %s, %s, %s", jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL))
+		}
+		(*sm.Job).NewMessage(fmt.Sprintf("Status update received: %s", sm.Status))
+		rh.MessageQueue.StatusChan <- sm
+		return c.JSON(http.StatusAccepted, "status update received")
+	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
+		log.Warnf("Status update received for inactive job: %s", jobID)
+		// returning Accepted here so that callers do not retry
+		return c.JSON(http.StatusAccepted, "job not an active job")
+	} else {
+		return c.JSON(http.StatusBadRequest, "job id not found")
+	}
+}
+
+// func (rh *RESTHandler) JobResultsUpdateHandler(c echo.Context) error {
+
+// 	// setup some kind of token/auth to allow only the container to post to this route
+
+// 	defer c.Request().Body.Close()
+// 	dataBytes, err := io.ReadAll(c.Request().Body)
+// 	if err != nil {
+// 		return c.JSON(http.StatusBadRequest, errResponse{http.StatusBadRequest, "incorrect message body"})
+// 	}
+
+// 	jobID := c.Param("jobID")
+
+// 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+// 		err = (*job).WriteResults(dataBytes)
+// 		if err != nil {
+// 			return c.JSON(http.StatusInternalServerError, errResponse{http.StatusInternalServerError, "error writing results"})
+// 		}
+// 		return c.JSON(http.StatusCreated, "results processed")
+// 	} else {
+// 		return c.JSON(http.StatusBadRequest, "job not an active job")
+// 	}
+
+// }

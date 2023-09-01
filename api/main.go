@@ -43,7 +43,7 @@ func init() {
 }
 
 // @title Process-API Server
-// @version dev-4.19.23
+// @version dev-8.16.23
 // @description An OGC compliant process server.
 
 // @contact.name Seth Lawler
@@ -62,8 +62,11 @@ func main() {
 
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
-
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
+
+	// Goroutines
+	go rh.StatusUpdateRoutine()
+	go rh.JobCompletionRoutine()
 
 	// Set server configuration
 	e := echo.New()
@@ -104,6 +107,10 @@ func main() {
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
 	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
+
+	// Callbacks
+	e.PUT("/jobs/:jobID/status_update", rh.JobStatusUpdateHandler)
+	// e.POST("/jobs/:jobID/results_update", rh.JobResultsUpdateHandler)
 
 	// Start server
 	go func() {

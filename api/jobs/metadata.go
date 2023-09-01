@@ -1,8 +1,6 @@
 package jobs
 
 import (
-	"app/controllers"
-	"app/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,9 +25,9 @@ type image struct {
 
 // Define a metaData object
 type metaData struct {
-	Context string  `json:"@context"`
-	JobID   string  `json:"apiJobId"`
-	User    string  `json:"apiUser"`
+	Context string `json:"@context"`
+	JobID   string `json:"apiJobId"`
+	// User    string  `json:"apiUser"`
 	Process process `json:"process"`
 	Image   image   `json:"image"`
 	// ComputeEnvironmentURI    string    // ARN
@@ -38,65 +36,6 @@ type metaData struct {
 	GeneratedAtTime time.Time `json:"generatedAtTime"`
 	StartedAtTime   time.Time `json:"startedAtTime"`
 	EndedAtTime     time.Time `json:"endedAtTime"`
-}
-
-// Write metadata at the job's metadata location
-func (j *AWSBatchJob) WriteMeta(c *controllers.AWSBatchController) {
-
-	if j.MetaDataLocation == "" {
-		return
-	}
-
-	imgURI, err := c.GetImageURI(j.JobDef)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	// imgDgst would be incorrect if tag has been updated in between
-	// if there are multiple architechture available for same image tag
-	var imgDgst string
-	if strings.Contains(imgURI, "amazonaws.com/") {
-		imgDgst, err = getECRImageDigest(imgURI)
-		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-			return
-		}
-	} else {
-		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
-		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-			return
-		}
-	}
-
-	p := process{j.ProcessID(), j.ProcessVersion}
-	i := image{imgURI, imgDgst}
-
-	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	md := metaData{
-		Context:         "https://github.com/Dewberry/process-api/blob/main/context.jsonld",
-		JobID:           j.UUID,
-		Process:         p,
-		Image:           i,
-		Commands:        j.Cmd,
-		GeneratedAtTime: g,
-		StartedAtTime:   s,
-		EndedAtTime:     e,
-	}
-
-	jsonBytes, err := json.Marshal(md)
-	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
-		return
-	}
-
-	utils.WriteToS3(jsonBytes, j.MetaDataLocation, &j.apiLogs, "application/json", 0)
 }
 
 // Get image digest from ecr
