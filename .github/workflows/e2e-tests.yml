@@ -38,6 +38,7 @@ jobs:
 
       - name: Build the test images
         run: |
+          pwd
           chmod + x plugin-examples/build.sh
           ./build.sh &
 
