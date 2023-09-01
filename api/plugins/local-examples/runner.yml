@@ -11,7 +11,7 @@ host:
   type: local
 
 container:
-  image: lawlerseth/runner:v0.0.1
+  image: runner:latest
   command:
     - ./main
   maxResources:
@@ -30,7 +30,7 @@ inputs:
     minOccurs: 1
     maxOccurs: 5
   - id: jobRootPrefix
-    title: job's root prefix 
+    title: job's root prefix
     description: root prefix on s3 where model outputs will be written
     input:
       literalDataDomain:

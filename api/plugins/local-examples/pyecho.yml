@@ -11,7 +11,7 @@ host:
   type: local
 
 container:
-  image: lawlerseth/pyecho:v0.0.1
+  image: pyecho:latest
   command:
     - python
     - main.py

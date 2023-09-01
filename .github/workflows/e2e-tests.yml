@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  newman-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,13 +36,13 @@ jobs:
 
           echo BATCH_LOG_STREAM_GROUP='/aws/batch/job' >> .env
 
-      - name: Add processes
+      - name: Build the test images
         run: |
-          cd api/plugins
-          cp -r ../../tests/e2e/processes ./processes
+          chmod + x plugin-examples/build.sh
+          ./build.sh &
 
       - name: Build the docker-compose stack
-        run: docker-compose build
+        run: docker-compose build -d
 
       - name: Create network
         run: docker network create process_api_net
@@ -52,7 +52,7 @@ jobs:
 
       - name: Create bucket
         run: >
-          docker run
+          docker run -d
           --network process_api_net
           -e MINIO_ROOT_USER=user
           -e MINIO_ROOT_PASSWORD=password
