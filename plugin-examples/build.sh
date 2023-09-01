@@ -1,4 +1,7 @@
 #!/bin/bash
+"""
+This script should be called from plugin-examples folder.
+"""
 
 # Function to build Docker image
 build_image() {
@@ -8,7 +11,7 @@ build_image() {
 
     if [ -f "$dockerfile_path" ]; then
         echo "Building $base_folder/$sub_folder..."
-        docker build -t "$base_folder-$sub_folder" "$base_folder/$sub_folder" &
+        docker build -t "$sub_folder" "$base_folder/$sub_folder" &
     fi
 }
 
@@ -25,5 +28,6 @@ done
 
 # Wait for all parallel jobs to finish
 wait
+docker images
 
 echo "All builds complete."

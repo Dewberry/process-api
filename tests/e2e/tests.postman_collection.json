@@ -104,7 +104,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"image test\", function () {\r",
-									"    pm.expect(processData[\"image\"]).to.eql(\"lawlerseth/pyecho:v0.0.1\");\r",
+									"    pm.expect(processData[\"image\"]).to.eql(\"pyecho:latest\");\r",
 									"});\r",
 									""
 								],
@@ -499,6 +499,17 @@
 										},
 										{
 											"name": "job-metadata",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 2000); "
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
 											"request": {
 												"method": "GET",
 												"header": [],
@@ -1033,6 +1044,17 @@
 										},
 										{
 											"name": "job-metadata",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 2000); "
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
 											"request": {
 												"method": "GET",
 												"header": [],
