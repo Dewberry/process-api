@@ -25,5 +25,6 @@ done
 
 # Wait for all parallel jobs to finish
 wait
+docker images
 
 echo "All builds complete."
