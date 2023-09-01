@@ -19,7 +19,7 @@ jobs:
           touch .env
 
           echo STORAGE_SERVICE='minio' >> .env
-          echo STORAGE_BUCKET='api-storage'
+          echo STORAGE_BUCKET='api-storage' >> .env
           echo STORAGE_METADATA_DIR='metadata' >> .env
           echo STORAGE_RESULTS_DIR='results' >> .env
 
@@ -53,7 +53,7 @@ jobs:
 
       - name: Create bucket
         run: >
-          docker run -d
+          docker run
           --network process_api_net
           -e MINIO_ROOT_USER=user
           -e MINIO_ROOT_PASSWORD=password
@@ -63,5 +63,6 @@ jobs:
           -c "mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD && mc mb myminio/\${STORAGE_BUCKET}"
 
       - name: Run newman tests
-        run: |
-          docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json --env-var "url=localhost:5050"
+        run: >
+          docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json
+          --env-var "url=localhost:5050" --reporters cli --bail --color on
