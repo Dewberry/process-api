@@ -15,6 +15,12 @@ https://developer.ogc.org/api/processes/index.html
 
 1. Create docker network `docker network create process_api_net`
 
+1. Build docker images for example plugins
+```sh
+cd plugin-examples &&
+chmod +x build.sh &&
+./build.sh &
+```
 1. Create a `.env` file (example below) at the root of this repo.
 ![](imgs/getting-started.gif)
 1. Add process configuration file(s) (yaml) to the [plugins](plugins/) directory
