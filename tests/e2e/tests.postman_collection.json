@@ -831,7 +831,7 @@
 													}
 												},
 												"url": {
-													"raw": "{{url}}/jobs/:jobID/status_update",
+													"raw": "{{url}}/jobs/:jobID/status",
 													"host": [
 														"{{url}}"
 													],
@@ -986,7 +986,7 @@
 													}
 												},
 												"url": {
-													"raw": "{{url}}/jobs/:jobID/status_update",
+													"raw": "{{url}}/jobs/:jobID/status",
 													"host": [
 														"{{url}}"
 													],
