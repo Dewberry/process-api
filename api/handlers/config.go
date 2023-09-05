@@ -30,6 +30,7 @@ func (t Template) Render(w io.Writer, name string, data interface{}, c echo.Cont
 
 // Store configuration for the handler
 type RESTHandler struct {
+	Name         string
 	Title        string
 	Description  string
 	ConformsTo   []string
@@ -53,8 +54,14 @@ func prettyPrint(v interface{}) string {
 // Initializes resources and return a new handler
 // errors are fatal
 func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
+	apiName, exist := os.LookupEnv("API_NAME")
+	if !exist {
+		log.Warn("env variable API_NAME not set")
+	}
+
 	// working with pointers here so as not to copy large templates, yamls, and ActiveJobs
 	config := RESTHandler{
+		Name:        apiName,
 		Title:       "process-api",
 		Description: "ogc process api written in Golang for use with cloud service controllers to manage asynchronous requests",
 		ConformsTo: []string{

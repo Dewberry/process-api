@@ -322,7 +322,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			Cmd:            cmd,
 			JobDef:         p.Host.JobDefinition,
 			JobQueue:       p.Host.JobQueue,
-			JobName:        "ogc-api-id-" + jobID,
+			JobName:        fmt.Sprintf("%s-%s", rh.Name, jobID),
 			ProcessVersion: p.Info.Version,
 			StorageSvc:     rh.StorageSvc,
 			DB:             rh.DB,
