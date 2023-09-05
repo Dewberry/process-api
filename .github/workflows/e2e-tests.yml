@@ -18,7 +18,7 @@ jobs:
         run: |
           touch .env
 
-          echo API_NAME='github-actions-test' >> .env
+          echo API_NAME='github-testing-process-api' >> .env
           echo STORAGE_SERVICE='minio' >> .env
           echo STORAGE_BUCKET='api-storage' >> .env
           echo STORAGE_METADATA_DIR='metadata' >> .env
