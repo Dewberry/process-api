@@ -22,6 +22,7 @@ type MessageQueue struct {
 
 // Job should not be a docker job
 func ProcessStatusMessageUpdate(sm StatusMessage) {
+	// to do: acquire lock here so that subsequent calls can not update job status or trigger methods on jobs
 	(*sm.Job).NewStatusUpdate(sm.Status, sm.LastUpdate)
 	switch sm.Status {
 	case SUCCESSFUL:
