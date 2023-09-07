@@ -325,6 +325,7 @@ func (j *DockerJob) RunFinished() {
 
 // Write final logs, cancelCtx
 func (j *DockerJob) Close() {
+	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel() // Signal Run function to terminate if running
 
 	if j.ContainerID != "" { // Container related cleanups if container exists

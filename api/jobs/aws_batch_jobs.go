@@ -360,6 +360,7 @@ func (j *AWSBatchJob) RunFinished() {
 
 // Write final logs, cancelCtx, write metadata
 func (j *AWSBatchJob) Close() {
+	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel()
 
 	err := j.fetchCloudWatchLogs()

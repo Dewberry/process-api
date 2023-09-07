@@ -725,7 +725,9 @@
 													"script": {
 														"exec": [
 															"var resp = pm.response.json()\r",
-															"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"])"
+															"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"]);\r",
+															"\r",
+															"setTimeout(() => {}, 60000); "
 														],
 														"type": "text/javascript"
 													}
@@ -810,8 +812,6 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 40000); \r",
-															"\r",
 															"postman.setGlobalVariable('timestampUtc', (new Date()).toISOString());"
 														],
 														"type": "text/javascript"
@@ -831,14 +831,14 @@
 													}
 												},
 												"url": {
-													"raw": "{{url}}/jobs/:jobID/status_update",
+													"raw": "{{url}}/jobs/:jobID/status",
 													"host": [
 														"{{url}}"
 													],
 													"path": [
 														"jobs",
 														":jobID",
-														"status_update"
+														"status"
 													],
 													"variable": [
 														{
@@ -866,7 +866,7 @@
 													"listen": "test",
 													"script": {
 														"exec": [
-															"pm.test(\"async process should be running or succeeded after 40 seconds\", function () {\r",
+															"pm.test(\"async process should be running or succeeded after 60 seconds\", function () {\r",
 															"    pm.expect(pm.response.json()[\"status\"]).to.be.oneOf([\"running\",\"successful\"]);\r",
 															"});\r",
 															"\r",
@@ -920,7 +920,7 @@
 													"listen": "test",
 													"script": {
 														"exec": [
-															""
+															"setTimeout(() => {}, 120000);"
 														],
 														"type": "text/javascript"
 													}
@@ -965,8 +965,6 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 140000); \r",
-															"\r",
 															"postman.setGlobalVariable('timestampUtc', (new Date()).toISOString());"
 														],
 														"type": "text/javascript"
@@ -986,14 +984,14 @@
 													}
 												},
 												"url": {
-													"raw": "{{url}}/jobs/:jobID/status_update",
+													"raw": "{{url}}/jobs/:jobID/status",
 													"host": [
 														"{{url}}"
 													],
 													"path": [
 														"jobs",
 														":jobID",
-														"status_update"
+														"status"
 													],
 													"variable": [
 														{
@@ -1012,7 +1010,7 @@
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 10000); \r",
+															"setTimeout(() => {}, 5000); \r",
 															""
 														],
 														"type": "text/javascript"

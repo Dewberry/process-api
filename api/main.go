@@ -109,8 +109,8 @@ func main() {
 	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// Callbacks
-	e.PUT("/jobs/:jobID/status_update", rh.JobStatusUpdateHandler)
-	// e.POST("/jobs/:jobID/results_update", rh.JobResultsUpdateHandler)
+	e.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
+	// e.POST("/jobs/:jobID/results", rh.JobResultsUpdateHandler)
 
 	// Start server
 	go func() {

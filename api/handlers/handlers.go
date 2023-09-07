@@ -322,7 +322,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			Cmd:            cmd,
 			JobDef:         p.Host.JobDefinition,
 			JobQueue:       p.Host.JobQueue,
-			JobName:        "ogc-api-id-" + jobID,
+			JobName:        fmt.Sprintf("%s_%s", rh.Name, jobID),
 			ProcessVersion: p.Info.Version,
 			StorageSvc:     rh.StorageSvc,
 			DB:             rh.DB,
@@ -445,8 +445,8 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 	}
 
 	jobID := c.Param("jobID")
-	if _, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not ready, job in progress"}
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("results not ready, job %s", (*job).CurrentStatus())}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
@@ -497,8 +497,8 @@ func (rh *RESTHandler) JobMetaDataHandler(c echo.Context) error {
 	}
 
 	jobID := c.Param("jobID")
-	if _, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "metadata not ready, job in progress"}
+	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
+		output := errResponse{HTTPStatus: http.StatusNotFound, Message: fmt.Sprintf("metadata not ready, job %s", (*job).CurrentStatus())}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 
 	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
