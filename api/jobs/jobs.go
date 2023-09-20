@@ -28,14 +28,17 @@ type Job interface {
 	ProcessID() string
 	ProcessVersionID() string
 
-	// Logs must first fetch the current logs before returning
+	// Logs must first fetch the current container logs before returning
 	Logs() (JobLogs, error)
+	// Kill should successfully send kill signal to the accepted or running container/job
+	// Kill should call Close() in new routine. Error in Close() routine does not effect Kill,
+	// job is already considered dismissed at this point
 	Kill() error
 	LastUpdate() time.Time
 	Messages(bool) []string
 	NewMessage(string)
 
-	// NewStatusUpdate must update the status of the AWSBatchJob to the provided status string.
+	// NewStatusUpdate must update the status of the job to the provided status string.
 	// If a zero-value time is provided as updateTime, the current time (time.Now()) should be set as the UpdateTime.
 	// Otherwise, the provided updateTime should be set as the UpdateTime.
 	// This function should also update the job record in the database with the new status and UpdateTime.

@@ -1,0 +1,58 @@
+@startuml results
+!theme mars
+
+title Job Results Retrieval Flow
+header
+    For simplicity, this diagram is created for an async job running on a cloud platform.
+    Jobs with different configurations have "almost" identical sequences.
+end header
+
+participant User
+participant Server
+entity Job
+participant "Execution\nPlateform"
+database Database
+
+User -> Server: Submit async job
+activate Server
+
+Server -> Job: Create new job with Job ID
+activate Job
+Job -> "Execution\nPlateform": Register Job
+activate "Execution\nPlateform"
+
+Job --> Server: Return acknowledgment
+Server --> User: Respond with Created status
+deactivate Server
+
+User -> Server: Request results for a job
+activate Server
+Server -> Job: Check if job is active
+Job --> Server: Job is active
+Server --> User: Respond 404 `results not ready`
+deactivate Server
+
+
+"Execution\nPlateform" -> Job: Notify Job Finished
+deactivate "Execution\nPlateform"
+note over Job: At this point, the job might be successful,\nbut results might not be ready.
+
+Job -> "Execution\nPlateform": Fetch Container logs
+"Execution\nPlateform" --> Job: Return Container logs
+
+Job -> Database: Store Container logs
+
+note over Job: Job is removed from Active Jobs Store
+deactivate Job
+
+User -> Server: Request results after job is finished
+activate Server
+Server -> Job: Check job is active
+Job --> Server: Job is inactive
+Server -> Database: Fetch Container logs
+Database --> Server: Return Container logs
+Server -> Server: Parse last log
+Server --> User: Respond with results
+deactivate Server
+
+@enduml

@@ -1,0 +1,56 @@
+@startuml logging
+!theme mars
+
+title Job Logs Retrieval Flow
+header
+    For simplicity, this diagram is created for an async job running on a cloud platform.
+    Jobs with different configurations have "almost" identical sequences.
+end header
+
+participant User
+participant Server
+entity Job
+participant "Execution\nPlateform"
+database Database
+
+User -> Server: Submit async job
+activate Server
+
+Server -> Job: Create new job with Job ID
+activate Job
+Job -> "Execution\nPlateform": Register Job
+activate "Execution\nPlateform"
+
+Job --> Server: Return acknowledgment
+Server --> User: Respond with Created status
+deactivate Server
+
+note over Job: Logging takes place throughout the Job's lifecycle
+Job -> Job: Log messages (Server Logs)
+
+User -> Server: Request logs for active job
+activate Server
+Server -> Job: Fetch logs
+Job -> "Execution\nPlateform": Fetch Container logs
+"Execution\nPlateform" --> Job: Return Container logs
+Job --> Server: Return combined logs (Container + Server)
+Server --> User: Respond with logs
+deactivate Server
+
+"Execution\nPlateform" -> Job: Notify Job Finished
+deactivate "Execution\nPlateform"
+note over Job: Job close routine starts
+Job -> Database: Store combined logs (Container + Server)
+
+
+note over Job: Job is removed from Active Jobs store
+deactivate Job
+
+User -> Server: Request logs for completed job
+activate Server
+Server -> Database: Fetch stored logs
+Database --> Server: Return combined logs (Container + Server)
+Server --> User: Respond with logs
+deactivate Server
+
+@enduml
