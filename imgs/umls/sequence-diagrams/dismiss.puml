@@ -1,0 +1,54 @@
+@startuml dismiss
+!theme mars
+
+title Job Dismiss Request Flow
+header
+    For simplicity, this diagram is created for an async job running on a cloud platform.
+    Jobs with different configurations have "almost" identical sequences.
+end header
+
+participant User
+participant Server
+entity Job
+participant "Execution\nPlateform"
+database Database
+
+User -> Server: Submit async job
+activate Server
+
+Server -> Job: Create new job with Job ID
+activate Job
+Job -> "Execution\nPlateform": Register Job
+activate "Execution\nPlateform"
+
+Job --> Server: Return acknowledgment
+Server --> User: Respond with 201 and Job ID
+deactivate Server
+
+User -> Server: Request dismiss for a job
+activate Server
+Server -> Job: Check if job is active
+Job --> Server: Job is active
+Server -> Job: Kill job
+Job -> "Execution\nPlateform": Kill job
+Job -> Job: Update job status\nto `dismissed`
+Job --> Server: Job dismissed
+Server --> User: Job dismissed
+deactivate Server
+
+note over Job: Start job close routine.
+deactivate "Execution\nPlateform"
+
+Job -> Database: Store logs
+deactivate Job
+
+note over Job, "Execution\nPlateform": Job is removed from Active Jobs Store.\nFrom the perspective of API it does not\nmatter what happens to the cloud job.
+
+User -> Server: Request dismiss after job is finished
+activate Server
+Server -> Job: Check job is active
+Job --> Server: Job is inactive
+Server --> User: Respond with 404
+deactivate Server
+
+@enduml
