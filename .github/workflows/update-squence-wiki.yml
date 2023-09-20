@@ -1,4 +1,4 @@
-name: Update PlantUML Wiki
+name: Update Sequence Diagrams Wiki
 
 on:
   push:
@@ -24,16 +24,20 @@ jobs:
     - name: Install dependencies
       run: |
         pip install plantuml==0.3.0
+        pip install six==1.14.0
 
     - name: Generate URLs using the Python script
-      run: python imgs/umls/sequence-diagrams/create_wiki.py
+      run: python3 imgs/umls/sequence-diagrams/create_wiki.py
 
     - name: Push changes
       run: |
         git clone https://github.com/${{ github.repository }}.wiki.git
-        mv Sequence-Diagrams.md ./${{ github.repository }}.wiki/
-        cd ./${{ github.repository }}.wiki/
+        mv Sequence-Diagrams.md ./process-api.wiki/
+        cd ./process-api.wiki
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
         git add .
         # Reference the commit hash from the main repo in the commit message
         git commit -m "Update Sequence diagrams based on commit ${{ github.sha }}"
+        git remote set-url origin https://x-access-token:${{ github.token }}@github.com/Dewberry/process-api.wiki.git
         git push
