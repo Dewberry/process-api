@@ -133,7 +133,7 @@ func main() {
 	if err := rh.ActiveJobs.KillAll(); err != nil {
 		e.Logger.Error(err)
 	} else {
-		e.Logger.Info("killed and removed active containers")
+		e.Logger.Info("kill command sent to all active jobs")
 	}
 
 	time.Sleep(15 * time.Second) // sleep so that routines spawned by KillAll() can finish, using 15 seconds because AWS batch monitors jobs every 10 seconds
