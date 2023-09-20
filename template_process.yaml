@@ -14,7 +14,7 @@ info:
   outputTransmission:
     - reference
 
-# host are execution plateforms such as, 'local' or 'aws-batch'
+# host are container execution plateforms such as, 'local' or 'aws-batch'
 # fields that are not related to a particular host can be omitted, for example jobDefinition, jobQueue not required for 'local' host
 host:
   type: "aws-batch"
