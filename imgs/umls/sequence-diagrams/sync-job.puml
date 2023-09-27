@@ -6,7 +6,7 @@ title Sync Job Flow
 participant User
 participant Server
 entity Job
-participant "Execution\nPlateform"
+participant "Execution\nPlatform"
 database Database
 participant Storage
 
@@ -17,15 +17,15 @@ Server -> Server: Validate user request against the\nregistered process configur
 
 Server -> Job: Create a new Job with Job ID
 activate Job
-Job -> "Execution\nPlateform": Register Job
-activate "Execution\nPlateform"
+Job -> "Execution\nPlatform": Register Job
+activate "Execution\nPlatform"
 
 
 
-"Execution\nPlateform" -> Job: Notify Job running
+"Execution\nPlatform" -> Job: Notify Job running
 ... ...
-"Execution\nPlateform" -> Job: Notify Job finished
-deactivate "Execution\nPlateform"
+"Execution\nPlatform" -> Job: Notify Job finished
+deactivate "Execution\nPlatform"
 Job -> Database: Store Logs
 Job -> Storage: Write Metadata
 Job --> Server: Job Finished

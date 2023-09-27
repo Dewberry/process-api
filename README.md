@@ -51,7 +51,7 @@ Processes are computational tasks described through a configuration file that ca
 ![](imgs/readme/jobs.png)
 Each execution of a process is called a job. A job can be synchronous or asynchronous depending on which host it is being executed upon. Synchronous jobs return responses after the job has reached a finished state, meaning either successful or failed. The asynchronous jobs return a response immediately with a job id for the client so that the client can monitor the jobs.
 
-*Note on Procesess: The developers must make sure they choose the right platform to execute a process. The processes that are short-lived and fast and do not create a file resource as an output, for example getting the water surface elevation values for a coordinate from cloud raster, must be registered to run on the local machine so that they are synchronous. These kinds of processes should output data in JSON format.*
+*Note on Processes: The developers must make sure they choose the right platform to execute a process. The processes that are short-lived and fast and do not create a file resource as an output, for example getting the water surface elevation values for a coordinate from cloud raster, must be registered to run on the local machine so that they are synchronous. These kinds of processes should output data in JSON format.*
 
 *On the other hand, processes that take a long time to execute and their results are files, for example clipping a raster, must be registered to run on the cloud so that they are asynchronous. These processes should contain links to file resources in their results.*
 
@@ -75,11 +75,11 @@ The API responds to all GET requests (except `/jobs/<jobID>/results`) as HTML or
 
 ### Logs
 ![](imgs/readme/logs.png)
-Logs are not included in the OGC-API Prcoesses specification, however for this implementation we have added logs to provide information on the API and Containers.
+Logs are not included in the OGC-API Processes specification, however for this implementation we have added logs to provide information on the API and Containers.
 
 ### Metadata
 ![](imgs/readme/metadata.png)
-Similar to logs, metadata is not included in the OGC-API Prcoesses specification. We have added metadata as an endpoint to provide information on the version of the pliugin, the runtime, and the input arguments passed to the container at runtime. Metadata is generated for only successful jobs.
+Similar to logs, metadata is not included in the OGC-API Processes specification. We have added metadata as an endpoint to provide information on the version of the plugin, the runtime, and the input arguments passed to the container at runtime. Metadata is generated for only successful jobs.
 
 ## Example .env file
 
