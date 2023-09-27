@@ -274,18 +274,6 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
-	mode := p.Info.JobControlOptions[0]
-	host := p.Host.Type
-
-	jobID := uuid.New().String()
-
-	// switch host {
-	// case "local":
-	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_LOCAL"), jobID)
-	// default:
-	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_PUBLIC"), jobID)
-	// }
-
 	jsonParams, err := json.Marshal(params.Inputs)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: err.Error()})
@@ -297,6 +285,20 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	} else {
 		cmd = append(p.Container.Command, string(jsonParams))
 	}
+
+	mode := p.Info.JobControlOptions[0]
+	host := p.Host.Type
+
+	// ----------- Process related setup is complete at this point ---------
+
+	jobID := uuid.New().String()
+
+	// switch host {
+	// case "local":
+	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_LOCAL"), jobID)
+	// default:
+	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_PUBLIC"), jobID)
+	// }
 
 	var j jobs.Job
 	switch host {
