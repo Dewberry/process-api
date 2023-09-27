@@ -1,0 +1,38 @@
+@startuml sync-job
+!theme mars
+
+title Sync Job Flow
+
+participant User
+participant Server
+entity Job
+participant "Execution\nPlatform"
+database Database
+participant Storage
+
+User -> Server: Submit sync Job
+activate Server
+
+Server -> Server: Validate user request against the\nregistered process configuration
+
+Server -> Job: Create a new Job with Job ID
+activate Job
+Job -> "Execution\nPlatform": Register Job
+activate "Execution\nPlatform"
+
+
+
+"Execution\nPlatform" -> Job: Notify Job running
+... ...
+"Execution\nPlatform" -> Job: Notify Job finished
+deactivate "Execution\nPlatform"
+Job -> Database: Store Logs
+Job -> Storage: Write Metadata
+Job --> Server: Job Finished
+deactivate Job
+
+Server -> Database: Fetch results
+Server --> User: Respond with results
+deactivate Server
+
+@enduml

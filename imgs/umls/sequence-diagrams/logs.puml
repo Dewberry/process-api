@@ -10,7 +10,7 @@ end header
 participant User
 participant Server
 entity Job
-participant "Execution\nPlateform"
+participant "Execution\nPlatform"
 database Database
 
 User -> Server: Submit async job
@@ -18,8 +18,8 @@ activate Server
 
 Server -> Job: Create new job with Job ID
 activate Job
-Job -> "Execution\nPlateform": Register Job
-activate "Execution\nPlateform"
+Job -> "Execution\nPlatform": Register Job
+activate "Execution\nPlatform"
 
 Job --> Server: Return acknowledgment
 Server --> User: Respond with Created status
@@ -31,14 +31,14 @@ Job -> Job: Log messages (Server Logs)
 User -> Server: Request logs for active job
 activate Server
 Server -> Job: Fetch logs
-Job -> "Execution\nPlateform": Fetch Container logs
-"Execution\nPlateform" --> Job: Return Container logs
+Job -> "Execution\nPlatform": Fetch Container logs
+"Execution\nPlatform" --> Job: Return Container logs
 Job --> Server: Return combined logs (Container + Server)
 Server --> User: Respond with logs
 deactivate Server
 
-"Execution\nPlateform" -> Job: Notify Job Finished
-deactivate "Execution\nPlateform"
+"Execution\nPlatform" -> Job: Notify Job Finished
+deactivate "Execution\nPlatform"
 note over Job: Job close routine starts
 Job -> Database: Store combined logs (Container + Server)
 

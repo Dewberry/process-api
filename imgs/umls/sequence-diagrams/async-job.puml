@@ -1,0 +1,49 @@
+@startuml async-Job
+!theme mars
+
+title Async Job Flow
+
+participant User
+participant Server
+entity Job
+participant "Execution\nPlatform"
+database Database
+participant Storage
+
+User -> Server: Submit async Job
+activate Server
+
+Server -> Server: Validate user request against the\nregistered process configuration
+
+Server -> Job: Create a new Job with Job ID
+activate Job
+Job -> "Execution\nPlatform": Register Job
+activate "Execution\nPlatform"
+
+Job --> Server: Return acknowledgment
+Server --> User: Respond with Job ID
+deactivate Server
+
+"Execution\nPlatform" -> Job: Notify Job running
+
+User -> Server: Request status for the Job
+Note over Server: Users can request Job\nstatus at any point
+activate Server
+Server -> Job: Fetch current status
+Server --> User: Respond with status
+deactivate Server
+
+...
+"Execution\nPlatform" -> Job: Notify Job finished
+deactivate "Execution\nPlatform"
+Job -> Database: Store Logs
+Job -> Storage: Write Metadata
+deactivate Job
+
+User -> Server: Request results after Job is finished
+activate Server
+Server -> Database: Fetch results
+Server --> User: Respond with results
+deactivate Server
+
+@enduml
