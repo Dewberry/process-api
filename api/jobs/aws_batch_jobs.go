@@ -204,7 +204,9 @@ func (j *AWSBatchJob) Kill() error {
 	// If a dismiss status is updated the job is considered dismissed at this point
 	// Close being graceful or not does not matter.
 
-	defer j.Close()
+	defer func() {
+		go j.Close()
+	}()
 	return nil
 }
 
@@ -363,6 +365,7 @@ func (j *AWSBatchJob) Close() {
 	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel()
 
+	time.Sleep(2 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
 	err := j.fetchCloudWatchLogs()
 	if err != nil {
 		j.NewMessage("Could not fetch cloud watch logs. Error: " + err.Error())

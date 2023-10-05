@@ -235,7 +235,9 @@ func (j *DockerJob) Kill() error {
 	// If a dismiss status is updated the job is considered dismissed at this point
 	// Close being graceful or not does not matter.
 
-	defer j.Close()
+	defer func() {
+		go j.Close()
+	}()
 	return nil
 }
 
