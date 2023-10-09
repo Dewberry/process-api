@@ -16,6 +16,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - process_api_net
+    depends_on:
+      - minio
 
   minio:
     container_name: minio
