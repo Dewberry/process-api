@@ -23,6 +23,9 @@ jobs:
           echo STORAGE_BUCKET='api-storage' >> .env
           echo STORAGE_METADATA_DIR='metadata' >> .env
           echo STORAGE_RESULTS_DIR='results' >> .env
+          echo STORAGE_LOGS_DIR='logs' >> .env
+
+          echo LOCAL_LOGS_DIR='../.data/logs' >> .env
 
           echo MINIO_ACCESS_KEY_ID=user >> .env
           echo MINIO_SECRET_ACCESS_KEY=password >> .env
@@ -44,7 +47,7 @@ jobs:
           ./build.sh &
 
       - name: Build the docker-compose stack
-        run: docker-compose build -d
+        run: docker-compose build
 
       - name: Create network
         run: docker network create process_api_net
@@ -63,7 +66,31 @@ jobs:
           minio/mc:RELEASE.2023-08-18T21-57-55Z
           -c "mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD && mc mb myminio/\${STORAGE_BUCKET}"
 
+      - name: Wait for API server to be ready
+        run: |
+          attempts=0
+          max_attempts=12  # This will wait for 2 minutes (10 seconds * 12)
+          while true; do
+            if curl -s http://localhost:5050; then
+              echo "API server is ready!"
+              break
+            fi
+            attempts=$((attempts+1))
+            if [ $attempts -eq $max_attempts ]; then
+              echo "Max attempts reached. Exiting..."
+              exit 1
+            fi
+            echo "Waiting for API server to be ready. Attempt: $attempts"
+            sleep 10
+          done
+
       - name: Run newman tests
         run: >
           docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json
           --env-var "url=localhost:5050" --reporters cli --bail --color on
+
+      ## Uncomment to print logs for debugging
+      # - name: Display docker-compose logs
+      #   run: docker-compose logs
+      #   if: always()
+
