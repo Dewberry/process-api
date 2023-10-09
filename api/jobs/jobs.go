@@ -275,7 +275,7 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 		if !exists {
 			return JobLogs{}, fmt.Errorf("%s log file not found on storage", k.key)
 		}
-		logs, err := utils.GetS3LinesData(k.key, svc)
+		logs, err := utils.GetS3LinesData(storageKey, svc)
 		if err != nil {
 			return JobLogs{}, fmt.Errorf("failed to read %s logs from storage: %v", k.key, err)
 		}
