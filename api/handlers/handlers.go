@@ -667,7 +667,7 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 		rh.MessageQueue.StatusChan <- sm
 		return c.JSON(http.StatusAccepted, "status update received")
 	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
-		log.Warnf("Status update received for inactive job: %s", jobID)
+		log.Infof("Status update received for inactive job: %s", jobID)
 		// returning Accepted here so that callers do not retry
 		return c.JSON(http.StatusAccepted, "job not an active job")
 	} else {
