@@ -442,10 +442,10 @@ func (j *AWSBatchJob) Close() {
 	}
 
 	j.DoneChan <- j // At this point job can be safely removed from active jobs
-	j.wg.Wait()     // wait if other routines like metadata are running because they can send logs
-	j.logFile.Close()
 
 	go func() {
+		j.wg.Wait() // wait if other routines like metadata are running because they can send logs
+		j.logFile.Close()
 		UploadLogsToStorage(j.StorageSvc, j.UUID, j.ProcessName)
 		// It is expected that logs will be requested multiple times for a recently finished job
 		// so we are waiting for one hour to before deleting the local copy
