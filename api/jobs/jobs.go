@@ -91,7 +91,7 @@ func DecodeLogStrings(s []string) []LogEntry {
 		}
 		var log LogEntry
 		err := json.Unmarshal([]byte(s), &log)
-		if err != nil {
+		if err != nil || (log.Msg == "" && s != "") { // incase log is not valid JSON or log is valid but does not have msg field or have other fields
 			log = LogEntry{Msg: s}
 		}
 		if log.Msg != "" {
