@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -75,7 +76,9 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 
 	// Read all the html templates
 	funcMap := template.FuncMap{
-		"prettyPrint": prettyPrint, // to pretty pring JSONs for results and metadata
+		"prettyPrint": prettyPrint, // to pretty print JSONs for results and metadata
+		"lower":       strings.ToLower,
+		"upper":       strings.ToUpper,
 	}
 
 	config.T = Template{

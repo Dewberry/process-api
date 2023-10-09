@@ -96,7 +96,7 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 
 // Get Job Record from database given a job id.
 // If job do not exists, or error encountered bool would be false.
-// Similar behaviour as key exist in hashmap.
+// Similar behavior as key exist in hashmap.
 func (db *DB) GetJob(jid string) (JobRecord, bool) {
 	query := `SELECT * FROM jobs WHERE id = ?`
 

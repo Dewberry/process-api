@@ -76,21 +76,46 @@ type JobRecord struct {
 	Mode       string    `json:"mode,omitempty"`
 }
 
-// JobLogs describes logs for the job
-type JobLogs struct {
-	JobID         string   `json:"jobID"`
-	ProcessID     string   `json:"processID"`
-	ContainerLogs []string `json:"container_logs"`
-	ServerLogs    []string `json:"api_logs"`
+type LogEntry struct {
+	Level string    `json:"level"`
+	Msg   string    `json:"msg"`
+	Time  time.Time `json:"time"`
 }
 
-// Prettify JobLogs by replacing nil with empty []string{}
+// Remove empty logs
+func DecodeLogStrings(s []string) []LogEntry {
+	logs := make([]LogEntry, 0)
+	for _, s := range s {
+		if s == "" {
+			continue
+		}
+		var log LogEntry
+		err := json.Unmarshal([]byte(s), &log)
+		if err != nil {
+			log = LogEntry{Msg: s}
+		}
+		if log.Msg != "" {
+			logs = append(logs, log)
+		}
+	}
+	return logs
+}
+
+// JobLogs describes logs for the job
+type JobLogs struct {
+	JobID         string     `json:"jobID"`
+	ProcessID     string     `json:"processID"`
+	ContainerLogs []LogEntry `json:"container_logs"`
+	ServerLogs    []LogEntry `json:"server_logs"`
+}
+
+// Prettify JobLogs by replacing nil with empty []LogEntry{}
 func (jl *JobLogs) Prettify() {
 	if jl.ContainerLogs == nil {
-		jl.ContainerLogs = []string{}
+		jl.ContainerLogs = []LogEntry{}
 	}
 	if jl.ServerLogs == nil {
-		jl.ServerLogs = []string{}
+		jl.ServerLogs = []LogEntry{}
 	}
 }
 
@@ -147,10 +172,11 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 	}
 
 	lastLog := containerLogs[lastLogIdx]
-	lastLog = strings.ReplaceAll(lastLog, "'", "\"")
+	lastLogMsg := lastLog.Msg
+	lastLogMsg = strings.ReplaceAll(lastLogMsg, "'", "\"")
 
 	var data map[string]interface{}
-	err = json.Unmarshal([]byte(lastLog), &data)
+	err = json.Unmarshal([]byte(lastLogMsg), &data)
 	if err != nil {
 		return nil, fmt.Errorf(`unable to parse results, expected {"plugin_results": {....}}, found : %s. Error: %s`, lastLog, err.Error())
 	}
@@ -218,7 +244,7 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 
 	keys := []struct {
 		key    string
-		target *[]string
+		target *[]LogEntry
 	}{
 		{
 			"container",
@@ -234,7 +260,9 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 		// First, check locally
 		localPath := fmt.Sprintf("%s/%s.%s.jsonl", localDir, jid, k.key)
 		if localContent, err := os.ReadFile(localPath); err == nil {
-			*k.target = strings.Split(string(localContent), "\n")
+			logStrings := strings.Split(string(localContent), "\n")
+			structuredLogs := DecodeLogStrings(logStrings)
+			*k.target = structuredLogs
 			continue
 		}
 
@@ -251,7 +279,8 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 		if err != nil {
 			return JobLogs{}, fmt.Errorf("failed to read %s logs from storage: %v", k.key, err)
 		}
-		*k.target = logs
+		structuredLogs := DecodeLogStrings(logs)
+		*k.target = structuredLogs
 	}
 
 	result.Prettify()

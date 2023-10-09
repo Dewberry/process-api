@@ -10,23 +10,48 @@
 
 <body>
     <h1>Logs · {{.JobID}}</h1>
-    <h2>{{.ProcessID}}</h2>
+    <h2>Process: {{.ProcessID}}</h2>
+
     <h3>Server Logs</h3>
     <table>
-        {{range .ServerLogs}}
-        <tr>
-            <td>{{.}}</td>
-        </tr>
-        {{end}}
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Level</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .ServerLogs}}
+            <tr>
+                <td>{{.Time.Format "2006-01-02 15:04:05 MST"}}</td>
+                <td class="log-{{.Level | lower}}">{{.Level | upper}}</td>
+                <td>{{.Msg}}</td>
+            </tr>
+            {{end}}
+        </tbody>
     </table>
+
     <h3>Container Logs</h3>
     <table>
-        {{range .ContainerLogs}}
-        <tr>
-            <td>{{.}}</td>
-        </tr>
-        {{end}}
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Level</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .ContainerLogs}}
+            <tr>
+                <td>{{.Time.Format "2006-01-02 15:04:05 MST"}}</td>
+                <td class="log-{{.Level | lower}}">{{.Level | upper}}</td>
+                <td>{{.Msg}}</td>
+            </tr>
+            {{end}}
+        </tbody>
     </table>
+
 </body>
 
 </html>
