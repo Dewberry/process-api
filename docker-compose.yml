@@ -13,7 +13,6 @@ services:
     volumes:
       - ./api:/app
       - ./.data:/.data
-      - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - process_api_net

@@ -1,7 +1,7 @@
 # -------------------------------
 FROM golang:1.19.12 AS dev
 
-RUN go install github.com/swaggo/swag/cmd/swag@v1.8.12
+# RUN go install github.com/swaggo/swag/cmd/swag@v1.8.12
 
 # Hot-Reloader
 RUN go install github.com/githubnemo/CompileDaemon@v1.4.0
@@ -9,7 +9,7 @@ RUN go install github.com/githubnemo/CompileDaemon@v1.4.0
 COPY ./ /app
 WORKDIR /app
 
-RUN swag init && go build main.go
+# RUN swag init && go build main.go
 
 ENTRYPOINT ["CompileDaemon", "--build=go build main.go", "--command=./main"]
 # -------------------------------

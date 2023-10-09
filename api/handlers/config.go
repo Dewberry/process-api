@@ -93,6 +93,16 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	}
 	config.StorageSvc = stSvc
 
+	// Create local logs directory if not exist
+	localLogsDir, exist := os.LookupEnv("LOCAL_LOGS_DIR")
+	if !exist {
+		log.Fatal("env variable LOCAL_LOGS_DIR not set")
+	}
+	err = os.MkdirAll(localLogsDir, 0755)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
 	ac.Jobs = make(map[string]*jobs.Job)

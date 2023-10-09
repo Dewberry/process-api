@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"github.com/sirupsen/logrus"
 )
 
 // base error
@@ -351,8 +352,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			var outputs interface{}
 
 			if p.Outputs != nil {
-				// outputs, err = jobs.FetchResults(rh.StorageSvc, j.JobID())
-				outputs, err = jobs.FetchResults(rh.DB, j.JobID())
+				outputs, err = jobs.FetchResults(rh.StorageSvc, j.JobID())
 				if err != nil {
 					resp.Message = "error fetching results. Error: " + err.Error()
 					return c.JSON(http.StatusInternalServerError, resp)
@@ -455,11 +455,10 @@ func (rh *RESTHandler) JobResultsHandler(c echo.Context) error {
 
 		switch jRcrd.Status {
 		case jobs.SUCCESSFUL:
-			// outputs, err := jobs.FetchResults(rh.StorageSvc, jRcrd.JobID)
-			outputs, err := jobs.FetchResults(rh.DB, jRcrd.JobID)
+			outputs, err := jobs.FetchResults(rh.StorageSvc, jRcrd.JobID)
 			if err != nil {
 				if err.Error() == "not found" {
-					output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not available, resource might have expired"}
+					output := errResponse{HTTPStatus: http.StatusNotFound, Message: "results not available"}
 					return prepareResponse(c, http.StatusNotFound, "error", output)
 				}
 				output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
@@ -548,28 +547,28 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		return err
 	}
 
-	var logs jobs.JobLogs
-	var errLogs error
+	var pid string
 
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		if (*job).CurrentStatus() == jobs.ACCEPTED {
-			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: "job not yet started"}
-			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		err = (*job).UpdateContainerLogs()
+		if err != nil {
+			output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while updating container logs: " + err.Error()}
+			return prepareResponse(c, http.StatusInternalServerError, "error", output)
 		}
-		logs, errLogs = (*job).Logs()
-	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit
-		logs, errLogs = rh.DB.GetLogs(jobID)
+		pid = (*job).ProcessID()
+	} else if jRcrd, ok := rh.DB.GetJob(jobID); ok { // db hit
+		pid = jRcrd.ProcessID
 	} else { // miss
 		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
-	if errLogs != nil {
-		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + errLogs.Error()}
+	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, pid)
+	if err != nil {
+		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + err.Error()}
 		return prepareResponse(c, http.StatusInternalServerError, "error", output)
 	}
 
-	logs.Prettify()
 	return prepareResponse(c, http.StatusOK, "jobLogs", logs)
 
 }
@@ -664,7 +663,7 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 		default:
 			return c.JSON(http.StatusBadRequest, fmt.Sprintf("status not valid, valid options are: %s, %s, %s, %s, %s", jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL))
 		}
-		(*sm.Job).NewMessage(fmt.Sprintf("Status update received: %s", sm.Status))
+		(*sm.Job).LogMessage(fmt.Sprintf("Status update received: %s", sm.Status), logrus.InfoLevel)
 		rh.MessageQueue.StatusChan <- sm
 		return c.JSON(http.StatusAccepted, "status update received")
 	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit

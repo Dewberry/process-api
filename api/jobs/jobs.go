@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/labstack/gommon/log"
+	"github.com/sirupsen/logrus"
 )
 
 type Resources struct {
@@ -28,15 +30,15 @@ type Job interface {
 	ProcessID() string
 	ProcessVersionID() string
 
-	// Logs must first fetch the current container logs before returning
-	Logs() (JobLogs, error)
+	// UpdateContainerLogs must first fetch the current container logs before writing
+	// UpdateContainerLogs must update logs stored on the disk
+	UpdateContainerLogs() error
 	// Kill should successfully send kill signal to the accepted or running container/job
 	// Kill should call Close() in new routine. Error in Close() routine does not effect Kill,
 	// job is already considered dismissed at this point
 	Kill() error
 	LastUpdate() time.Time
-	Messages(bool) []string
-	NewMessage(string)
+	LogMessage(string, logrus.Level)
 
 	// NewStatusUpdate must update the status of the job to the provided status string.
 	// If a zero-value time is provided as updateTime, the current time (time.Now()) should be set as the UpdateTime.
@@ -59,6 +61,7 @@ type Job interface {
 	RunFinished()
 
 	// Pefrom any cleanup such as cancelling context etc
+	// It is the responsibility of whoever is updating the terminated status to also call Close()
 	Close()
 }
 
@@ -78,7 +81,7 @@ type JobLogs struct {
 	JobID         string   `json:"jobID"`
 	ProcessID     string   `json:"processID"`
 	ContainerLogs []string `json:"container_logs"`
-	APILogs       []string `json:"api_logs"`
+	ServerLogs    []string `json:"api_logs"`
 }
 
 // Prettify JobLogs by replacing nil with empty []string{}
@@ -86,8 +89,8 @@ func (jl *JobLogs) Prettify() {
 	if jl.ContainerLogs == nil {
 		jl.ContainerLogs = []string{}
 	}
-	if jl.APILogs == nil {
-		jl.APILogs = []string{}
+	if jl.ServerLogs == nil {
+		jl.ServerLogs = []string{}
 	}
 }
 
@@ -130,9 +133,9 @@ func (ac *ActiveJobs) ListJobs() []JobRecord {
 
 // FetchResults by parsing logs
 // Assumes last log will be results always
-func FetchResults(db *DB, jid string) (interface{}, error) {
+func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 
-	logs, err := db.GetLogs(jid)
+	logs, err := FetchLogs(svc, jid, "")
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +143,7 @@ func FetchResults(db *DB, jid string) (interface{}, error) {
 	containerLogs := logs.ContainerLogs
 	lastLogIdx := len(containerLogs) - 1
 	if lastLogIdx < 0 {
-		return nil, fmt.Errorf("no contnainer logs available")
+		return nil, fmt.Errorf("no container logs available")
 	}
 
 	lastLog := containerLogs[lastLogIdx]
@@ -202,4 +205,98 @@ func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
 	}
 
 	return data, nil
+}
+
+// If JobID exists but log file doesn't then it raises an error
+// Check for logs in local disk and storage svc
+// Assumes jobID is valid
+func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
+	var result JobLogs
+	result.JobID = jid
+	result.ProcessID = pid
+	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+
+	keys := []struct {
+		key    string
+		target *[]string
+	}{
+		{
+			"container",
+			&result.ContainerLogs,
+		},
+		{
+			"server",
+			&result.ServerLogs,
+		},
+	}
+
+	for _, k := range keys {
+		// First, check locally
+		localPath := fmt.Sprintf("%s/%s.%s.jsonl", localDir, jid, k.key)
+		if localContent, err := os.ReadFile(localPath); err == nil {
+			*k.target = strings.Split(string(localContent), "\n")
+			continue
+		}
+
+		// If not found locally, check storage
+		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_DIR"), jid, k.key)
+		exists, err := utils.KeyExists(storageKey, svc)
+		if err != nil {
+			return JobLogs{}, err
+		}
+		if !exists {
+			return JobLogs{}, fmt.Errorf("%s log file not found on storage", k.key)
+		}
+		logs, err := utils.GetS3LinesData(k.key, svc)
+		if err != nil {
+			return JobLogs{}, fmt.Errorf("failed to read %s logs from storage: %v", k.key, err)
+		}
+		*k.target = logs
+	}
+
+	result.Prettify()
+	return result, nil
+}
+
+// Upload log files from loacl disk to storage service
+func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
+
+	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+
+	keys := []string{
+		"container",
+		"server",
+	}
+
+	for _, k := range keys {
+		localPath := fmt.Sprintf("%s/%s.%s.jsonl", localDir, jid, k)
+		bytes, err := os.ReadFile(localPath)
+		if err != nil {
+			log.Error(err.Error())
+		}
+
+		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_DIR"), jid, k)
+		err = utils.WriteToS3(svc, bytes, storageKey, "text/plain", 0)
+		if err != nil {
+			log.Error(err.Error())
+		}
+	}
+}
+
+func DeleteLocalLogs(svc *s3.S3, jid, pid string) {
+	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+
+	// List of log types
+	keys := []string{
+		"container",
+		"server",
+	}
+
+	for _, k := range keys {
+		localPath := fmt.Sprintf("%s/%s.%s.jsonl", localDir, jid, k)
+		err := os.Remove(localPath)
+		if err != nil {
+			log.Error(fmt.Sprintf("Failed to delete local file %s: %v", localPath, err))
+		}
+	}
 }

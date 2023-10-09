@@ -3,6 +3,7 @@ package jobs
 import (
 	"app/controllers"
 	"app/utils"
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/sirupsen/logrus"
 )
 
 // Fields are exported so that gob can access it
@@ -26,16 +28,18 @@ type AWSBatchJob struct {
 	// Used for monitoring running complete for sync jobs
 	wgRun sync.WaitGroup
 
-	UUID          string `json:"jobID"`
-	AWSBatchID    string
-	ProcessName   string   `json:"processID"`
-	Image         string   `json:"image"`
-	Cmd           []string `json:"commandOverride"`
-	UpdateTime    time.Time
-	Status        string `json:"status"`
-	apiLogs       []string
-	containerLogs []string
+	UUID           string `json:"jobID"`
+	AWSBatchID     string
+	Image          string `json:"image"`
+	ProcessName    string `json:"processID"`
+	ProcessVersion string
+	Cmd            []string `json:"commandOverride"`
+	UpdateTime     time.Time
+	Status         string `json:"status"`
 	// results       interface{}
+
+	logger  *logrus.Logger
+	logFile *os.File
 
 	JobDef   string `json:"jobDefinition"`
 	JobQueue string `json:"jobQueue"`
@@ -46,10 +50,10 @@ type AWSBatchJob struct {
 	batchContext  *controllers.AWSBatchController
 	logStreamName string
 	// MetaData
-	ProcessVersion string
-	DB             *DB
-	StorageSvc     *s3.S3
-	DoneChan       chan Job
+
+	DB         *DB
+	StorageSvc *s3.S3
+	DoneChan   chan Job
 }
 
 func (j *AWSBatchJob) WaitForRunCompletion() {
@@ -76,33 +80,65 @@ func (j *AWSBatchJob) IMAGE() string {
 	return j.Image
 }
 
-// Return current logs of the job.
+// Update container logs
 // Fetches Container logs from CloudWatch.
-func (j *AWSBatchJob) Logs() (JobLogs, error) {
-	var logs JobLogs
+func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
+
+	j.logger.Info("updating container logs by fetching cloud watch logs")
 	// we are fetching logs here and not in run function because we only want to fetch logs when needed
-	err := j.fetchCloudWatchLogs()
+	containerLogs, err := j.fetchCloudWatchLogs()
 	if err != nil {
-		return logs, fmt.Errorf("could not get cloud watch logs")
+		j.logger.Error(err.Error())
+		return
 	}
 
-	logs.JobID = j.UUID
-	logs.ProcessID = j.ProcessName
-	logs.ContainerLogs = j.containerLogs
-	logs.APILogs = j.apiLogs
-	return logs, nil
+	if len(containerLogs) == 0 {
+		return
+	}
+
+	// Create a new file or overwrite if it exists
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	for i, line := range containerLogs {
+		if i != len(containerLogs)-1 {
+			_, err = writer.WriteString(line + "\n")
+		} else {
+			_, err = writer.WriteString(line)
+		}
+	}
+	return
 }
 
 func (j *AWSBatchJob) ClearOutputs() {
 	// method not invoked for aysnc jobs
 }
 
-func (j *AWSBatchJob) Messages(includeErrors bool) []string {
-	return j.apiLogs
-}
-
-func (j *AWSBatchJob) NewMessage(m string) {
-	j.apiLogs = append(j.apiLogs, m)
+func (j *AWSBatchJob) LogMessage(m string, level logrus.Level) {
+	switch level {
+	// case 1:
+	// 	j.logger.Panic(m)
+	// case 2:
+	// 	j.logger.Fatal(m)
+	case 3:
+		j.logger.Error(m)
+	case 4:
+		j.logger.Warn(m)
+	case 5:
+		j.logger.Info(m)
+	case 6:
+		j.logger.Debug(m)
+	case 7:
+		j.logger.Trace(m)
+	default:
+		j.logger.Info(m) // default to Info level if level is out of range
+	}
 }
 
 func (j *AWSBatchJob) LastUpdate() time.Time {
@@ -143,7 +179,35 @@ func (j *AWSBatchJob) Equals(job Job) bool {
 	}
 }
 
+func (j *AWSBatchJob) initLogger() error {
+	// Create a place holder file for container logs
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %s", err.Error())
+	}
+	file.Close()
+
+	// Create logger for server logs
+	j.logger = logrus.New()
+
+	file, err = os.OpenFile(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %s", err.Error())
+	}
+
+	j.logger.SetOutput(file)
+	j.logger.SetFormatter(&logrus.JSONFormatter{})
+	j.logger.SetLevel(logrus.InfoLevel)
+	return nil
+}
+
 func (j *AWSBatchJob) Create() error {
+
+	err := j.initLogger()
+	if err != nil {
+		return err
+	}
+
 	ctx, cancelFunc := context.WithCancel(context.TODO())
 	j.ctx = ctx
 	j.ctxCancel = cancelFunc
@@ -180,7 +244,7 @@ func (j *AWSBatchJob) Create() error {
 }
 
 func (j *AWSBatchJob) Kill() error {
-	j.NewMessage("Received dismiss signal")
+	j.logger.Info("Received dismiss signal")
 
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
@@ -190,13 +254,13 @@ func (j *AWSBatchJob) Kill() error {
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
-		j.NewMessage("Could not send kill signal to AWS Batch API. Error: " + err.Error())
+		j.logger.Info("Could not send kill signal to AWS Batch API. Error: " + err.Error())
 		return err
 	}
 
 	_, err = c.JobKill(j.AWSBatchID)
 	if err != nil {
-		j.NewMessage("Could not send kill signal to AWS Batch API. Error: " + err.Error())
+		j.logger.Info("Could not send kill signal to AWS Batch API. Error: " + err.Error())
 		return err
 	}
 
@@ -226,16 +290,17 @@ func (j *AWSBatchJob) getLogStreamName() (err error) {
 }
 
 // Fetches logs from CloudWatch using the AWS Go SDK
-func (j *AWSBatchJob) fetchCloudWatchLogs() (err error) {
+func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 	if j.logStreamName == "" {
-		err = j.getLogStreamName()
+		err := j.getLogStreamName()
 		if err != nil {
-			return fmt.Errorf("could not get log stream name")
+			return nil, fmt.Errorf("could not get log stream name")
 		}
+		j.logger.Debug("log stream name ", j.logStreamName)
 	}
 
 	if j.logStreamName == "" {
-		return fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
+		return nil, fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
 	}
 
 	// Create a new session in the desired region
@@ -243,7 +308,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() (err error) {
 		Region: aws.String(os.Getenv("AWS_REGION")),
 	})
 	if err != nil {
-		return fmt.Errorf("Error creating session: " + err.Error())
+		return nil, fmt.Errorf("Error creating session: " + err.Error())
 	}
 
 	// Create a CloudWatchLogs client
@@ -260,9 +325,10 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() (err error) {
 	resp, err := svc.GetLogEvents(params)
 	if err != nil {
 		if err.Error() == "ResourceNotFoundException: The specified log stream does not exist." {
-			return nil
+			j.logger.Error(err.Error())
+			return []string{}, nil
 		} else {
-			return err
+			return nil, err
 		}
 	}
 
@@ -271,26 +337,26 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() (err error) {
 	for i, event := range resp.Events {
 		logs[i] = *event.Message
 	}
-	j.containerLogs = logs
-	return nil
+
+	return logs, nil
 }
 
 // Write metadata at the job's metadata location
 func (j *AWSBatchJob) WriteMetaData() {
-	j.NewMessage("Starting metadata writing routine.")
+	j.logger.Info("Starting metadata writing routine.")
 	j.wg.Add(1)
 	defer j.wg.Done()
-	defer j.NewMessage("Finished metadata writing routine.")
+	defer j.logger.Info("Finished metadata writing routine.")
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 		return
 	}
 
 	imgURI, err := c.GetImageURI(j.JobDef)
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 		return
 	}
 
@@ -300,13 +366,13 @@ func (j *AWSBatchJob) WriteMetaData() {
 	if strings.Contains(imgURI, "amazonaws.com/") {
 		imgDgst, err = getECRImageDigest(imgURI)
 		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 			return
 		}
 	} else {
 		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
 		if err != nil {
-			j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 			return
 		}
 	}
@@ -316,7 +382,7 @@ func (j *AWSBatchJob) WriteMetaData() {
 
 	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 		return
 	}
 
@@ -333,7 +399,7 @@ func (j *AWSBatchJob) WriteMetaData() {
 
 	jsonBytes, err := json.Marshal(md)
 	if err != nil {
-		j.NewMessage(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
 		return
 	}
 
@@ -344,14 +410,14 @@ func (j *AWSBatchJob) WriteMetaData() {
 }
 
 // func (j *AWSBatchJob) WriteResults(data []byte) (err error) {
-// 	j.NewMessage("Starting results writing routine.")
-// 	defer j.NewMessage("Finished results writing routine.")
+// 	j.logger.Info("Starting results writing routine.")
+// 	defer j.logger.Info("Finished results writing routine.")
 
 // 	resultsDir := os.Getenv("STORAGE_RESULTS_DIR")
 // 	resultsLocation := fmt.Sprintf("%s/%s.json", resultsDir, j.UUID)
 // 	err = utils.WriteToS3(j.StorageSvc, data, resultsLocation, "application/json", 0)
 // 	if err != nil {
-// 		j.NewMessage(fmt.Sprintf("Error writing results to storage: %v", err.Error()))
+// 		j.logger.Info(fmt.Sprintf("Error writing results to storage: %v", err.Error()))
 // 	}
 // 	return
 // }
@@ -365,13 +431,26 @@ func (j *AWSBatchJob) Close() {
 	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel()
 
-	time.Sleep(2 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
-	err := j.fetchCloudWatchLogs()
-	if err != nil {
-		j.NewMessage("Could not fetch cloud watch logs. Error: " + err.Error())
+	i := 1
+	time.Sleep(10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
+	err := j.UpdateContainerLogs()
+	for err != nil && i < 6 {
+		j.logger.Warnf("trial %d Could not update container logs. Error: %s", i, err.Error())
+		time.Sleep(10 * time.Second)
+		err = j.UpdateContainerLogs()
+		i++
 	}
-	j.wg.Wait() // wait if other routines like metadata are running because they can send logs
-	// this should be completed before job is sent to Done because logs are handled differently for active and unactive jobs
-	j.DB.upsertLogs(j.UUID, j.ProcessID(), j.apiLogs, j.containerLogs)
+
 	j.DoneChan <- j // At this point job can be safely removed from active jobs
+	j.wg.Wait()     // wait if other routines like metadata are running because they can send logs
+	j.logFile.Close()
+
+	go func() {
+		UploadLogsToStorage(j.StorageSvc, j.UUID, j.ProcessName)
+		// It is expected that logs will be requested multiple times for a recently finished job
+		// so we are waiting for one hour to before deleting the local copy
+		// so that we can avoid repetitive request to storage service
+		time.Sleep(time.Hour)
+		DeleteLocalLogs(j.StorageSvc, j.UUID, j.ProcessName)
+	}()
 }
