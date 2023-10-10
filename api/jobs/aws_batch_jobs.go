@@ -197,7 +197,7 @@ func (j *AWSBatchJob) initLogger() error {
 
 	j.logger.SetOutput(file)
 	j.logger.SetFormatter(&logrus.JSONFormatter{})
-	j.logger.SetLevel(logrus.InfoLevel)
+	j.logger.SetLevel(logrus.DebugLevel)
 	return nil
 }
 
@@ -294,9 +294,10 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 	if j.logStreamName == "" {
 		err := j.getLogStreamName()
 		if err != nil {
+			j.logger.Error(err.Error())
 			return nil, fmt.Errorf("could not get log stream name")
 		}
-		j.logger.Debug("log stream name ", j.logStreamName)
+		j.logger.Debug("log stream name: ", j.logStreamName)
 	}
 
 	if j.logStreamName == "" {

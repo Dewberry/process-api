@@ -184,7 +184,7 @@ func (j *DockerJob) initLogger() error {
 
 	j.logger.SetOutput(file)
 	j.logger.SetFormatter(&logrus.JSONFormatter{})
-	j.logger.SetLevel(logrus.InfoLevel)
+	j.logger.SetLevel(logrus.DebugLevel)
 	return nil
 }
 
@@ -449,7 +449,8 @@ func (j *DockerJob) Close() {
 		UploadLogsToStorage(j.StorageSvc, j.UUID, j.ProcessName)
 		// It is expected that logs will be requested multiple times for a recently finished job
 		// so we are waiting for one hour to before deleting the local copy
-		// so that we can avoid repetitive request to storage service
+		// so that we can avoid repetitive request to storage service.
+		// If the server shutdown, these files would need to be manually deleted
 		time.Sleep(time.Hour)
 		DeleteLocalLogs(j.StorageSvc, j.UUID, j.ProcessName)
 	}()
