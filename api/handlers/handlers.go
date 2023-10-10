@@ -563,7 +563,7 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) error {
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
-	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, pid)
+	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, pid, false)
 	if err != nil {
 		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + err.Error()}
 		return prepareResponse(c, http.StatusInternalServerError, "error", output)

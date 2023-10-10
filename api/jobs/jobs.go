@@ -160,7 +160,7 @@ func (ac *ActiveJobs) ListJobs() []JobRecord {
 // Assumes last log will be results always
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 
-	logs, err := FetchLogs(svc, jid, "")
+	logs, err := FetchLogs(svc, jid, "", true)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
 // If JobID exists but log file doesn't then it raises an error
 // Check for logs in local disk and storage svc
 // Assumes jobID is valid
-func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
+func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error) {
 	var result JobLogs
 	result.JobID = jid
 	result.ProcessID = pid
@@ -258,6 +258,11 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 
 	for _, k := range keys {
 		// First, check locally
+
+		if k.key == "server" && onlyContainer {
+			continue
+		}
+
 		localPath := fmt.Sprintf("%s/%s.%s.jsonl", localDir, jid, k.key)
 		if localContent, err := os.ReadFile(localPath); err == nil {
 			logStrings := strings.Split(string(localContent), "\n")
@@ -287,7 +292,7 @@ func FetchLogs(svc *s3.S3, jid, pid string) (JobLogs, error) {
 	return result, nil
 }
 
-// Upload log files from loacl disk to storage service
+// Upload log files from local disk to storage service
 func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 
 	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
