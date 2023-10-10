@@ -11,7 +11,7 @@ participant User
 participant Server
 entity Job
 participant "Execution\nPlatform"
-database Database
+participant Storage
 
 User -> Server: Submit async job
 activate Server
@@ -37,12 +37,13 @@ Server --> User: Job dismissed
 deactivate Server
 
 note over Job: Start job close routine.
+note over Job, "Execution\nPlatform": Job is removed from Active Jobs Store.\nFrom the perspective of API it does not\nmatter what happens to the cloud job.
+
 deactivate "Execution\nPlatform"
 
-Job -> Database: Store logs
+Job -> Storage: Write logs
 deactivate Job
 
-note over Job, "Execution\nPlatform": Job is removed from Active Jobs Store.\nFrom the perspective of API it does not\nmatter what happens to the cloud job.
 
 User -> Server: Request dismiss after job is finished
 activate Server
