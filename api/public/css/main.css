@@ -22,7 +22,7 @@
 
     --log-warning: var(--status-client-error-color);
     --log-error: var(--status-server-error-color);
-    --log-debug: cyan;
+    --log-debug: #007BFF;
     --log-info: green;
 }
 
