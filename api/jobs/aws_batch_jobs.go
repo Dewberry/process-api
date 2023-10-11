@@ -160,6 +160,7 @@ func (j *AWSBatchJob) NewStatusUpdate(status string, updateTime time.Time) {
 		j.UpdateTime = updateTime
 	}
 	j.DB.updateJobRecord(j.UUID, status, j.UpdateTime)
+	j.logger.Infof("Status changed to %s.", status)
 }
 
 func (j *AWSBatchJob) CurrentStatus() string {
@@ -436,8 +437,9 @@ func (j *AWSBatchJob) Close() {
 	const maxAttempts = 5
 
 	for i := 1; i <= maxAttempts; i++ {
+		time.Sleep(time.Duration(i) * 10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
+
 		if err := j.UpdateContainerLogs(); err != nil {
-			time.Sleep(time.Duration(i) * 10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
 			j.logger.Errorf("Trial %d: Could not update container logs. Error: %s", i, err.Error())
 		} else {
 			break // exit the loop if UpdateContainerLogs() is successful
