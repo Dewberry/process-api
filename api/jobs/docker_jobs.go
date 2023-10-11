@@ -140,13 +140,13 @@ func (j *DockerJob) NewStatusUpdate(status string, updateTime time.Time) {
 	}
 
 	j.Status = status
-	j.logger.Infof("Status changed to %s.", status)
 	if updateTime.IsZero() {
 		j.UpdateTime = time.Now()
 	} else {
 		j.UpdateTime = updateTime
 	}
 	j.DB.updateJobRecord(j.UUID, status, j.UpdateTime)
+	j.logger.Infof("Status changed to %s.", status)
 }
 
 func (j *DockerJob) CurrentStatus() string {

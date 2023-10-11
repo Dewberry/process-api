@@ -22,8 +22,15 @@ type MessageQueue struct {
 
 // Job should not be a docker job
 func ProcessStatusMessageUpdate(sm StatusMessage) {
-	// to do: acquire lock here so that subsequent calls can not update job status or trigger methods on jobs
+
+	// Multiple calls should not trigger multiple close or metadata routines
+	// A better way to achieve this would be through locks.
+	switch (*sm.Job).CurrentStatus() {
+	case SUCCESSFUL, DISMISSED, FAILED:
+		return
+	}
 	(*sm.Job).NewStatusUpdate(sm.Status, sm.LastUpdate)
+
 	switch sm.Status {
 	case SUCCESSFUL:
 		go (*sm.Job).WriteMetaData()
