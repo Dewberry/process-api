@@ -21,9 +21,9 @@ jobs:
           echo API_NAME='github-testing-process-api' >> .env
           echo STORAGE_SERVICE='minio' >> .env
           echo STORAGE_BUCKET='api-storage' >> .env
-          echo STORAGE_METADATA_DIR='metadata' >> .env
-          echo STORAGE_RESULTS_DIR='results' >> .env
-          echo STORAGE_LOGS_DIR='logs' >> .env
+          echo STORAGE_METADATA_PREFIX='metadata' >> .env
+          echo STORAGE_RESULTS_PREFIX='results' >> .env
+          echo STORAGE_LOGS_PREFIX='logs' >> .env
 
           echo LOCAL_LOGS_DIR='../.data/logs' >> .env
 

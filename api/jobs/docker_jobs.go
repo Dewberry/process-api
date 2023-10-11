@@ -358,7 +358,7 @@ func (j *DockerJob) WriteMetaData() {
 		return
 	}
 
-	metadataDir := os.Getenv("STORAGE_METADATA_DIR")
+	metadataDir := os.Getenv("STORAGE_METADATA_PREFIX")
 	mdLocation := fmt.Sprintf("%s/%s.json", metadataDir, j.UUID)
 	err = utils.WriteToS3(j.StorageSvc, jsonBytes, mdLocation, "application/json", 0)
 	if err != nil {
@@ -370,7 +370,7 @@ func (j *DockerJob) WriteMetaData() {
 // 	j.logger.Info("Starting results writing routine.")
 // 	defer j.logger.Info("Finished results writing routine.")
 
-// 	resultsDir := os.Getenv("STORAGE_RESULTS_DIR")
+// 	resultsDir := os.Getenv("STORAGE_RESULTS_PREFIX")
 // 	resultsLocation := fmt.Sprintf("%s/%s.json", resultsDir, j.UUID)
 // 	fmt.Println(resultsLocation)
 // 	err = utils.WriteToS3(j.StorageSvc, data, resultsLocation, "application/json", 0)
