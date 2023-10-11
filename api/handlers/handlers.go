@@ -663,7 +663,7 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 		default:
 			return c.JSON(http.StatusBadRequest, fmt.Sprintf("status not valid, valid options are: %s, %s, %s, %s, %s", jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL))
 		}
-		(*sm.Job).LogMessage(fmt.Sprintf("Status update received: %s", sm.Status), logrus.InfoLevel)
+		(*sm.Job).LogMessage(fmt.Sprintf("Status update received: %s.", sm.Status), logrus.InfoLevel)
 		rh.MessageQueue.StatusChan <- sm
 		return c.JSON(http.StatusAccepted, "status update received")
 	} else if ok := rh.DB.CheckJobExist(jobID); ok { // db hit

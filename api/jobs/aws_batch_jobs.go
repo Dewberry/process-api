@@ -84,7 +84,7 @@ func (j *AWSBatchJob) IMAGE() string {
 // Fetches Container logs from CloudWatch.
 func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 
-	j.logger.Info("updating container logs by fetching cloud watch logs")
+	j.logger.Debug("Updating container logs by fetching cloud watch logs.")
 	// we are fetching logs here and not in run function because we only want to fetch logs when needed
 	containerLogs, err := j.fetchCloudWatchLogs()
 	if err != nil {
@@ -122,19 +122,19 @@ func (j *AWSBatchJob) ClearOutputs() {
 
 func (j *AWSBatchJob) LogMessage(m string, level logrus.Level) {
 	switch level {
-	// case 1:
+	// case 0:
 	// 	j.logger.Panic(m)
-	// case 2:
+	// case 1:
 	// 	j.logger.Fatal(m)
-	case 3:
+	case 2:
 		j.logger.Error(m)
-	case 4:
+	case 3:
 		j.logger.Warn(m)
-	case 5:
+	case 4:
 		j.logger.Info(m)
-	case 6:
+	case 5:
 		j.logger.Debug(m)
-	case 7:
+	case 6:
 		j.logger.Trace(m)
 	default:
 		j.logger.Info(m) // default to Info level if level is out of range
@@ -207,6 +207,7 @@ func (j *AWSBatchJob) Create() error {
 	if err != nil {
 		return err
 	}
+	j.logger.Info("Container Commands: ", j.CMD())
 
 	ctx, cancelFunc := context.WithCancel(context.TODO())
 	j.ctx = ctx
@@ -244,7 +245,7 @@ func (j *AWSBatchJob) Create() error {
 }
 
 func (j *AWSBatchJob) Kill() error {
-	j.logger.Info("Received dismiss signal")
+	j.logger.Info("Received dismiss signal.")
 
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
@@ -254,13 +255,13 @@ func (j *AWSBatchJob) Kill() error {
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
-		j.logger.Info("Could not send kill signal to AWS Batch API. Error: " + err.Error())
+		j.logger.Errorf("Could not send kill signal to AWS Batch API. Error: %s", err.Error())
 		return err
 	}
 
 	_, err = c.JobKill(j.AWSBatchID)
 	if err != nil {
-		j.logger.Info("Could not send kill signal to AWS Batch API. Error: " + err.Error())
+		j.logger.Errorf("Could not send kill signal to AWS Batch API. Error: %s", err.Error())
 		return err
 	}
 
@@ -297,7 +298,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 			j.logger.Error(err.Error())
 			return nil, fmt.Errorf("could not get log stream name")
 		}
-		j.logger.Debug("log stream name: ", j.logStreamName)
+		j.logger.Info("Log Stream Name: ", j.logStreamName)
 	}
 
 	if j.logStreamName == "" {
@@ -351,13 +352,13 @@ func (j *AWSBatchJob) WriteMetaData() {
 
 	c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Errorf("Error writing metadata: %s", err.Error())
 		return
 	}
 
 	imgURI, err := c.GetImageURI(j.JobDef)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Errorf("Error writing metadata: %s", err.Error())
 		return
 	}
 
@@ -367,13 +368,13 @@ func (j *AWSBatchJob) WriteMetaData() {
 	if strings.Contains(imgURI, "amazonaws.com/") {
 		imgDgst, err = getECRImageDigest(imgURI)
 		if err != nil {
-			j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			j.logger.Errorf("Error writing metadata: %s", err.Error())
 			return
 		}
 	} else {
 		imgDgst, err = getDkrHubImageDigest(imgURI, "dummy")
 		if err != nil {
-			j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+			j.logger.Errorf("Error writing metadata: %s", err.Error())
 			return
 		}
 	}
@@ -383,7 +384,7 @@ func (j *AWSBatchJob) WriteMetaData() {
 
 	g, s, e, err := c.GetJobTimes(j.AWSBatchID)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Errorf("Error writing metadata: %s", err.Error())
 		return
 	}
 
@@ -400,7 +401,7 @@ func (j *AWSBatchJob) WriteMetaData() {
 
 	jsonBytes, err := json.Marshal(md)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("error writing metadata: %s", err.Error()))
+		j.logger.Errorf("Error writing metadata: %s", err.Error())
 		return
 	}
 
@@ -432,14 +433,15 @@ func (j *AWSBatchJob) Close() {
 	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel()
 
-	i := 1
-	time.Sleep(10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
-	err := j.UpdateContainerLogs()
-	for err != nil && i < 6 {
-		j.logger.Warnf("trial %d Could not update container logs. Error: %s", i, err.Error())
-		time.Sleep(10 * time.Second)
-		err = j.UpdateContainerLogs()
-		i++
+	const maxAttempts = 5
+
+	for i := 1; i <= maxAttempts; i++ {
+		if err := j.UpdateContainerLogs(); err != nil {
+			time.Sleep(time.Duration(i) * 10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
+			j.logger.Errorf("Trial %d: Could not update container logs. Error: %s", i, err.Error())
+		} else {
+			break // exit the loop if UpdateContainerLogs() is successful
+		}
 	}
 
 	j.DoneChan <- j // At this point job can be safely removed from active jobs

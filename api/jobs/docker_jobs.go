@@ -74,7 +74,7 @@ func (j *DockerJob) UpdateContainerLogs() (err error) {
 		return
 	}
 
-	j.logger.Info("updating container logs")
+	j.logger.Debug("Updating container logss")
 	containerLogs, err := j.fetchContainerLogs()
 	if err != nil {
 		j.logger.Error(err.Error())
@@ -108,19 +108,19 @@ func (j *DockerJob) UpdateContainerLogs() (err error) {
 
 func (j *DockerJob) LogMessage(m string, level logrus.Level) {
 	switch level {
-	// case 1:
+	// case 0:
 	// 	j.logger.Panic(m)
-	// case 2:
+	// case 1:
 	// 	j.logger.Fatal(m)
-	case 3:
+	case 2:
 		j.logger.Error(m)
-	case 4:
+	case 3:
 		j.logger.Warn(m)
-	case 5:
+	case 4:
 		j.logger.Info(m)
-	case 6:
+	case 5:
 		j.logger.Debug(m)
-	case 7:
+	case 6:
 		j.logger.Trace(m)
 	default:
 		j.logger.Info(m) // default to Info level if level is out of range
@@ -140,7 +140,7 @@ func (j *DockerJob) NewStatusUpdate(status string, updateTime time.Time) {
 	}
 
 	j.Status = status
-	j.logger.Info("status changed to ", status)
+	j.logger.Infof("Status changed to %s.", status)
 	if updateTime.IsZero() {
 		j.UpdateTime = time.Now()
 	} else {
@@ -194,6 +194,7 @@ func (j *DockerJob) Create() error {
 	if err != nil {
 		return err
 	}
+	j.logger.Info("Container Commands: ", j.CMD())
 
 	ctx, cancelFunc := context.WithCancel(context.TODO())
 	j.ctx = ctx
@@ -218,7 +219,7 @@ func (j *DockerJob) Run() {
 	isCancelled := func() bool {
 		select {
 		case <-j.ctx.Done():
-			j.logger.Info("Context cancelled")
+			j.logger.Info("Context cancelled.")
 			return true
 		default:
 			return false
@@ -236,7 +237,7 @@ func (j *DockerJob) Run() {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.logger.Info("Failed creating NewDockerController. Error: " + err.Error())
+		j.logger.Errorf("Failed creating NewDockerController. Error: %s", err.Error())
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
@@ -247,14 +248,14 @@ func (j *DockerJob) Run() {
 		envVars[eVar] = os.Getenv(eVar)
 	}
 
-	j.logger.Info(fmt.Sprintf("Registered %v env vars", len(envVars)))
+	j.logger.Infof("Registered %v env vars", len(envVars))
 	resources := controllers.DockerResources{}
 	resources.NanoCPUs = int64(j.Resources.CPUs * 1e9)         // Docker controller needs cpu in nano ints
 	resources.Memory = int64(j.Resources.Memory * 1024 * 1024) // Docker controller needs memory in bytes
 
 	err = c.EnsureImage(j.ctx, j.Image, false)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("Could not ensure image %s available", j.Image))
+		j.logger.Infof("Could not ensure image %s available", j.Image)
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
@@ -262,7 +263,7 @@ func (j *DockerJob) Run() {
 	// start container
 	containerID, err := c.ContainerRun(j.ctx, j.Image, j.Cmd, []controllers.VolumeMount{}, envVars, resources)
 	if err != nil {
-		j.logger.Error("Failed to run container. Error: ", err.Error())
+		j.logger.Errorf("Failed to run container. Error: %s", err.Error())
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
@@ -278,13 +279,13 @@ func (j *DockerJob) Run() {
 	exitCode, err := c.ContainerWait(j.ctx, j.ContainerID)
 	if err != nil {
 
-		j.logger.Info("Failed waiting for container to finish. Error: " + err.Error())
+		j.logger.Errorf("Failed waiting for container to finish. Error: %s", err.Error())
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
 
 	if exitCode != 0 {
-		j.logger.Info(fmt.Sprintf("Container failure, exit code: %d ", exitCode))
+		j.logger.Errorf("Container failure, exit code: %d", exitCode)
 		j.NewStatusUpdate(FAILED, time.Time{})
 		return
 	}
@@ -296,7 +297,7 @@ func (j *DockerJob) Run() {
 
 // kill local container
 func (j *DockerJob) Kill() error {
-	j.logger.Info("Received dismiss signal")
+	j.logger.Info("Received dismiss signal.")
 	switch j.CurrentStatus() {
 	case SUCCESSFUL, FAILED, DISMISSED:
 		// if these jobs have been loaded from previous snapshot they would not have context etc
@@ -322,13 +323,13 @@ func (j *DockerJob) WriteMetaData() {
 
 	c, err := controllers.NewDockerController()
 	if err != nil {
-		j.logger.Info("Could not create controller. Error: " + err.Error())
+		j.logger.Errorf("Could not create controller. Error: %s", err.Error())
 	}
 
 	p := process{j.ProcessID(), j.ProcessVersionID()}
 	imageDigest, err := c.GetImageDigest(j.IMAGE())
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("Error getting imageDigest: %s", err.Error()))
+		j.logger.Errorf("Error getting Image Digest: %s", err.Error())
 		return
 	}
 
@@ -336,7 +337,7 @@ func (j *DockerJob) WriteMetaData() {
 
 	g, s, e, err := c.GetJobTimes(j.ContainerID)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("Error getting jobtimes: %s", err.Error()))
+		j.logger.Errorf("Error getting job times: %s", err.Error())
 		return
 	}
 
@@ -353,7 +354,7 @@ func (j *DockerJob) WriteMetaData() {
 
 	jsonBytes, err := json.Marshal(md)
 	if err != nil {
-		j.logger.Info(fmt.Sprintf("Error marshalling metadata: %s", err.Error()))
+		j.logger.Errorf("Error marshalling metadata to JSON bytes: %s", err.Error())
 		return
 	}
 
@@ -399,23 +400,23 @@ func (j *DockerJob) RunFinished() {
 // Write final logs, cancelCtx
 func (j *DockerJob) Close() {
 
-	j.logger.Info("starting closing routine")
+	j.logger.Info("Starting closing routine.")
 	// to do: add panic recover to remove job from active jobs even if following panics
 	j.ctxCancel() // Signal Run function to terminate if running
 
 	if j.ContainerID != "" { // Container related cleanups if container exists
 		c, err := controllers.NewDockerController()
 		if err != nil {
-			j.logger.Info("Could not create controller. Error: " + err.Error())
+			j.logger.Errorf("Could not create controller. Error: %s", err.Error())
 		} else {
 			containerLogs, err := c.ContainerLog(context.TODO(), j.ContainerID)
 			if err != nil {
-				j.logger.Error("Could not fetch container logs. Error: " + err.Error())
+				j.logger.Errorf("Could not fetch container logs. Error: %s", err.Error())
 			}
 
 			file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
 			if err != nil {
-				j.logger.Error("could not create container logs file")
+				j.logger.Errorf("Could not create container logs file. Error: %s", err.Error())
 				return
 			}
 
@@ -428,7 +429,7 @@ func (j *DockerJob) Close() {
 					_, err = writer.WriteString(line)
 				}
 				if err != nil {
-					j.logger.Errorf("could not write log %s to file", line)
+					j.logger.Errorf("Could not write log %s to file.", line)
 				}
 			}
 
@@ -437,7 +438,7 @@ func (j *DockerJob) Close() {
 
 			err = c.ContainerRemove(context.TODO(), j.ContainerID)
 			if err != nil {
-				j.logger.Info("Could not remove container. Error: " + err.Error())
+				j.logger.Errorf("Could not remove container. Error: %s", err.Error())
 			}
 		}
 	}
