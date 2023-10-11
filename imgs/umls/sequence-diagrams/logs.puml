@@ -11,7 +11,9 @@ participant User
 participant Server
 entity Job
 participant "Execution\nPlatform"
-database Database
+participant Disk
+participant Storage
+
 
 User -> Server: Submit async job
 activate Server
@@ -25,31 +27,36 @@ Job --> Server: Return acknowledgment
 Server --> User: Respond with Created status
 deactivate Server
 
-note over Job: Logging takes place throughout the Job's lifecycle
-Job -> Job: Log messages (Server Logs)
+note over Job, Disk: Logging takes place throughout the Job's lifecycle
+Job -> Disk: Log messages (Server Logs)
 
 User -> Server: Request logs for active job
 activate Server
-Server -> Job: Fetch logs
+Server -> Job: Update container logs
 Job -> "Execution\nPlatform": Fetch Container logs
-"Execution\nPlatform" --> Job: Return Container logs
-Job --> Server: Return combined logs (Container + Server)
+Job -> Disk: Write Container logs
+Server -> Disk: Fetch combined logs (Container + Server)
+Disk --> Server: Return combined logs
 Server --> User: Respond with logs
 deactivate Server
 
 "Execution\nPlatform" -> Job: Notify Job Finished
 deactivate "Execution\nPlatform"
+
 note over Job: Job close routine starts
-Job -> Database: Store combined logs (Container + Server)
 
+Job -> "Execution\nPlatform": Fetch Container logs
+Job -> Disk: Write Container logs
+note over Job, "Execution\nPlatform": Job is removed from Active Jobs store but it continue to wait for other routines\nsuch as Metadata to finish, as other routines can still log messages
 
-note over Job: Job is removed from Active Jobs store
+Disk -> Storage: Move logs to Storage
+
 deactivate Job
 
 User -> Server: Request logs for completed job
 activate Server
-Server -> Database: Fetch stored logs
-Database --> Server: Return combined logs (Container + Server)
+Server -> Storage: Fetch stored logs
+Storage --> Server: Return combined logs
 Server --> User: Respond with logs
 deactivate Server
 

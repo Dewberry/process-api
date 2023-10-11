@@ -7,7 +7,6 @@ participant User
 participant Server
 entity Job
 participant "Execution\nPlatform"
-database Database
 participant Storage
 
 User -> Server: Submit async Job
@@ -34,15 +33,22 @@ Server --> User: Respond with status
 deactivate Server
 
 ...
-"Execution\nPlatform" -> Job: Notify Job finished
+"Execution\nPlatform" -> Job: Notify Job Finished
 deactivate "Execution\nPlatform"
-Job -> Database: Store Logs
+
+note over Job: Job close routine starts
+
+Job -> "Execution\nPlatform": Fetch Container logs
+Job -> Storage: Write Container logs
+note over Job, "Execution\nPlatform": Job is removed from Active Jobs store, results available
 Job -> Storage: Write Metadata
+
+Job -> Storage: Write logs (Container & Server)
 deactivate Job
 
 User -> Server: Request results after Job is finished
 activate Server
-Server -> Database: Fetch results
+Server -> Storage: Fetch results
 Server --> User: Respond with results
 deactivate Server
 

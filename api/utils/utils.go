@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -104,4 +105,32 @@ func GetS3JsonData(key string, svc *s3.S3) (interface{}, error) {
 	}
 
 	return data, nil
+}
+
+// Assumes file exist
+func GetS3LinesData(key string, svc *s3.S3) ([]string, error) {
+	// Create a new S3GetObjectInput object to specify the file you want to read
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(os.Getenv("STORAGE_BUCKET")),
+		Key:    aws.String(key),
+	}
+
+	// Use the S3 service object to download the file into a byte slice
+	resp, err := svc.GetObject(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return lines, nil
 }

@@ -83,7 +83,7 @@ func main() {
 		AllowOrigins:     []string{"*"},
 	}))
 	e.Logger.SetLevel(log.DEBUG)
-	log.SetLevel(log.INFO)
+	log.SetLevel(log.DEBUG)
 	e.Renderer = &rh.T
 
 	// Server

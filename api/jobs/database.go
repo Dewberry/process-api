@@ -2,8 +2,6 @@ package jobs
 
 import (
 	"database/sql"
-	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -43,23 +41,6 @@ func (db *DB) createTables() {
 	`
 
 	_, err := db.Handle.Exec(queryJobs)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Array of VARCHAR is represented as TEXT in SQLite. Client application has to handle conversion
-
-	queryLogs := `
-	CREATE TABLE IF NOT EXISTS logs (
-		job_id TEXT PRIMARY KEY,
-		process_id TEXT,
-		api_logs TEXT,
-		container_logs TEXT,
-		FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
-	);
-	`
-
-	_, err = db.Handle.Exec(queryLogs)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,34 +94,9 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 	}
 }
 
-// Upsert logs, on conflict replace the existing logs.
-func (db *DB) upsertLogs(jid string, pid string, apiLogs []string, containerLogs []string) {
-	query := `
-	INSERT INTO logs (job_id, process_id, api_logs, container_logs) VALUES (?, ?, ?, ?)
-		ON CONFLICT(job_id) DO UPDATE SET
-			api_logs = excluded.api_logs,
-			container_logs = excluded.container_logs;
-	`
-
-	// Convert APILogs and ContainerLogs from []string to JSON string
-	apiLogsJSON, err := json.Marshal(apiLogs)
-	if err != nil {
-		log.Error(err)
-	}
-	containerLogsJSON, err := json.Marshal(containerLogs)
-	if err != nil {
-		log.Error(err)
-	}
-
-	_, err = db.Handle.Exec(query, jid, pid, string(apiLogsJSON), string(containerLogsJSON))
-	if err != nil {
-		log.Error(err)
-	}
-}
-
 // Get Job Record from database given a job id.
 // If job do not exists, or error encountered bool would be false.
-// Similar behaviour as key exist in hashmap.
+// Similar behavior as key exist in hashmap.
 func (db *DB) GetJob(jid string) (JobRecord, bool) {
 	query := `SELECT * FROM jobs WHERE id = ?`
 
@@ -205,36 +161,4 @@ func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-// Get logs from database. If job id is not found then error will be returned.
-func (db *DB) GetLogs(jid string) (JobLogs, error) {
-	query := `SELECT process_id, api_logs, container_logs FROM logs WHERE job_id = ?`
-
-	logs := JobLogs{}
-	logs.JobID = jid
-
-	// These will hold the JSON strings from the database
-	var apiLogsJSON, containerLogsJSON string
-
-	row := db.Handle.QueryRow(query, jid)
-	err := row.Scan(&logs.ProcessID, &apiLogsJSON, &containerLogsJSON)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return JobLogs{}, errors.New("not found")
-		} else {
-			return JobLogs{}, err
-		}
-	}
-	// Convert JSON strings back into arrays of strings
-	err = json.Unmarshal([]byte(apiLogsJSON), &logs.APILogs)
-	if err != nil {
-		return JobLogs{}, errors.New("error decoding api logs")
-	}
-	err = json.Unmarshal([]byte(containerLogsJSON), &logs.ContainerLogs)
-	if err != nil {
-		return JobLogs{}, errors.New("error decoding container logs")
-	}
-
-	return logs, nil
 }

@@ -7,7 +7,6 @@ participant User
 participant Server
 entity Job
 participant "Execution\nPlatform"
-database Database
 participant Storage
 
 User -> Server: Submit sync Job
@@ -26,13 +25,19 @@ activate "Execution\nPlatform"
 ... ...
 "Execution\nPlatform" -> Job: Notify Job finished
 deactivate "Execution\nPlatform"
-Job -> Database: Store Logs
-Job -> Storage: Write Metadata
-Job --> Server: Job Finished
-deactivate Job
+note over Job: Job close routine starts
 
-Server -> Database: Fetch results
+Job -> "Execution\nPlatform": Fetch Container logs
+Job -> Storage: Write Container logs
+note over Job, "Execution\nPlatform": Job is removed from Active Jobs store, results available
+Job --> Server: Job Finished
+
+Server -> Storage: Fetch results
 Server --> User: Respond with results
 deactivate Server
+
+Job -> Storage: Write Metadata
+Job -> Storage: Write logs (Container & Server)
+deactivate Job
 
 @enduml

@@ -19,6 +19,11 @@
     --code-bg-color: #ffffff;
     --status-client-error-color: #925f00;
     --status-server-error-color: #d00000;
+
+    --log-warning: var(--status-client-error-color);
+    --log-error: var(--status-server-error-color);
+    --log-debug: #007BFF;
+    --log-info: green;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +48,11 @@
         --code-bg-color: #000000;
         --status-client-error-color: orange;
         --status-server-error-color: red;
+
+        --log-warning: orange;
+        --log-error: red;
+        --log-debug: #00BFFF; /* deep sky blue */
+        --log-info: #00c100; /* lime green */
     }
 }
 
@@ -170,4 +180,21 @@ code[class*="language-"] {
     background-color: var(--code-bg-color);
     font-family: monospace;
     /* Monospaced font */
+}
+
+/* CSS Classes for Log Levels */
+.log-warning {
+    color: var(--log-warning);
+}
+
+.log-error {
+    color: var(--log-error);
+}
+
+.log-debug {
+    color: var(--log-debug);
+}
+
+.log-info {
+    color: var(--log-info);
 }

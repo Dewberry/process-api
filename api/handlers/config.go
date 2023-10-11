@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -75,7 +76,9 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 
 	// Read all the html templates
 	funcMap := template.FuncMap{
-		"prettyPrint": prettyPrint, // to pretty pring JSONs for results and metadata
+		"prettyPrint": prettyPrint, // to pretty print JSONs for results and metadata
+		"lower":       strings.ToLower,
+		"upper":       strings.ToUpper,
 	}
 
 	config.T = Template{
@@ -92,6 +95,16 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 		log.Fatal(err)
 	}
 	config.StorageSvc = stSvc
+
+	// Create local logs directory if not exist
+	localLogsDir, exist := os.LookupEnv("LOCAL_LOGS_DIR")
+	if !exist {
+		log.Fatal("env variable LOCAL_LOGS_DIR not set")
+	}
+	err = os.MkdirAll(localLogsDir, 0755)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	// Setup Active Jobs that will store all jobs currently in process
 	ac := jobs.ActiveJobs{}
