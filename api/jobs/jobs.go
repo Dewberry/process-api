@@ -192,7 +192,7 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 // // If JobID exists but results file doesn't then it raises an error
 // // Assumes jobID is valid
 // func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
-// 	key := fmt.Sprintf("%s/%s.json", os.Getenv("STORAGE_RESULTS_DIR"), jid)
+// 	key := fmt.Sprintf("%s/%s.json", os.Getenv("STORAGE_RESULTS_PREFIX"), jid)
 
 // 	exist, err := utils.KeyExists(key, svc)
 // 	if err != nil {
@@ -214,7 +214,7 @@ func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 // If JobID exists but metadata file doesn't then it raises an error
 // Assumes jobID is valid
 func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
-	key := fmt.Sprintf("%s/%s.json", os.Getenv("STORAGE_METADATA_DIR"), jid)
+	key := fmt.Sprintf("%s/%s.json", os.Getenv("STORAGE_METADATA_PREFIX"), jid)
 
 	exist, err := utils.KeyExists(key, svc)
 	if err != nil {
@@ -272,7 +272,7 @@ func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error)
 		}
 
 		// If not found locally, check storage
-		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_DIR"), jid, k.key)
+		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_PREFIX"), jid, k.key)
 		exists, err := utils.KeyExists(storageKey, svc)
 		if err != nil {
 			return JobLogs{}, err
@@ -309,7 +309,7 @@ func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 			log.Error(err.Error())
 		}
 
-		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_DIR"), jid, k)
+		storageKey := fmt.Sprintf("%s/%s.%s.jsonl", os.Getenv("STORAGE_LOGS_PREFIX"), jid, k)
 		err = utils.WriteToS3(svc, bytes, storageKey, "text/plain", 0)
 		if err != nil {
 			log.Error(err.Error())

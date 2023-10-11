@@ -266,7 +266,7 @@
             "post": {
                 "description": "[Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)",
                 "consumes": [
-                    "*/*"
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -284,8 +284,8 @@
                         "required": true
                     },
                     {
-                        "description": "example: {“text”:“Hello World!”}",
-                        "name": "input",
+                        "description": "example: {inputs: {text:Hello World!}} (add double quotes for all strings in the payload)",
+                        "name": "inputs",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -333,16 +333,10 @@
         "jobs.JobLogs": {
             "type": "object",
             "properties": {
-                "api_logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
                 "container_logs": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/jobs.LogEntry"
                     }
                 },
                 "jobID": {
@@ -350,6 +344,12 @@
                 },
                 "processID": {
                     "type": "string"
+                },
+                "server_logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jobs.LogEntry"
+                    }
                 }
             }
         },
@@ -376,6 +376,20 @@
                     "default": "process"
                 },
                 "updated": {
+                    "type": "string"
+                }
+            }
+        },
+        "jobs.LogEntry": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string"
+                },
+                "msg": {
+                    "type": "string"
+                },
+                "time": {
                     "type": "string"
                 }
             }
@@ -557,5 +571,9 @@
                 }
             }
         }
+    },
+    "externalDocs": {
+        "description": "Schemas",
+        "url": "http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/"
     }
 }

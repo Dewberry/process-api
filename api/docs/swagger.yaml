@@ -19,18 +19,18 @@ definitions:
     type: object
   jobs.JobLogs:
     properties:
-      api_logs:
-        items:
-          type: string
-        type: array
       container_logs:
         items:
-          type: string
+          $ref: '#/definitions/jobs.LogEntry'
         type: array
       jobID:
         type: string
       processID:
         type: string
+      server_logs:
+        items:
+          $ref: '#/definitions/jobs.LogEntry'
+        type: array
     type: object
   jobs.JobRecord:
     properties:
@@ -48,6 +48,15 @@ definitions:
         default: process
         type: string
       updated:
+        type: string
+    type: object
+  jobs.LogEntry:
+    properties:
+      level:
+        type: string
+      msg:
+        type: string
+      time:
         type: string
     type: object
   processes.Info:
@@ -165,6 +174,9 @@ definitions:
           $ref: '#/definitions/processes.Outputs'
         type: array
     type: object
+externalDocs:
+  description: Schemas
+  url: http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 host: localhost:5050
 info:
   contact:
@@ -340,7 +352,7 @@ paths:
   /processes/{processID}/execution:
     post:
       consumes:
-      - '*/*'
+      - application/json
       description: '[Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)'
       parameters:
       - description: pyecho
@@ -348,9 +360,10 @@ paths:
         name: processID
         required: true
         type: string
-      - description: 'example: {“text”:“Hello World!”}'
+      - description: 'example: {inputs: {text:Hello World!}} (add double quotes for
+          all strings in the payload)'
         in: body
-        name: input
+        name: inputs
         required: true
         schema:
           type: string

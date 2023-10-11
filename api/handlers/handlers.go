@@ -241,10 +241,10 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // @Summary Execute Process
 // @Description [Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)
 // @Tags processes
-// @Accept */*
+// @Accept json
 // @Produce json
 // @Param processID path string true "pyecho"
-// @Param input body string true "example: {“text”:“Hello World!”}"
+// @Param inputs body string true "example: {inputs: {text:Hello World!}} (add double quotes for all strings in the payload)"
 // @Success 200 {object} jobResponse
 // @Router /processes/{processID}/execution [post]
 // Does not produce HTML
