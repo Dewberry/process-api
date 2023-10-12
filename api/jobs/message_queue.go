@@ -21,6 +21,7 @@ type MessageQueue struct {
 }
 
 // Job should not be a docker job
+// This function should not block the routine as it is being called by message queue
 func ProcessStatusMessageUpdate(sm StatusMessage) {
 
 	// Multiple calls should not trigger multiple close or metadata routines
@@ -36,8 +37,13 @@ func ProcessStatusMessageUpdate(sm StatusMessage) {
 		go (*sm.Job).WriteMetaData()
 		fallthrough
 	case DISMISSED, FAILED:
-		// swap the order of following if results are posted/written by the container, and run close as a coroutine
-		(*sm.Job).Close()
-		(*sm.Job).RunFinished()
+		// swap the order of following if results are posted/written by the container
+		// also then no need to do all of this together in a separate routine
+		// we can do RunFinished in this routine but Close will still need to be run in a new routine
+		// so that the message queue is not hanged up
+		go func() {
+			(*sm.Job).Close()
+			(*sm.Job).RunFinished()
+		}()
 	}
 }
