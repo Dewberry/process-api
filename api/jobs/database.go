@@ -58,11 +58,11 @@ func InitDB(dbPath string) *DB {
 	}
 
 	h, err := sql.Open("sqlite3", dbPath+"?mode=rwc")
-	// it maybe a good idea to check here if the connections has write privilage https://stackoverflow.com/a/44707371/11428410 https://www.sqlite.org/c3ref/db_readonly.html
+	// it maybe a good idea to check here if the connections has write privilege https://stackoverflow.com/a/44707371/11428410 https://www.sqlite.org/c3ref/db_readonly.html
 	// also maybe we should make db such that only go can write to it
 
 	if err != nil {
-		log.Fatalf("could not open %s Delete the existing database to start with a new datbase. Error: %s", dbPath, err.Error())
+		log.Fatalf("could not open %s Delete the existing database to start with a new database. Error: %s", dbPath, err.Error())
 	}
 
 	if h == nil {

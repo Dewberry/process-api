@@ -88,7 +88,7 @@ func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 	// we are fetching logs here and not in run function because we only want to fetch logs when needed
 	containerLogs, err := j.fetchCloudWatchLogs()
 	if err != nil {
-		j.logger.Error(err.Error())
+		j.logger.Errorf("Error fetching cloud watch logs: %s", err.Error())
 		return
 	}
 
@@ -296,7 +296,6 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 	if j.logStreamName == "" {
 		err := j.getLogStreamName()
 		if err != nil {
-			j.logger.Error(err.Error())
 			return nil, fmt.Errorf("could not get log stream name")
 		}
 		j.logger.Info("Log Stream Name: ", j.logStreamName)
@@ -437,7 +436,10 @@ func (j *AWSBatchJob) Close() {
 	const maxAttempts = 5
 
 	for i := 1; i <= maxAttempts; i++ {
-		time.Sleep(time.Duration(i) * 10 * time.Second) // It can take a few moments for logs to be delivered to CloudWatch
+		// It can take a few moments for logs to be delivered to CloudWatch
+		// Programs like docker don't give much time after sending interrupt signal
+		// Hence this duration can't be too high
+		time.Sleep(time.Duration(i) * 5 * time.Second)
 
 		if err := j.UpdateContainerLogs(); err != nil {
 			j.logger.Errorf("Trial %d: Could not update container logs. Error: %s", i, err.Error())
