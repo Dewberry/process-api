@@ -31,8 +31,8 @@ func init() {
 
 	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&envFP, "e", "../.env", "specify the path of the dot env file to load")
-	flag.StringVar(&dbPath, "db", "../.data/db.sqlite", "specify the path of the sqlite database")
+	flag.StringVar(&envFP, "e", "/.env", "specify the path of the dot env file to load")
+	flag.StringVar(&dbPath, "db", "/.data/api/db.sqlite", "specify the path of the sqlite database")
 
 	flag.Parse()
 
@@ -63,6 +63,8 @@ func main() {
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
+	// todo: all non terminated job statuses should be updated to unknown
+	// todo: all logs in the logs directory should be moved to storage
 
 	// Goroutines
 	go rh.StatusUpdateRoutine()
@@ -124,30 +126,37 @@ func main() {
 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
 	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	<-quit
 	e.Logger.Info("gracefully shutting down the server")
 
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		if err := e.Shutdown(ctx); err != nil {
+			e.Logger.Error(err)
+		}
+	}()
+
+	// Shutdown the server
+	// By default, Docker provides a grace period of 10 seconds with the docker stop command.
+
 	// Kill any running docker containers (clean up resources)
+	rh.ActiveJobs.KillAll()
+	e.Logger.Info("kill command sent to all active jobs")
 
-	if err := rh.ActiveJobs.KillAll(); err != nil {
-		e.Logger.Error(err)
-	} else {
-		e.Logger.Info("kill command sent to all active jobs")
-	}
+	// sleep so that Close() routines spawned by KillAll() can finish writing logs, and updating statuses
+	// aws batch jobs close() methods take minimum of 5 seconds
+	time.Sleep(5 * time.Second)
 
-	time.Sleep(15 * time.Second) // sleep so that routines spawned by KillAll() can finish, using 15 seconds because AWS batch monitors jobs every 10 seconds
 	if err := rh.DB.Handle.Close(); err != nil {
-		e.Logger.Fatal(err)
+		e.Logger.Error(err)
 	} else {
 		e.Logger.Info("closed connection to database")
 	}
 
-	// Shutdown the server
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
-	}
+	time.Sleep(4 * time.Second)
+
 	e.Logger.Info("server gracefully shutdown")
+
 }

@@ -25,16 +25,15 @@ func (ac *ActiveJobs) Remove(j *Job) {
 }
 
 // Revised to kill only currently active jobs
-func (ac *ActiveJobs) KillAll() error {
+func (ac *ActiveJobs) KillAll() {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
 	for _, j := range ac.Jobs {
 		if (*j).CurrentStatus() == ACCEPTED || (*j).CurrentStatus() == RUNNING {
-			if err := (*j).Kill(); err != nil {
-				return err
-			}
+			// we can't wait for each Kill operation to complete since KillAll will be called during shutdown
+			// and limited time is available to gracefully shutdown
+			go (*j).Kill()
 		}
 	}
-	return nil
 }
