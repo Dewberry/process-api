@@ -60,7 +60,6 @@ func (c *DockerController) ContainerRun(ctx context.Context, image string, comma
 		Resources: container.Resources(resources),
 	}
 
-	log.Debug("Initialize Container run")
 	//	hostConfig.Mounts = make([]mount.Mount,0);
 
 	mounts := make([]mount.Mount, len(volumes))
