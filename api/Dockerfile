@@ -18,6 +18,9 @@ ENTRYPOINT ["CompileDaemon", "--build=go build main.go", "--command=./main"]
 # -------------------------------
 FROM debian:12.1-slim as prod
 
+# Copy the CA certificates from the dev stage
+COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
 COPY --from=dev /app/main /usr/local/bin/main
 
 COPY --from=dev /app/plugins /plugins
