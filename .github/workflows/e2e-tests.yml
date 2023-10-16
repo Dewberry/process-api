@@ -53,7 +53,7 @@ jobs:
         run: docker network create process_api_net
 
       - name: Run the docker-compose stack
-        run: docker-compose -f docker-compose.prod.yml -d
+        run: docker-compose -f docker-compose.prod.yml up -d
 
       - name: Create bucket
         run: >
