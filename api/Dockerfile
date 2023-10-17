@@ -9,7 +9,8 @@ RUN go install github.com/githubnemo/CompileDaemon@v1.4.0
 COPY ./ /app
 WORKDIR /app
 
-# RUN swag init && go build main.go
+# RUN swag init
+RUN go build main.go
 
 ENTRYPOINT ["CompileDaemon", "--build=go build main.go", "--command=./main"]
 # -------------------------------
@@ -17,7 +18,12 @@ ENTRYPOINT ["CompileDaemon", "--build=go build main.go", "--command=./main"]
 # -------------------------------
 FROM debian:12.1-slim as prod
 
+# Copy the CA certificates from the dev stage
+COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
 COPY --from=dev /app/main /usr/local/bin/main
+
+COPY --from=dev /app/plugins /plugins
 COPY --from=dev /app/public /public
 COPY --from=dev /app/views /views
 COPY --from=dev /app/docs /docs

@@ -128,11 +128,12 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	return &config
 }
 
+// This routine sequentially updates status.
+// So that order of status updates received is preserved.
 func (rh *RESTHandler) StatusUpdateRoutine() {
 	for {
 		sm := <-rh.MessageQueue.StatusChan
 		jobs.ProcessStatusMessageUpdate(sm)
-
 	}
 }
 
