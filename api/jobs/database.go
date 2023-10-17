@@ -2,8 +2,10 @@ package jobs
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/labstack/gommon/log"
@@ -134,12 +136,38 @@ func (db *DB) CheckJobExist(jid string) bool {
 	return true
 }
 
-func (db *DB) GetJobs(limit int, offset int) ([]JobRecord, error) {
-	query := `SELECT id, status, updated, process_id FROM jobs ORDER BY updated DESC LIMIT ? OFFSET ?`
+// Assumes query parameters are valid
+func (db *DB) GetJobs(limit, offset int, processIDs, statuses []string) ([]JobRecord, error) {
+	baseQuery := `SELECT id, status, updated, process_id FROM jobs`
+	whereClauses := []string{}
+	args := []interface{}{}
+
+	if len(processIDs) > 0 {
+		placeholders := strings.Repeat("?,", len(processIDs)-1) + "?"
+		whereClauses = append(whereClauses, fmt.Sprintf("process_id IN (%s)", placeholders))
+		for _, pid := range processIDs {
+			args = append(args, pid)
+		}
+	}
+
+	if len(statuses) > 0 {
+		placeholders := strings.Repeat("?,", len(statuses)-1) + "?"
+		whereClauses = append(whereClauses, fmt.Sprintf("status IN (%s)", placeholders))
+		for _, st := range statuses {
+			args = append(args, st)
+		}
+	}
+
+	if len(whereClauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	query := baseQuery + ` ORDER BY updated DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
 
 	res := []JobRecord{}
 
-	rows, err := db.Handle.Query(query, limit, offset)
+	rows, err := db.Handle.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

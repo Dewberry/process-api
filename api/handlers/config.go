@@ -71,6 +71,8 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/core",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/json",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/html",
+			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/job-list",
+			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/dismiss",
 		},
 	}
 

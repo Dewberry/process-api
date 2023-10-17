@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "175ad4cd-0da2-441c-b468-2f9e5cc56d9a",
+		"_postman_id": "e1beec19-4b93-43ce-bb89-7928185c511f",
 		"name": "process-api Testing",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "26956706"
@@ -1350,50 +1350,291 @@
 			]
 		},
 		{
-			"name": "closure",
+			"name": "jobs-list",
 			"item": [
 				{
-					"name": "number-of-jobs",
+					"name": "Positives",
+					"item": [
+						{
+							"name": "number-of-jobs",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"const jobsData = pm.response.json().jobs;",
+											"",
+											"pm.test(\"number of jobs in record test\", function () {",
+											"    pm.expect(jobsData.length).to.eql(4);",
+											"    });"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "",
+											"value": null
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "fetch-with-status",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"const jobsData = pm.response.json().jobs;",
+											"pm.test(\"All jobs have the 'successful' status\", function () {",
+											"    jobsData.forEach(job => {",
+											"        pm.expect(job.status).to.eql('successful');",
+											"    });",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?status=successful",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "successful"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "fetch-with-processID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"const jobsData = pm.response.json().jobs;",
+											"pm.test(\"All jobs have the 'dfc' processID\", function () {",
+											"    jobsData.forEach(job => {",
+											"        pm.expect(job.processID).to.eql('dfc');",
+											"    });",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?processID=dfc",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "processID",
+											"value": "dfc"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "fetch-with-multiple-statuses",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?status=successful,failed",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "successful,failed"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
+								"type": "text/javascript",
 								"exec": [
-									"const jobsData = pm.response.json().jobs;\r",
-									"\r",
-									"pm.test(\"number of jobs in record test\", function () {\r",
-									"    pm.expect(jobsData.length).to.eql(3);\r",
-									"});\r",
-									""
-								],
-								"type": "text/javascript"
+									"pm.test('Status code is 200 ', function(){",
+									"    pm.response.to.have.status(200)",
+									"});"
+								]
 							}
 						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{url}}/jobs?limit=10&offset=1",
-							"host": [
-								"{{url}}"
-							],
-							"path": [
-								"jobs"
-							],
-							"query": [
+					]
+				},
+				{
+					"name": "Negatives",
+					"item": [
+						{
+							"name": "fetch-with-invalid-status",
+							"event": [
 								{
-									"key": "limit",
-									"value": "10"
-								},
-								{
-									"key": "offset",
-									"value": "1"
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
 								}
-							]
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?status=invalidStatus",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "invalidStatus"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "fetch-with-invalid-processID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/jobs?processID=invalidProcessID",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "processID",
+											"value": "invalidProcessID"
+										}
+									]
+								}
+							},
+							"response": []
 						}
-					},
-					"response": []
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"Status code is equal or greater than 400\", function () {",
+									"    pm.expect(pm.response.code).to.be.greaterThan(399)",
+									"});",
+									"",
+									"pm.test(\"response should have message\", function () {",
+									"    pm.response.to.have.jsonBody(\"message\");",
+									"});"
+								]
+							}
+						}
+					]
 				}
 			],
 			"event": [
@@ -1411,10 +1652,6 @@
 					"script": {
 						"type": "text/javascript",
 						"exec": [
-							"pm.test('Status code is 200 ', function(){",
-							"    pm.response.to.have.status(200)",
-							"});",
-							"",
 							"pm.test(\"Response time is less than 1000ms\", function () {",
 							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
 							"});",

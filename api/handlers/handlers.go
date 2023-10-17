@@ -336,7 +336,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// Create job
 	err = j.Create()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission errorr %s", err.Error())})
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: fmt.Sprintf("submission error %s", err.Error())})
 	}
 
 	// Add to active jobs
@@ -588,6 +588,35 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 
 	limitStr := c.QueryParam("limit")
 	offsetStr := c.QueryParam("offset")
+	processIDs := c.QueryParam("processID") // assuming comma-separated list: "process1,process2"
+	statuses := c.QueryParam("status")
+
+	var processIDList []string
+	if processIDs != "" {
+		processIDList = strings.Split(processIDs, ",")
+	}
+	for _, pid := range processIDList {
+		// to do: revise along with #
+		_, err = rh.ProcessList.Get(pid)
+		if err != nil {
+			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("processID %s incorrect, no such process exist", pid)}
+			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		}
+	}
+
+	var statusList []string
+	if statuses != "" {
+		statusList = strings.Split(statuses, ",")
+	}
+	for _, st := range statusList {
+		switch st {
+		case jobs.ACCEPTED, jobs.RUNNING, jobs.DISMISSED, jobs.FAILED, jobs.SUCCESSFUL:
+			// valid status
+		default:
+			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: "One or more status values not valid"}
+			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		}
+	}
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit > 100 || limit < 1 {
@@ -599,7 +628,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		offset = 0
 	}
 
-	result, err := rh.DB.GetJobs(limit, offset)
+	result, err := rh.DB.GetJobs(limit, offset, processIDList, statusList)
 	if err != nil {
 		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
@@ -611,7 +640,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	// if offset is not 0
 	if offset != 0 {
 		lnk := link{
-			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset-limit, limit),
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v", offset-limit, limit, processIDs, statuses),
 			Title: "prev",
 		}
 		links = append(links, lnk)
@@ -620,7 +649,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	// if limit is not exhausted
 	if limit == len(result) {
 		lnk := link{
-			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v", offset+limit, limit),
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v", offset+limit, limit, processIDs, statuses),
 			Title: "next",
 		}
 		links = append(links, lnk)
