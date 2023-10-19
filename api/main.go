@@ -1,6 +1,7 @@
 package main
 
 import (
+	"app/auth"
 	_ "app/docs"
 	"app/handlers"
 
@@ -60,6 +61,10 @@ func init() {
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+	// admin := []string{"admin"}
+	allUsers := []string{"admin", "reader", "writer"}
+	writer := []string{"admin", "writer"}
+
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
@@ -89,29 +94,30 @@ func main() {
 	e.Renderer = &rh.T
 
 	// Server
-	e.GET("/", rh.LandingPage)
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/conformance", rh.Conformance)
+	e.GET("/ping", auth.Authorize(rh.Ping, allUsers...))
+	e.GET("/", auth.Authorize(rh.LandingPage, allUsers...))
+	e.GET("/swagger/*", auth.Authorize(echoSwagger.WrapHandler, allUsers...))
+	e.GET("/conformance", auth.Authorize(rh.Conformance, allUsers...))
 
 	// Processes
-	e.GET("/processes", rh.ProcessListHandler)
-	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
-	e.POST("/processes/:processID/execution", rh.Execution)
+	e.GET("/processes", auth.Authorize(rh.ProcessListHandler, allUsers...))
+	e.GET("/processes/:processID", auth.Authorize(rh.ProcessDescribeHandler, allUsers...))
+	e.POST("/processes/:processID/execution", auth.Authorize(rh.Execution, writer...))
 
 	// TODO
-	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
-	// e.Delete("processes/:processID", rh.RegisterNewProcess)
+	// e.Post("processes/:processID/new, rh.RegisterNewProcess, admin...))
+	// e.Delete("processes/:processID", rh.RegisterNewProcess, admin...))
 
 	// Jobs
-	e.GET("/jobs", rh.ListJobsHandler)
-	e.GET("/jobs/:jobID", rh.JobStatusHandler)
-	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
-	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
-	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
-	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
+	e.GET("/jobs", auth.Authorize(rh.ListJobsHandler, allUsers...))
+	e.GET("/jobs/:jobID", auth.Authorize(rh.JobStatusHandler, allUsers...))
+	e.GET("/jobs/:jobID/results", auth.Authorize(rh.JobResultsHandler, allUsers...))
+	e.GET("/jobs/:jobID/logs", auth.Authorize(rh.JobLogsHandler, allUsers...))
+	e.GET("/jobs/:jobID/metadata", auth.Authorize(rh.JobMetaDataHandler, allUsers...))
+	e.DELETE("/jobs/:jobID", auth.Authorize(rh.JobDismissHandler, writer...))
 
 	// Callbacks
-	e.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
+	e.PUT("/jobs/:jobID/status", auth.Authorize(rh.JobStatusUpdateHandler, allUsers...))
 	// e.POST("/jobs/:jobID/results", rh.JobResultsUpdateHandler)
 
 	// Start server
