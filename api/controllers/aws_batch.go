@@ -268,10 +268,13 @@ func (c *AWSBatchController) GetJobTimes(batchID string) (cp time.Time, cr time.
 		job := describeJobsOutput.Jobs[0] // Assuming only one job is returned
 
 		// Extract createdAt, startedAt, and completedAt times
-		cr = time.UnixMilli(*job.CreatedAt)
-		st = time.UnixMilli(*job.StartedAt)
-		cp = time.UnixMilli(*job.StoppedAt)
-
+		if job.CreatedAt != nil && job.StartedAt != nil && job.StoppedAt != nil {
+			cr = time.UnixMilli(*job.CreatedAt)
+			st = time.UnixMilli(*job.StartedAt)
+			cp = time.UnixMilli(*job.StoppedAt)
+		} else {
+			return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("one of the job time value is nil")
+		}
 	} else {
 		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("no job information found")
 	}
