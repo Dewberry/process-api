@@ -23,7 +23,6 @@ COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificate
 
 COPY --from=dev /app/main /usr/local/bin/main
 
-COPY --from=dev /app/plugins /plugins
 COPY --from=dev /app/public /public
 COPY --from=dev /app/views /views
 COPY --from=dev /app/docs /docs
