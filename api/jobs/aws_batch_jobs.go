@@ -45,10 +45,11 @@ type AWSBatchJob struct {
 	JobQueue string `json:"jobQueue"`
 
 	// Job Name in Batch for this job
-	JobName       string `json:"jobName"`
-	EnvVars       map[string]string
-	batchContext  *controllers.AWSBatchController
-	logStreamName string
+	JobName                string `json:"jobName"`
+	EnvVars                map[string]string
+	batchContext           *controllers.AWSBatchController
+	logStreamName          string
+	cloudWatchForwardToken string
 	// MetaData
 
 	DB         *DB
@@ -96,8 +97,7 @@ func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 		return
 	}
 
-	// Create a new file or overwrite if it exists
-	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		return
 	}
@@ -106,14 +106,14 @@ func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 	writer := bufio.NewWriter(file)
 	defer writer.Flush()
 
-	for i, line := range containerLogs {
-		if i != len(containerLogs)-1 {
-			_, err = writer.WriteString(line + "\n")
-		} else {
-			_, err = writer.WriteString(line)
+	for _, line := range containerLogs {
+
+		_, err = writer.WriteString(line + "\n")
+		if err != nil {
+			j.logger.Errorf("Error writing log: %s", err.Error())
 		}
 	}
-	return
+	return nil
 }
 
 func (j *AWSBatchJob) ClearOutputs() {
@@ -182,7 +182,7 @@ func (j *AWSBatchJob) Equals(job Job) bool {
 
 func (j *AWSBatchJob) initLogger() error {
 	// Create a place holder file for container logs
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -191,7 +191,7 @@ func (j *AWSBatchJob) initLogger() error {
 	// Create logger for server logs
 	j.logger = logrus.New()
 
-	file, err = os.OpenFile(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -316,30 +316,53 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 	// Create a CloudWatchLogs client
 	svc := cloudwatchlogs.New(sess)
 
-	// Define the parameters for the log stream you want to read
-	params := &cloudwatchlogs.GetLogEventsInput{
-		LogGroupName:  aws.String(os.Getenv("BATCH_LOG_STREAM_GROUP")),
-		LogStreamName: aws.String(j.logStreamName),
-		StartFromHead: aws.Bool(true),
-	}
+	logs := make([]string, 0)
+	for {
+		// Define the parameters for the log stream you want to read
+		params := &cloudwatchlogs.GetLogEventsInput{
+			LogGroupName:  aws.String(os.Getenv("BATCH_LOG_STREAM_GROUP")),
+			LogStreamName: aws.String(j.logStreamName),
+			StartFromHead: aws.Bool(true),
+		}
 
-	// Call the GetLogEvents API to read the log events
-	resp, err := svc.GetLogEvents(params)
-	if err != nil {
-		if err.Error() == "ResourceNotFoundException: The specified log stream does not exist." {
-			j.logger.Error(err.Error())
-			return []string{}, nil
+		if j.cloudWatchForwardToken != "" {
+			params.NextToken = aws.String(j.cloudWatchForwardToken)
+		}
+
+		// Call the GetLogEvents API to read the log events
+		resp, err := svc.GetLogEvents(params)
+		if err != nil {
+			j.logger.Error(err)
+			// If token error, reset the token and start from the beginning
+			if strings.Contains(err.Error(), "InvalidParameterException") {
+				// reset everything
+				j.cloudWatchForwardToken = ""
+				logs = make([]string, 0)
+				// overwrite file
+				file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+				if err != nil {
+					return nil, fmt.Errorf("failed to open log file: %s", err.Error())
+				}
+				file.Close()
+				continue
+			} else if err.Error() == "ResourceNotFoundException: The specified log stream does not exist." {
+				return []string{}, nil
+			} else {
+				return nil, err
+			}
+		}
+
+		// Get the log events
+		for _, event := range resp.Events {
+			logs = append(logs, *event.Message)
+		}
+
+		if len(resp.Events) > 0 {
+			j.cloudWatchForwardToken = *resp.NextForwardToken
 		} else {
-			return nil, err
+			break
 		}
 	}
-
-	// Print the log events
-	logs := make([]string, len(resp.Events))
-	for i, event := range resp.Events {
-		logs[i] = *event.Message
-	}
-
 	return logs, nil
 }
 

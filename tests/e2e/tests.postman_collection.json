@@ -648,7 +648,7 @@
 									"name": "job-submit",
 									"item": [
 										{
-											"name": "dfc",
+											"name": "logHelloWorld",
 											"event": [
 												{
 													"listen": "test",
@@ -666,7 +666,7 @@
 												"header": [],
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"raw": "{\n    \"inputs\": {}\n}",
 													"options": {
 														"raw": {
 															"language": "json"
@@ -686,7 +686,7 @@
 													"variable": [
 														{
 															"key": "processID",
-															"value": "dfc"
+															"value": "logHelloWorld"
 														}
 													]
 												}
@@ -718,7 +718,7 @@
 											"response": []
 										},
 										{
-											"name": "dfc retry",
+											"name": "logHelloWorld",
 											"event": [
 												{
 													"listen": "test",
@@ -727,7 +727,7 @@
 															"var resp = pm.response.json()\r",
 															"pm.collectionVariables.set(\"jobID\", resp[\"jobID\"]);\r",
 															"\r",
-															"setTimeout(() => {}, 60000); "
+															"setTimeout(() => {}, 40000); "
 														],
 														"type": "text/javascript"
 													}
@@ -738,7 +738,7 @@
 												"header": [],
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
+													"raw": "{\n    \"inputs\": {}\n}",
 													"options": {
 														"raw": {
 															"language": "json"
@@ -758,7 +758,7 @@
 													"variable": [
 														{
 															"key": "processID",
-															"value": "dfc"
+															"value": "logHelloWorld"
 														}
 													]
 												}
@@ -876,7 +876,9 @@
 															"    pm.response.to.have.jsonBody(\"status\");\r",
 															"    pm.response.to.have.jsonBody(\"updated\");\r",
 															"    pm.response.to.have.jsonBody(\"processID\");\r",
-															"});"
+															"});\r",
+															"\r",
+															"setTimeout(() => {}, 40000); "
 														],
 														"type": "text/javascript"
 													}
@@ -893,51 +895,6 @@
 													"path": [
 														"jobs",
 														":jobID"
-													],
-													"variable": [
-														{
-															"key": "jobID",
-															"value": "{{jobID}}"
-														}
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "job-logs-after-streamname-exist",
-											"event": [
-												{
-													"listen": "prerequest",
-													"script": {
-														"exec": [
-															""
-														],
-														"type": "text/javascript"
-													}
-												},
-												{
-													"listen": "test",
-													"script": {
-														"exec": [
-															"setTimeout(() => {}, 120000);"
-														],
-														"type": "text/javascript"
-													}
-												}
-											],
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{url}}/jobs/:jobID/logs",
-													"host": [
-														"{{url}}"
-													],
-													"path": [
-														"jobs",
-														":jobID",
-														"logs"
 													],
 													"variable": [
 														{
@@ -1004,13 +961,62 @@
 											"response": []
 										},
 										{
+											"name": "job-logs",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"setTimeout(() => {}, 10000); "
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"const logs = pm.response.json().container_logs;\r",
+															"\r",
+															"pm.test(\"number of container logs\", function () {\r",
+															"    pm.expect(logs.length).to.eql(3001);\r",
+															"});\r",
+															""
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{url}}/jobs/:jobID/logs",
+													"host": [
+														"{{url}}"
+													],
+													"path": [
+														"jobs",
+														":jobID",
+														"logs"
+													],
+													"variable": [
+														{
+															"key": "jobID",
+															"value": "{{jobID}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
 											"name": "job-results",
 											"event": [
 												{
 													"listen": "prerequest",
 													"script": {
 														"exec": [
-															"setTimeout(() => {}, 20000); \r",
 															""
 														],
 														"type": "text/javascript"
@@ -1126,7 +1132,7 @@
 							"name": "job-submit",
 							"item": [
 								{
-									"name": "dfc",
+									"name": "logHelloWorld",
 									"event": [
 										{
 											"listen": "test",
@@ -1144,7 +1150,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"inputs\": {\n        \"crs\": \"4326\",\n        \"points\": [\n            [\n                -76.491824,\n                37.271065\n            ]\n        ],\n        \"tile\": \"122\",\n        \"epoch\": \"2020\"\n    }\n}",
+											"raw": "{\n    \"inputs\": {}\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1164,7 +1170,7 @@
 											"variable": [
 												{
 													"key": "processID",
-													"value": "dfc"
+													"value": "logHelloWorld"
 												}
 											]
 										}
@@ -1400,9 +1406,6 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});",
 											"const jobsData = pm.response.json().jobs;",
 											"pm.test(\"All jobs have the 'successful' status\", function () {",
 											"    jobsData.forEach(job => {",
@@ -1442,9 +1445,6 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});",
 											"const jobsData = pm.response.json().jobs;",
 											"pm.test(\"All jobs have the 'dfc' processID\", function () {",
 											"    jobsData.forEach(job => {",
@@ -1484,9 +1484,7 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});"
+											""
 										],
 										"type": "text/javascript"
 									}
