@@ -240,7 +240,7 @@ func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error)
 	var result JobLogs
 	result.JobID = jid
 	result.ProcessID = pid
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	keys := []struct {
 		key    string
@@ -295,7 +295,7 @@ func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error)
 // Upload log files from local disk to storage service
 func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	keys := []string{
 		"container",
@@ -318,7 +318,7 @@ func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 }
 
 func DeleteLocalLogs(svc *s3.S3, jid, pid string) {
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	// List of log types
 	keys := []string{

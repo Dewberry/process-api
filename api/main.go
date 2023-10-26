@@ -3,6 +3,7 @@ package main
 import (
 	_ "app/docs"
 	"app/handlers"
+	"fmt"
 
 	"context"
 	"flag"
@@ -15,31 +16,77 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
+	"github.com/natefinch/lumberjack"
+	log "github.com/sirupsen/logrus"
 
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 var (
+	envFP      string
 	pluginsDir string
 	dbPath     string
 	port       string
-	envFP      string
+	logLevel   string
+	logFile    string
 )
 
 func init() {
-
-	flag.StringVar(&pluginsDir, "d", "plugins", "specify the relative path of the processes dir")
-	flag.StringVar(&port, "p", "5050", "specify the port to run the api on")
-	flag.StringVar(&envFP, "e", "/.env", "specify the path of the dot env file to load")
-	flag.StringVar(&dbPath, "db", "/.data/db.sqlite", "specify the path of the sqlite database")
-
+	// The order of precedence as Flag > Environment variable > Default value
+	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
 	flag.Parse()
 
-	err := godotenv.Load(envFP)
-	if err != nil {
-		log.Warnf("no .env file is being used: %s", err.Error())
+	if envFP != "" {
+		err := godotenv.Load(envFP)
+		if err != nil {
+			log.Fatalf("could not read environment file: %s", err.Error())
+		}
 	}
+
+	flag.StringVar(&pluginsDir, "d", getDefault("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
+	flag.StringVar(&port, "p", getDefault("API_PORT", "5050"), "specify the port to run the api on")
+	flag.StringVar(&dbPath, "db", getDefault("DB_PATH", "/.data/db.sqlite"), "specify the path of the sqlite database")
+	flag.StringVar(&logLevel, "ll", getDefault("LOG_LEVEL", "Info"), "specify the logging level")
+	flag.StringVar(&logFile, "lf", getDefault("LOG_FILE", "/.data/logs/api.log"), "specify the log file")
+
+	flag.Parse()
+}
+
+// Checks if there's an environment variable for this configuration,
+// if yes, return the env value, if not, return the default value.
+func getDefault(envVar string, defaultValue string) string {
+	if value, exists := os.LookupEnv(envVar); exists {
+		return value
+	}
+	return defaultValue
+}
+
+// Init logrus logging, returning, lvl and rotating log writer
+// that can be used for middleware logging
+func initLogger() (log.Level, *lumberjack.Logger) {
+
+	// Set up lumberjack as a logger
+	logWriter := &lumberjack.Logger{
+		Filename: logFile, // File output location
+		MaxSize:  10,      // Maximum file size before rotation (in megabytes)
+		MaxAge:   60,      // Maximum number of days to retain old log files
+		Compress: true,    // Whether to compress the rotated files
+	}
+
+	log.SetOutput(logWriter)
+	lvl, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", logLevel)
+		lvl = log.InfoLevel
+	}
+	log.SetLevel(lvl)
+	// Set formatter to JSON
+	log.SetFormatter(&log.JSONFormatter{})
+
+	// Enable logging the calling method
+	log.SetReportCaller(true)
+
+	return lvl, logWriter
 }
 
 // @title Process-API Server
@@ -59,6 +106,8 @@ func init() {
 // @externalDocs.description   Schemas
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
+	_, logWriter := initLogger()
+	fmt.Println("Logging to", logFile)
 
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
@@ -78,14 +127,12 @@ func main() {
 	e.HidePort = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Output: e.Logger.Output(),
+		Output: logWriter,
 	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
 	}))
-	e.Logger.SetLevel(log.DEBUG)
-	log.SetLevel(log.DEBUG)
 	e.Renderer = &rh.T
 
 	// Server
@@ -116,10 +163,10 @@ func main() {
 
 	// Start server
 	go func() {
-		e.Logger.Info("server starting on port: ", port)
+		log.Info("server starting on port: ", port)
 		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
 			log.Error("server error : ", err.Error())
-			e.Logger.Fatal("shutting down the server")
+			log.Fatal("shutting down the server")
 		}
 	}()
 
@@ -128,13 +175,13 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	<-quit
-	e.Logger.Info("gracefully shutting down the server")
+	log.Info("gracefully shutting down the server")
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		if err := e.Shutdown(ctx); err != nil {
-			e.Logger.Error(err)
+			log.Error(err)
 		}
 	}()
 
@@ -143,20 +190,20 @@ func main() {
 
 	// Kill any running docker containers (clean up resources)
 	rh.ActiveJobs.KillAll()
-	e.Logger.Info("kill command sent to all active jobs")
+	log.Info("kill command sent to all active jobs")
 
 	// sleep so that Close() routines spawned by KillAll() can finish writing logs, and updating statuses
 	// aws batch jobs close() methods take minimum of 5 seconds
 	time.Sleep(5 * time.Second)
 
 	if err := rh.DB.Handle.Close(); err != nil {
-		e.Logger.Error(err)
+		log.Error(err)
 	} else {
-		e.Logger.Info("closed connection to database")
+		log.Info("closed connection to database")
 	}
 
 	time.Sleep(4 * time.Second)
 
-	e.Logger.Info("server gracefully shutdown")
+	log.Info("server gracefully shutdown")
 
 }

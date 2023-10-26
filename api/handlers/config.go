@@ -99,9 +99,9 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	config.StorageSvc = stSvc
 
 	// Create local logs directory if not exist
-	localLogsDir, exist := os.LookupEnv("LOCAL_LOGS_DIR")
+	localLogsDir, exist := os.LookupEnv("TMP_JOB_LOGS_DIR")
 	if !exist {
-		log.Fatal("env variable LOCAL_LOGS_DIR not set")
+		log.Fatal("env variable TMP_JOB_LOGS_DIR not set")
 	}
 	err = os.MkdirAll(localLogsDir, 0755)
 	if err != nil {

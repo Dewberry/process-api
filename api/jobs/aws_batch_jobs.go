@@ -97,7 +97,7 @@ func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 		return
 	}
 
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_APPEND|os.O_WRONLY, 0666)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		return
 	}
@@ -182,7 +182,7 @@ func (j *AWSBatchJob) Equals(job Job) bool {
 
 func (j *AWSBatchJob) initLogger() error {
 	// Create a place holder file for container logs
-	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -191,7 +191,7 @@ func (j *AWSBatchJob) initLogger() error {
 	// Create logger for server logs
 	j.logger = logrus.New()
 
-	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -339,7 +339,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 				j.cloudWatchForwardToken = ""
 				logs = make([]string, 0)
 				// overwrite file
-				file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+				file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 				if err != nil {
 					return nil, fmt.Errorf("failed to open log file: %s", err.Error())
 				}

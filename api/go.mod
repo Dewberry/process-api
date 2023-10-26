@@ -16,6 +16,11 @@ require (
 )
 
 require (
+	github.com/natefinch/lumberjack v2.0.0+incompatible
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+)
+
+require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect

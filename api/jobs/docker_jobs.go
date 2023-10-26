@@ -86,7 +86,7 @@ func (j *DockerJob) UpdateContainerLogs() (err error) {
 	}
 
 	// Create a new file or overwrite if it exists
-	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return
 	}
@@ -168,7 +168,7 @@ func (j *DockerJob) Equals(job Job) bool {
 
 func (j *DockerJob) initLogger() error {
 	// Create a place holder file for container logs
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -177,7 +177,7 @@ func (j *DockerJob) initLogger() error {
 	// Create logger for server logs
 	j.logger = logrus.New()
 
-	file, err = os.OpenFile(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err = os.OpenFile(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
@@ -414,7 +414,7 @@ func (j *DockerJob) Close() {
 				j.logger.Errorf("Could not fetch container logs. Error: %s", err.Error())
 			}
 
-			file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+			file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 			if err != nil {
 				j.logger.Errorf("Could not create container logs file. Error: %s", err.Error())
 				return
