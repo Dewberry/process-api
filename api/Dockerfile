@@ -21,12 +21,12 @@ FROM debian:12.1-slim as prod
 # Copy the CA certificates from the dev stage
 COPY --from=dev /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-COPY --from=dev /app/main /usr/local/bin/main
+WORKDIR /app
 
-COPY --from=dev /app/plugins /plugins
-COPY --from=dev /app/public /public
-COPY --from=dev /app/views /views
-COPY --from=dev /app/docs /docs
+COPY --from=dev /app/main /app/main
+COPY --from=dev /app/public /app/public
+COPY --from=dev /app/views /app/views
+COPY --from=dev /app/docs /app/docs
 
-ENTRYPOINT ["main"]
+ENTRYPOINT ["/app/main", "-d", "plugins"]
 # -------------------------------

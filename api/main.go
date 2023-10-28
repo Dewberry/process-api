@@ -1,9 +1,9 @@
 package main
 
 import (
-	"app/auth"
 	_ "app/docs"
 	"app/handlers"
+	"app/auth"
 
 	"context"
 	"flag"
@@ -61,9 +61,9 @@ func init() {
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
-	// admin := []string{"admin"}
-	allUsers := []string{"admin", "reader", "writer"}
-	writer := []string{"admin", "writer"}
+		// admin := []string{"admin"}
+		// allUsers := []string{"admin", "reader", "writer"}
+		writer := []string{"admin", "writer"}
 
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
@@ -89,35 +89,34 @@ func main() {
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
 	}))
-	e.Logger.SetLevel(log.DEBUG)
-	log.SetLevel(log.DEBUG)
+	e.Logger.SetLevel(log.INFO)
+	log.SetLevel(log.INFO)
 	e.Renderer = &rh.T
 
 	// Server
-	e.GET("/ping", auth.Authorize(rh.Ping, allUsers...))
-	e.GET("/", auth.Authorize(rh.LandingPage, allUsers...))
-	e.GET("/swagger/*", auth.Authorize(echoSwagger.WrapHandler, allUsers...))
-	e.GET("/conformance", auth.Authorize(rh.Conformance, allUsers...))
+	e.GET("/", rh.LandingPage)
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+	e.GET("/conformance", rh.Conformance)
 
 	// Processes
-	e.GET("/processes", auth.Authorize(rh.ProcessListHandler, allUsers...))
-	e.GET("/processes/:processID", auth.Authorize(rh.ProcessDescribeHandler, allUsers...))
+	e.GET("/processes", rh.ProcessListHandler)
+	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
 	e.POST("/processes/:processID/execution", auth.Authorize(rh.Execution, writer...))
 
 	// TODO
-	// e.Post("processes/:processID/new, rh.RegisterNewProcess, admin...))
-	// e.Delete("processes/:processID", rh.RegisterNewProcess, admin...))
+	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
+	// e.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", auth.Authorize(rh.ListJobsHandler, allUsers...))
-	e.GET("/jobs/:jobID", auth.Authorize(rh.JobStatusHandler, allUsers...))
-	e.GET("/jobs/:jobID/results", auth.Authorize(rh.JobResultsHandler, allUsers...))
-	e.GET("/jobs/:jobID/logs", auth.Authorize(rh.JobLogsHandler, allUsers...))
-	e.GET("/jobs/:jobID/metadata", auth.Authorize(rh.JobMetaDataHandler, allUsers...))
+	e.GET("/jobs", rh.ListJobsHandler)
+	e.GET("/jobs/:jobID", rh.JobStatusHandler)
+	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
+	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
+	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
 	e.DELETE("/jobs/:jobID", auth.Authorize(rh.JobDismissHandler, writer...))
 
 	// Callbacks
-	e.PUT("/jobs/:jobID/status", auth.Authorize(rh.JobStatusUpdateHandler, allUsers...))
+	e.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
 	// e.POST("/jobs/:jobID/results", rh.JobResultsUpdateHandler)
 
 	// Start server
