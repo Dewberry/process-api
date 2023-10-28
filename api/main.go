@@ -3,6 +3,7 @@ package main
 import (
 	_ "app/docs"
 	"app/handlers"
+	"app/auth"
 
 	"context"
 	"flag"
@@ -60,6 +61,10 @@ func init() {
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
 
+		// admin := []string{"admin"}
+		// allUsers := []string{"admin", "reader", "writer"}
+		writer := []string{"admin", "writer"}
+
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
@@ -84,8 +89,8 @@ func main() {
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
 	}))
-	e.Logger.SetLevel(log.DEBUG)
-	log.SetLevel(log.DEBUG)
+	e.Logger.SetLevel(log.INFO)
+	log.SetLevel(log.INFO)
 	e.Renderer = &rh.T
 
 	// Server
@@ -96,7 +101,7 @@ func main() {
 	// Processes
 	e.GET("/processes", rh.ProcessListHandler)
 	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
-	e.POST("/processes/:processID/execution", rh.Execution)
+	e.POST("/processes/:processID/execution", auth.Authorize(rh.Execution, writer...))
 
 	// TODO
 	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
@@ -108,7 +113,7 @@ func main() {
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
 	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
-	e.DELETE("/jobs/:jobID", rh.JobDismissHandler)
+	e.DELETE("/jobs/:jobID", auth.Authorize(rh.JobDismissHandler, writer...))
 
 	// Callbacks
 	e.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
