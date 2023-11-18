@@ -591,6 +591,10 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	processIDs := c.QueryParam("processID") // assuming comma-separated list: "process1,process2"
 	statuses := c.QueryParam("status")
 
+	// // to do: list jobs for that user only if not admin
+	// fmt.Println(c.Request().Header.Get("X-ProcessAPI-User-Email"))
+	// fmt.Println(c.Request().Header.Get("X-ProcessAPI-User-Roles"))
+
 	var processIDList []string
 	if processIDs != "" {
 		processIDList = strings.Split(processIDs, ",")

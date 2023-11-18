@@ -318,7 +318,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 
 	logs := make([]string, 0)
 	for {
-		// Define the parameters for the log stream you want to read
+		// Define the parameters for the log stream
 		params := &cloudwatchlogs.GetLogEventsInput{
 			LogGroupName:  aws.String(os.Getenv("BATCH_LOG_STREAM_GROUP")),
 			LogStreamName: aws.String(j.logStreamName),

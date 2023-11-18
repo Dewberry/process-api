@@ -5,6 +5,7 @@ import (
 	_ "app/docs"
 	"app/handlers"
 	"fmt"
+	"strconv"
 
 	"context"
 	"flag"
@@ -30,6 +31,8 @@ var (
 	port       string
 	logLevel   string
 	logFile    string
+	authSvc    string
+	authLvl    string
 )
 
 func init() {
@@ -44,18 +47,20 @@ func init() {
 		}
 	}
 
-	flag.StringVar(&pluginsDir, "d", getDefault("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
-	flag.StringVar(&port, "p", getDefault("API_PORT", "5050"), "specify the port to run the api on")
-	flag.StringVar(&dbPath, "db", getDefault("DB_PATH", "/.data/db.sqlite"), "specify the path of the sqlite database")
-	flag.StringVar(&logLevel, "ll", getDefault("LOG_LEVEL", "Info"), "specify the logging level")
-	flag.StringVar(&logFile, "lf", getDefault("LOG_FILE", "/.data/logs/api.log"), "specify the log file")
+	flag.StringVar(&pluginsDir, "d", resolveValue("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
+	flag.StringVar(&port, "p", resolveValue("API_PORT", "5050"), "specify the port to run the api on")
+	flag.StringVar(&dbPath, "db", resolveValue("DB_PATH", "/.data/db.sqlite"), "specify the path of the sqlite database")
+	flag.StringVar(&logLevel, "ll", resolveValue("LOG_LEVEL", "Info"), "specify the logging level")
+	flag.StringVar(&logFile, "lf", resolveValue("LOG_FILE", "/.data/logs/api.log"), "specify the log file")
+	flag.StringVar(&authSvc, "au", resolveValue("AUTH_SERVICE", ""), "specify the auth service")
+	flag.StringVar(&authLvl, "al", resolveValue("AUTH_LEVEL", "0"), "specify the authorization striction level")
 
 	flag.Parse()
 }
 
 // Checks if there's an environment variable for this configuration,
 // if yes, return the env value, if not, return the default value.
-func getDefault(envVar string, defaultValue string) string {
+func resolveValue(envVar string, defaultValue string) string {
 	if value, exists := os.LookupEnv(envVar); exists {
 		return value
 	}
@@ -90,6 +95,30 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 	return lvl, logWriter
 }
 
+func initAuth(e *echo.Echo, protected *echo.Group) {
+	var as auth.AuthStrategy
+	var err error
+
+	switch authSvc {
+	case "":
+		log.Warn("No authentication set up.")
+		return
+	case "keycloak":
+		as, err = auth.NewKeycloakAuthStrategy()
+		if err != nil {
+			log.Fatalf("Error creating KeyCloak auth service: %s", err.Error())
+		}
+	default:
+		log.Fatal("unsupported auth service provider type")
+	}
+
+	authLvlInt, err := strconv.Atoi(authLvl)
+	if err != nil {
+		log.Fatalf("error converting AUTH_LEVEL to number: %s", err.Error())
+	}
+	auth.ApplyAuthMiddleware(e, protected, as, authLvlInt)
+}
+
 // @title Process-API Server
 // @version dev-8.16.23
 // @description An OGC compliant process server.
@@ -109,10 +138,6 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 func main() {
 	_, logWriter := initLogger()
 	fmt.Println("Logging to", logFile)
-
-	// admin := []string{"admin"}
-	// allUsers := []string{"admin", "reader", "writer"}
-	writer := []string{"admin", "writer"}
 
 	// Initialize resources
 	rh := handlers.NewRESTHander(pluginsDir, dbPath)
@@ -140,6 +165,10 @@ func main() {
 	}))
 	e.Renderer = &rh.T
 
+	// Create a group for all routes that need to be protected when AUTH_LEVEL = protected
+	pg := e.Group("")
+	initAuth(e, pg)
+
 	// Server
 	e.GET("/", rh.LandingPage)
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
@@ -148,22 +177,22 @@ func main() {
 	// Processes
 	e.GET("/processes", rh.ProcessListHandler)
 	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
-	e.POST("/processes/:processID/execution", auth.Authorize(rh.Execution, writer...))
+	pg.POST("/processes/:processID/execution", rh.Execution)
 
 	// TODO
-	// e.Post("processes/:processID/new, rh.RegisterNewProcess)
-	// e.Delete("processes/:processID", rh.RegisterNewProcess)
+	// pg.Post("processes/:processID/new, rh.RegisterNewProcess)
+	// pg.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	e.GET("/jobs", rh.ListJobsHandler)
+	pg.GET("/jobs", rh.ListJobsHandler)
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
 	e.GET("/jobs/:jobID/metadata", rh.JobMetaDataHandler)
-	e.DELETE("/jobs/:jobID", auth.Authorize(rh.JobDismissHandler, writer...))
+	pg.DELETE("/jobs/:jobID", rh.JobDismissHandler)
 
 	// Callbacks
-	e.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
+	pg.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
 	// e.POST("/jobs/:jobID/results", rh.JobResultsUpdateHandler)
 
 	// Start server
