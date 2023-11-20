@@ -28,6 +28,7 @@ type DockerJob struct {
 	Image          string `json:"image"`
 	ProcessName    string `json:"processID"`
 	ProcessVersion string `json:"processVersion"`
+	Submitter      string
 	EnvVars        []string
 	Cmd            []string `json:"commandOverride"`
 	UpdateTime     time.Time
@@ -207,7 +208,7 @@ func (j *DockerJob) Create() error {
 	j.ctxCancel = cancelFunc
 
 	// At this point job is ready to be added to database
-	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName)
+	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "local", j.ProcessName, j.Submitter)
 	if err != nil {
 		j.ctxCancel()
 		return err

@@ -33,6 +33,7 @@ type AWSBatchJob struct {
 	Image          string `json:"image"`
 	ProcessName    string `json:"processID"`
 	ProcessVersion string
+	Submitter      string
 	Cmd            []string `json:"commandOverride"`
 	UpdateTime     time.Time
 	Status         string `json:"status"`
@@ -238,7 +239,7 @@ func (j *AWSBatchJob) Create() error {
 	j.batchContext = batchContext
 
 	// At this point job is ready to be added to database
-	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName)
+	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName, j.Submitter)
 	if err != nil {
 		j.ctxCancel()
 		return err
