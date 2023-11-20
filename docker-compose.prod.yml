@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./api/plugins:/plugins
+      - ./api/plugins:/app/plugins
       - ./.data/api:/.data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
