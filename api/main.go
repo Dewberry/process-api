@@ -53,6 +53,7 @@ func init() {
 		}
 	}
 
+	// Only variables that are needed at startup and will not be used after startup are available as CLI flags
 	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
 	flag.StringVar(&pluginsDir, "d", resolveValue("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", resolveValue("API_PORT", "5050"), "specify the port to run the api on")
@@ -153,7 +154,7 @@ func initAuth(e *echo.Echo, protected *echo.Group) {
 
 	authLvlInt, err := strconv.Atoi(authLvl)
 	if err != nil {
-		log.Fatalf("error converting AUTH_LEVEL to number: %s", err.Error())
+		log.Fatalf("Error converting AUTH_LEVEL to number: %s", err.Error())
 	}
 	applyAuthMiddleware(e, protected, as, authLvlInt)
 }
