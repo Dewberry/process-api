@@ -113,6 +113,27 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 	return lvl, logWriter
 }
 
+const (
+	authLevelNone      = 0
+	authLevelProtected = 1
+	authLevelAll       = 2
+)
+
+var (
+	writers = []string{"writer", "admin"}
+)
+
+func applyAuthMiddleware(e *echo.Echo, protected *echo.Group, as auth.AuthStrategy, authLevel int) {
+	switch authLevel {
+	case authLevelProtected:
+		// Apply the Authorize middleware only to protected group
+		protected.Use(auth.Authorize(as, writers...))
+	case authLevelAll:
+		// Apply the Authorize middleware to all routes
+		e.Use(auth.Authorize(as, writers...))
+	}
+}
+
 func initAuth(e *echo.Echo, protected *echo.Group) {
 	var as auth.AuthStrategy
 	var err error
@@ -134,7 +155,7 @@ func initAuth(e *echo.Echo, protected *echo.Group) {
 	if err != nil {
 		log.Fatalf("error converting AUTH_LEVEL to number: %s", err.Error())
 	}
-	auth.ApplyAuthMiddleware(e, protected, as, authLvlInt)
+	applyAuthMiddleware(e, protected, as, authLvlInt)
 }
 
 // @title Process-API Server

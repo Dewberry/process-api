@@ -64,24 +64,3 @@ func Authorize(strategy AuthStrategy, allowedRoles ...string) echo.MiddlewareFun
 		}
 	}
 }
-
-const (
-	AuthLevelNone      = 0
-	AuthLevelProtected = 1
-	AuthLevelAll       = 2
-)
-
-var (
-	writers = []string{"writer", "admin"}
-)
-
-func ApplyAuthMiddleware(e *echo.Echo, protected *echo.Group, as AuthStrategy, authLevel int) {
-	switch authLevel {
-	case AuthLevelProtected:
-		// Apply the Authorize middleware only to protected group
-		protected.Use(Authorize(as, writers...))
-	case AuthLevelAll:
-		// Apply the Authorize middleware to all routes
-		e.Use(Authorize(as, writers...))
-	}
-}
