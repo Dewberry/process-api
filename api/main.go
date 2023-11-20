@@ -5,6 +5,7 @@ import (
 	_ "app/docs"
 	"app/handlers"
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	"context"
@@ -29,7 +30,6 @@ var (
 	pluginsDir string
 	dbPath     string
 	port       string
-	logLevel   string
 	logFile    string
 	authSvc    string
 	authLvl    string
@@ -37,8 +37,14 @@ var (
 
 func init() {
 	// The order of precedence as Flag > Environment variable > Default value
-	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
-	flag.Parse()
+
+	// Manually parse command line arguments to find the -e value since flag.Parse() can't be used
+	for i, arg := range os.Args {
+		if arg == "-e" && i+1 < len(os.Args) {
+			envFP = os.Args[i+1]
+			break
+		}
+	}
 
 	if envFP != "" {
 		err := godotenv.Load(envFP)
@@ -47,11 +53,11 @@ func init() {
 		}
 	}
 
+	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
 	flag.StringVar(&pluginsDir, "d", resolveValue("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", resolveValue("API_PORT", "5050"), "specify the port to run the api on")
 	flag.StringVar(&dbPath, "db", resolveValue("DB_PATH", "/.data/db.sqlite"), "specify the path of the sqlite database")
-	flag.StringVar(&logLevel, "ll", resolveValue("LOG_LEVEL", "Info"), "specify the logging level")
-	flag.StringVar(&logFile, "lf", resolveValue("LOG_FILE", "/.data/logs/api.log"), "specify the log file")
+	flag.StringVar(&logFile, "lf", resolveValue("LOG_FILE", "/.data/logs/api.jsonl"), "specify the log file")
 	flag.StringVar(&authSvc, "au", resolveValue("AUTH_SERVICE", ""), "specify the auth service")
 	flag.StringVar(&authLvl, "al", resolveValue("AUTH_LEVEL", "0"), "specify the authorization striction level")
 
@@ -71,6 +77,20 @@ func resolveValue(envVar string, defaultValue string) string {
 // that can be used for middleware logging
 func initLogger() (log.Level, *lumberjack.Logger) {
 
+	dir := filepath.Dir(logFile)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Println("Could not access log file, Error:", err.Error())
+		os.Exit(1)
+	}
+	file.Close()
+
 	// Set up lumberjack as a logger
 	logWriter := &lumberjack.Logger{
 		Filename: logFile, // File output location
@@ -80,17 +100,15 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 	}
 
 	log.SetOutput(logWriter)
-	lvl, err := log.ParseLevel(logLevel)
+	log.SetFormatter(&log.JSONFormatter{}) // Set formatter to JSON
+	log.SetReportCaller(true)              // Enable logging the calling method
+
+	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
-		log.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", logLevel)
+		log.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
 		lvl = log.InfoLevel
 	}
 	log.SetLevel(lvl)
-	// Set formatter to JSON
-	log.SetFormatter(&log.JSONFormatter{})
-
-	// Enable logging the calling method
-	log.SetReportCaller(true)
 
 	return lvl, logWriter
 }
@@ -136,7 +154,7 @@ func initAuth(e *echo.Echo, protected *echo.Group) {
 // @externalDocs.description   Schemas
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
-	_, logWriter := initLogger()
+	_, lw := initLogger()
 	fmt.Println("Logging to", logFile)
 
 	// Initialize resources
@@ -157,7 +175,7 @@ func main() {
 	e.HidePort = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Output: logWriter,
+		Output: lw,
 	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowCredentials: true,
