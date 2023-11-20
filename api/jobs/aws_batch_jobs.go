@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // Fields are exported so that gob can access it
@@ -38,7 +38,7 @@ type AWSBatchJob struct {
 	Status         string `json:"status"`
 	// results       interface{}
 
-	logger  *logrus.Logger
+	logger  *log.Logger
 	logFile *os.File
 
 	JobDef   string `json:"jobDefinition"`
@@ -120,7 +120,7 @@ func (j *AWSBatchJob) ClearOutputs() {
 	// method not invoked for aysnc jobs
 }
 
-func (j *AWSBatchJob) LogMessage(m string, level logrus.Level) {
+func (j *AWSBatchJob) LogMessage(m string, level log.Level) {
 	switch level {
 	// case 0:
 	// 	j.logger.Panic(m)
@@ -189,7 +189,7 @@ func (j *AWSBatchJob) initLogger() error {
 	file.Close()
 
 	// Create logger for server logs
-	j.logger = logrus.New()
+	j.logger = log.New()
 
 	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
@@ -197,8 +197,14 @@ func (j *AWSBatchJob) initLogger() error {
 	}
 
 	j.logger.SetOutput(file)
-	j.logger.SetFormatter(&logrus.JSONFormatter{})
-	j.logger.SetLevel(logrus.DebugLevel)
+	j.logger.SetFormatter(&log.JSONFormatter{})
+
+	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		j.logger.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
+		lvl = log.InfoLevel
+	}
+	j.logger.SetLevel(lvl)
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type DockerJob struct {
@@ -33,7 +33,7 @@ type DockerJob struct {
 	UpdateTime     time.Time
 	Status         string `json:"status"`
 
-	logger  *logrus.Logger
+	logger  *log.Logger
 	logFile *os.File
 
 	Resources
@@ -106,7 +106,7 @@ func (j *DockerJob) UpdateContainerLogs() (err error) {
 	return
 }
 
-func (j *DockerJob) LogMessage(m string, level logrus.Level) {
+func (j *DockerJob) LogMessage(m string, level log.Level) {
 	switch level {
 	// case 0:
 	// 	j.logger.Panic(m)
@@ -168,23 +168,29 @@ func (j *DockerJob) Equals(job Job) bool {
 
 func (j *DockerJob) initLogger() error {
 	// Create a place holder file for container logs
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
 	file.Close()
 
 	// Create logger for server logs
-	j.logger = logrus.New()
+	j.logger = log.New()
 
-	file, err = os.OpenFile(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
 
 	j.logger.SetOutput(file)
-	j.logger.SetFormatter(&logrus.JSONFormatter{})
-	j.logger.SetLevel(logrus.DebugLevel)
+	j.logger.SetFormatter(&log.JSONFormatter{})
+
+	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		j.logger.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
+		lvl = log.InfoLevel
+	}
+	j.logger.SetLevel(lvl)
 	return nil
 }
 
