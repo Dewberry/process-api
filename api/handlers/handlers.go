@@ -627,7 +627,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	if c.Request().Header.Get("X-ProcessAPI-User-Roles") != "" {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
-		if !utils.StringInSlice("admin", roles) {
+		if !utils.StringInSlice("admin", roles) { // to do: do not hardcode this
 			submitters = c.Request().Header.Get("X-ProcessAPI-User-Email")
 		}
 	}

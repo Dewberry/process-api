@@ -11,6 +11,6 @@
 
 
 ## Auth
-- The middleware validate and parse JWT to inject `X-ProcessAPI-User-Email` and `X-ProcessAPI-User-Roles` headers. This is the sole role of auth and middleware.
-- A user can use tools like Postman to set these headers themselves, but if auth is enabled, they will be overwritten. This setup allow adding submitter info to the database when auth is not enabled.
+- The middleware validate and parse JWT to inject `X-ProcessAPI-User-Email` and `X-ProcessAPI-User-Roles` headers.
+- A user can use tools like Postman to set these headers themselves, but if auth is enabled, they will be overwritten. This setup allows adding submitter info to the database when auth is not enabled.
 - API assumes if auth is enabled, every user at least has one role.
