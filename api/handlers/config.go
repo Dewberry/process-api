@@ -17,7 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // Store for templates and a receiver function to render them
@@ -30,7 +30,7 @@ func (t Template) Render(w io.Writer, name string, data interface{}, c echo.Cont
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-// Store configuration for the handler
+// Store configuration that need to be passed around to handler funcs.
 type RESTHandler struct {
 	Name         string
 	Title        string
@@ -100,9 +100,9 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	config.StorageSvc = stSvc
 
 	// Create local logs directory if not exist
-	localLogsDir, exist := os.LookupEnv("LOCAL_LOGS_DIR")
+	localLogsDir, exist := os.LookupEnv("TMP_JOB_LOGS_DIR")
 	if !exist {
-		log.Fatal("env variable LOCAL_LOGS_DIR not set")
+		log.Fatal("env variable TMP_JOB_LOGS_DIR not set")
 	}
 	err = os.MkdirAll(localLogsDir, 0755)
 	if err != nil {
@@ -152,9 +152,9 @@ func (rh *RESTHandler) JobCompletionRoutine() {
 }
 
 // Constructor to create storage service based on the type provided
-func NewStorageService(provideType string) (*s3.S3, error) {
+func NewStorageService(providerType string) (*s3.S3, error) {
 
-	switch provideType {
+	switch providerType {
 	case "minio":
 		region := os.Getenv("MINIO_S3_REGION")
 		accessKeyID := os.Getenv("MINIO_ACCESS_KEY_ID")

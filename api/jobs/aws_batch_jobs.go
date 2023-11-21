@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // Fields are exported so that gob can access it
@@ -33,12 +33,13 @@ type AWSBatchJob struct {
 	Image          string `json:"image"`
 	ProcessName    string `json:"processID"`
 	ProcessVersion string
+	Submitter      string
 	Cmd            []string `json:"commandOverride"`
 	UpdateTime     time.Time
 	Status         string `json:"status"`
 	// results       interface{}
 
-	logger  *logrus.Logger
+	logger  *log.Logger
 	logFile *os.File
 
 	JobDef   string `json:"jobDefinition"`
@@ -97,7 +98,7 @@ func (j *AWSBatchJob) UpdateContainerLogs() (err error) {
 		return
 	}
 
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID), os.O_APPEND|os.O_WRONLY, 0666)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID), os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		return
 	}
@@ -120,7 +121,7 @@ func (j *AWSBatchJob) ClearOutputs() {
 	// method not invoked for aysnc jobs
 }
 
-func (j *AWSBatchJob) LogMessage(m string, level logrus.Level) {
+func (j *AWSBatchJob) LogMessage(m string, level log.Level) {
 	switch level {
 	// case 0:
 	// 	j.logger.Panic(m)
@@ -182,23 +183,29 @@ func (j *AWSBatchJob) Equals(job Job) bool {
 
 func (j *AWSBatchJob) initLogger() error {
 	// Create a place holder file for container logs
-	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
 	file.Close()
 
 	// Create logger for server logs
-	j.logger = logrus.New()
+	j.logger = log.New()
 
-	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+	file, err = os.Create(fmt.Sprintf("%s/%s.server.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %s", err.Error())
 	}
 
 	j.logger.SetOutput(file)
-	j.logger.SetFormatter(&logrus.JSONFormatter{})
-	j.logger.SetLevel(logrus.DebugLevel)
+	j.logger.SetFormatter(&log.JSONFormatter{})
+
+	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		j.logger.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
+		lvl = log.InfoLevel
+	}
+	j.logger.SetLevel(lvl)
 	return nil
 }
 
@@ -232,7 +239,7 @@ func (j *AWSBatchJob) Create() error {
 	j.batchContext = batchContext
 
 	// At this point job is ready to be added to database
-	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName)
+	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName, j.Submitter)
 	if err != nil {
 		j.ctxCancel()
 		return err
@@ -318,7 +325,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 
 	logs := make([]string, 0)
 	for {
-		// Define the parameters for the log stream you want to read
+		// Define the parameters for the log stream
 		params := &cloudwatchlogs.GetLogEventsInput{
 			LogGroupName:  aws.String(os.Getenv("BATCH_LOG_STREAM_GROUP")),
 			LogStreamName: aws.String(j.logStreamName),
@@ -339,7 +346,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 				j.cloudWatchForwardToken = ""
 				logs = make([]string, 0)
 				// overwrite file
-				file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("LOCAL_LOGS_DIR"), j.UUID))
+				file, err := os.Create(fmt.Sprintf("%s/%s.container.jsonl", os.Getenv("TMP_JOB_LOGS_DIR"), j.UUID))
 				if err != nil {
 					return nil, fmt.Errorf("failed to open log file: %s", err.Error())
 				}

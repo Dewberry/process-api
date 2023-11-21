@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/gommon/log"
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 type DB struct {
@@ -35,11 +35,13 @@ func (db *DB) createTables() {
 		updated TIMESTAMP NOT NULL,
 		mode TEXT NOT NULL,
 		host TEXT NOT NULL,
-		process_id TEXT NOT NULL
+		process_id TEXT NOT NULL,
+		submitter TEXT NOT NULL DEFAULT ''
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_jobs_updated ON jobs(updated);
 	CREATE INDEX IF NOT EXISTS idx_jobs_process_id ON jobs(process_id);
+	CREATE INDEX IF NOT EXISTS idx_jobs_submitter ON jobs(submitter);
 	`
 
 	_, err := db.Handle.Exec(queryJobs)
@@ -64,7 +66,7 @@ func InitDB(dbPath string) *DB {
 	// also maybe we should make db such that only go can write to it
 
 	if err != nil {
-		log.Fatalf("could not open %s Delete the existing database to start with a new database. Error: %s", dbPath, err.Error())
+		log.Fatalf("Could not open %s Delete the existing database to start with a new database. Error: %s", dbPath, err.Error())
 	}
 
 	if h == nil {
@@ -76,11 +78,11 @@ func InitDB(dbPath string) *DB {
 	return &db
 }
 
-// Add job the database. Will return error if job exist.
-func (db *DB) addJob(jid string, status string, updated time.Time, mode string, host string, process_id string) error {
-	query := `INSERT INTO jobs (id, status, updated, mode, host, process_id) VALUES (?, ?, ?, ?, ?, ?)`
+// Add job to the database. Will return error if job exist.
+func (db *DB) addJob(jid string, status string, updated time.Time, mode string, host string, process_id string, submitter string) error {
+	query := `INSERT INTO jobs (id, status, updated, mode, host, process_id, submitter) VALUES (?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := db.Handle.Exec(query, jid, status, updated, mode, host, process_id)
+	_, err := db.Handle.Exec(query, jid, status, updated, mode, host, process_id, submitter)
 	if err != nil {
 		return err
 	}
@@ -102,10 +104,10 @@ func (db *DB) updateJobRecord(jid string, status string, now time.Time) {
 func (db *DB) GetJob(jid string) (JobRecord, bool) {
 	query := `SELECT * FROM jobs WHERE id = ?`
 
-	js := JobRecord{}
+	jr := JobRecord{}
 
 	row := db.Handle.QueryRow(query, jid)
-	err := row.Scan(&js.JobID, &js.Status, &js.LastUpdate, &js.Mode, &js.Host, &js.ProcessID)
+	err := row.Scan(&jr.JobID, &jr.Status, &jr.LastUpdate, &jr.Mode, &jr.Host, &jr.ProcessID, &jr.Submitter)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return JobRecord{}, false
@@ -114,7 +116,7 @@ func (db *DB) GetJob(jid string) (JobRecord, bool) {
 			return JobRecord{}, false
 		}
 	}
-	return js, true
+	return jr, true
 }
 
 // Check if a job exists in database.
@@ -137,8 +139,8 @@ func (db *DB) CheckJobExist(jid string) bool {
 }
 
 // Assumes query parameters are valid
-func (db *DB) GetJobs(limit, offset int, processIDs, statuses []string) ([]JobRecord, error) {
-	baseQuery := `SELECT id, status, updated, process_id FROM jobs`
+func (db *DB) GetJobs(limit, offset int, processIDs, statuses []string, submitters []string) ([]JobRecord, error) {
+	baseQuery := `SELECT id, status, updated, process_id, submitter FROM jobs`
 	whereClauses := []string{}
 	args := []interface{}{}
 
@@ -155,6 +157,14 @@ func (db *DB) GetJobs(limit, offset int, processIDs, statuses []string) ([]JobRe
 		whereClauses = append(whereClauses, fmt.Sprintf("status IN (%s)", placeholders))
 		for _, st := range statuses {
 			args = append(args, st)
+		}
+	}
+
+	if len(submitters) > 0 {
+		placeholders := strings.Repeat("?,", len(submitters)-1) + "?"
+		whereClauses = append(whereClauses, fmt.Sprintf("submitter IN (%s)", placeholders))
+		for _, sb := range submitters {
+			args = append(args, sb)
 		}
 	}
 
@@ -175,10 +185,7 @@ func (db *DB) GetJobs(limit, offset int, processIDs, statuses []string) ([]JobRe
 
 	for rows.Next() {
 		var r JobRecord
-		if err := rows.Scan(&r.JobID, &r.Status, &r.LastUpdate, &r.ProcessID); err != nil {
-			return nil, err
-		}
-		if err != nil {
+		if err := rows.Scan(&r.JobID, &r.Status, &r.LastUpdate, &r.ProcessID, &r.Submitter); err != nil {
 			return nil, err
 		}
 		res = append(res, r)

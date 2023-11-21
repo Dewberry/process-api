@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -74,6 +73,7 @@ type JobRecord struct {
 	Type       string    `default:"process" json:"type"`
 	Host       string    `json:"host,omitempty"`
 	Mode       string    `json:"mode,omitempty"`
+	Submitter  string    `json:"submitter"`
 }
 
 type LogEntry struct {
@@ -127,34 +127,6 @@ const (
 	FAILED     string = "failed"
 	DISMISSED  string = "dismissed"
 )
-
-// Returns an array of all Job statuses in memory
-// Most recently updated job first
-func (ac *ActiveJobs) ListJobs() []JobRecord {
-	ac.mu.Lock()
-	defer ac.mu.Unlock()
-
-	jobs := make([]JobRecord, len(ac.Jobs))
-
-	var i int
-	for _, j := range ac.Jobs {
-		js := JobRecord{
-			ProcessID:  (*j).ProcessID(),
-			JobID:      (*j).JobID(),
-			LastUpdate: (*j).LastUpdate(),
-			Status:     (*j).CurrentStatus(),
-		}
-		jobs[i] = js
-		i++
-	}
-
-	// sort the jobs in order with most recent time first
-	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].LastUpdate.After(jobs[j].LastUpdate)
-	})
-
-	return jobs
-}
 
 // FetchResults by parsing logs
 // Assumes last log will be results always
@@ -240,7 +212,7 @@ func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error)
 	var result JobLogs
 	result.JobID = jid
 	result.ProcessID = pid
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	keys := []struct {
 		key    string
@@ -295,7 +267,7 @@ func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error)
 // Upload log files from local disk to storage service
 func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	keys := []string{
 		"container",
@@ -318,7 +290,7 @@ func UploadLogsToStorage(svc *s3.S3, jid, pid string) {
 }
 
 func DeleteLocalLogs(svc *s3.S3, jid, pid string) {
-	localDir := os.Getenv("LOCAL_LOGS_DIR") // Local directory where logs are stored
+	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	// List of log types
 	keys := []string{

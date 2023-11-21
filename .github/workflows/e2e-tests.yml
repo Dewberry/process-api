@@ -25,7 +25,7 @@ jobs:
           echo STORAGE_RESULTS_PREFIX='results' >> .env
           echo STORAGE_LOGS_PREFIX='logs' >> .env
 
-          echo LOCAL_LOGS_DIR='/.data/logs' >> .env
+          echo TMP_JOB_LOGS_DIR='/.data/tmp/logs' >> .env
 
           echo MINIO_ACCESS_KEY_ID=user >> .env
           echo MINIO_SECRET_ACCESS_KEY=password >> .env

@@ -301,6 +301,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 	// 	params.Inputs["resultsCallbackUri"] = fmt.Sprintf("%s/jobs/%s/results_update", os.Getenv("API_URL_PUBLIC"), jobID)
 	// }
 
+	submitter := c.Request().Header.Get("X-ProcessAPI-User-Email")
 	var j jobs.Job
 	switch host {
 	case "local":
@@ -309,6 +310,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			ProcessName:    processID,
 			ProcessVersion: p.Info.Version,
 			Image:          p.Container.Image,
+			Submitter:      submitter,
 			EnvVars:        p.Container.EnvVars,
 			Resources:      jobs.Resources(p.Container.Resources),
 			Cmd:            cmd,
@@ -322,6 +324,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 			UUID:           jobID,
 			ProcessName:    processID,
 			Image:          p.Container.Image,
+			Submitter:      submitter,
 			Cmd:            cmd,
 			JobDef:         p.Host.JobDefinition,
 			JobQueue:       p.Host.JobQueue,
@@ -590,13 +593,13 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	offsetStr := c.QueryParam("offset")
 	processIDs := c.QueryParam("processID") // assuming comma-separated list: "process1,process2"
 	statuses := c.QueryParam("status")
+	submitters := c.QueryParam("submitter")
 
 	var processIDList []string
 	if processIDs != "" {
 		processIDList = strings.Split(processIDs, ",")
 	}
 	for _, pid := range processIDList {
-		// to do: revise along with #
 		_, err = rh.ProcessList.Get(pid)
 		if err != nil {
 			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("processID %s incorrect, no such process exist", pid)}
@@ -618,6 +621,22 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		}
 	}
 
+	// If roles are not set in the request (meaning security is disabled)
+	// When auth is enabled it will check for overlap of request roles vs allowed roles,
+	// hence it will have at least one role
+	if c.Request().Header.Get("X-ProcessAPI-User-Roles") != "" {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		if !utils.StringInSlice("admin", roles) { // to do: do not hardcode this
+			submitters = c.Request().Header.Get("X-ProcessAPI-User-Email")
+		}
+	}
+
+	var submittersList []string
+	if submitters != "" {
+		submittersList = strings.Split(submitters, ",")
+	}
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit > 100 || limit < 1 {
 		limit = 20
@@ -628,28 +647,23 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		offset = 0
 	}
 
-	result, err := rh.DB.GetJobs(limit, offset, processIDList, statusList)
+	result, err := rh.DB.GetJobs(limit, offset, processIDList, statusList, submittersList)
 	if err != nil {
 		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
 	}
 
-	// required by /req/job-list/job-list-success
 	links := make([]link, 0)
-
-	// if offset is not 0
 	if offset != 0 {
 		lnk := link{
-			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v", offset-limit, limit, processIDs, statuses),
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v&submitter=%v", offset-limit, limit, processIDs, statuses, submitters),
 			Title: "prev",
 		}
 		links = append(links, lnk)
 	}
-
-	// if limit is not exhausted
 	if limit == len(result) {
 		lnk := link{
-			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v", offset+limit, limit, processIDs, statuses),
+			Href:  fmt.Sprintf("/jobs?offset=%v&limit=%v&processID=%v&status=%v&submitter=%v", offset+limit, limit, processIDs, statuses, submitters),
 			Title: "next",
 		}
 		links = append(links, lnk)

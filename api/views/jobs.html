@@ -18,6 +18,7 @@
                 <th>Logs (JobID)</th>
                 <th>Status</th>
                 <th>ProcessID</th>
+                <th>Submitter</th>
                 <th>Updated</th>
             </tr>
         </thead>
@@ -40,6 +41,7 @@
                     </a>
                 </td>
                 <td><a href="/processes/{{.ProcessID}}" target="_blank">{{.ProcessID}}</a></td>
+                <td>{{.Submitter}}</td>
                 <td>{{.LastUpdate.Format "2006-01-02 15:04:05 MST"}}</td>
             </tr>
             {{end}}
