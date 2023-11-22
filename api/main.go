@@ -57,7 +57,6 @@ func init() {
 	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
 	flag.StringVar(&pluginsDir, "d", resolveValue("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
 	flag.StringVar(&port, "p", resolveValue("API_PORT", "5050"), "specify the port to run the api on")
-	flag.StringVar(&dbPath, "db", resolveValue("DB_PATH", "/.data/db.sqlite"), "specify the path of the sqlite database")
 	flag.StringVar(&logFile, "lf", resolveValue("LOG_FILE", "/.data/logs/api.jsonl"), "specify the log file")
 	flag.StringVar(&authSvc, "au", resolveValue("AUTH_SERVICE", ""), "specify the auth service")
 	flag.StringVar(&authLvl, "al", resolveValue("AUTH_LEVEL", "0"), "specify the authorization striction level")
@@ -106,7 +105,7 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 
 	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
-		log.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
+		log.Warnf("Invalid LOG_LEVEL set: %s, defaulting to INFO", os.Getenv("LOG_LEVEL"))
 		lvl = log.InfoLevel
 	}
 	log.SetLevel(lvl)
@@ -180,7 +179,7 @@ func main() {
 	fmt.Println("Logging to", logFile)
 
 	// Initialize resources
-	rh := handlers.NewRESTHander(pluginsDir, dbPath)
+	rh := handlers.NewRESTHander(pluginsDir)
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 	// todo: all non terminated job statuses should be updated to unknown
 	// todo: all logs in the logs directory should be moved to storage
@@ -270,7 +269,7 @@ func main() {
 	// aws batch jobs close() methods take minimum of 5 seconds
 	time.Sleep(5 * time.Second)
 
-	if err := rh.DB.Handle.Close(); err != nil {
+	if err := rh.DB.Close(); err != nil {
 		log.Error(err)
 	} else {
 		log.Info("closed connection to database")

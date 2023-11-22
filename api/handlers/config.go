@@ -38,7 +38,7 @@ type RESTHandler struct {
 	ConformsTo   []string
 	T            Template
 	StorageSvc   *s3.S3
-	DB           *jobs.DB
+	DB           jobs.Database
 	MessageQueue *jobs.MessageQueue
 	ActiveJobs   *jobs.ActiveJobs
 	ProcessList  *pr.ProcessList
@@ -55,7 +55,7 @@ func prettyPrint(v interface{}) string {
 
 // Initializes resources and return a new handler
 // errors are fatal
-func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
+func NewRESTHander(pluginsDir string) *RESTHandler {
 	apiName, exist := os.LookupEnv("API_NAME")
 	if !exist {
 		log.Warn("env variable API_NAME not set")
@@ -76,6 +76,17 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/dismiss",
 		},
 	}
+
+	dbType, exist := os.LookupEnv("DB_SERVICE")
+	if !exist {
+		log.Fatal("env variable DB_SERVICE not set")
+	}
+
+	db, err := jobs.NewDatabase(dbType)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	config.DB = db
 
 	// Read all the html templates
 	funcMap := template.FuncMap{
@@ -113,9 +124,6 @@ func NewRESTHander(pluginsDir string, dbPath string) *RESTHandler {
 	ac := jobs.ActiveJobs{}
 	ac.Jobs = make(map[string]*jobs.Job)
 	config.ActiveJobs = &ac
-
-	adb := jobs.InitDB(dbPath)
-	config.DB = adb
 
 	config.MessageQueue = &jobs.MessageQueue{
 		StatusChan: make(chan jobs.StatusMessage, 500),

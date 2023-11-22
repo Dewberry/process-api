@@ -53,7 +53,7 @@ type AWSBatchJob struct {
 	cloudWatchForwardToken string
 	// MetaData
 
-	DB         *DB
+	DB         Database
 	StorageSvc *s3.S3
 	DoneChan   chan Job
 }
@@ -202,7 +202,7 @@ func (j *AWSBatchJob) initLogger() error {
 
 	lvl, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
-		j.logger.Warnf("Invalid LOG_LEVEL set: %s; defaulting to INFO", os.Getenv("LOG_LEVEL"))
+		j.logger.Warnf("Invalid LOG_LEVEL set: %s, defaulting to INFO", os.Getenv("LOG_LEVEL"))
 		lvl = log.InfoLevel
 	}
 	j.logger.SetLevel(lvl)
@@ -239,7 +239,7 @@ func (j *AWSBatchJob) Create() error {
 	j.batchContext = batchContext
 
 	// At this point job is ready to be added to database
-	err = j.DB.addJob(j.UUID, "accepted", time.Now(), "", "aws-batch", j.ProcessName, j.Submitter)
+	err = j.DB.addJob(j.UUID, "accepted", "", "aws-batch", j.ProcessName, j.Submitter, time.Now())
 	if err != nil {
 		j.ctxCancel()
 		return err
