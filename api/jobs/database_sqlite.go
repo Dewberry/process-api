@@ -40,7 +40,10 @@ func NewSQLiteDB(dbPath string) (*SQLiteDB, error) {
 	}
 
 	db := SQLiteDB{Handle: h}
-	db.createTables()
+	err = db.createTables()
+	if err != nil {
+		return nil, err
+	}
 	return &db, nil
 }
 
