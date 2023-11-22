@@ -27,7 +27,10 @@ func NewPostgresDB(dbConnString string) (*PostgresDB, error) {
 	}
 
 	db := PostgresDB{Handle: h}
-	db.createTables()
+	err = db.createTables()
+	if err != nil {
+		return nil, err
+	}
 	return &db, nil
 }
 
