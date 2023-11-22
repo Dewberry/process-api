@@ -17,6 +17,7 @@ services:
       - process_api_net
     depends_on:
       - minio
+      - postgres
 
   minio:
     container_name: minio
