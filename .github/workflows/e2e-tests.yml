@@ -99,7 +99,7 @@ jobs:
       # Uncomment to print logs for debugging
       - name: Display docker-compose logs
         run: |
-        docker-compose logs
-        cat .data/api/logs/api.jsonl
+          docker-compose logs
+          cat .data/api/logs/api.jsonl
         if: always()
 
