@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"text/template"
@@ -137,10 +136,6 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 	config.ProcessList = &processList
 
 	return &config
-}
-
-func (rh *RESTHandler) Ping(c echo.Context) error {
-	return c.JSON(http.StatusOK, "ok")
 }
 
 // This routine sequentially updates status.

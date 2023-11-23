@@ -96,10 +96,10 @@ jobs:
           docker run --network="host" -v /home/runner/work/process-api/process-api/tests/e2e:/etc/newman/ postman/newman:5.3.1-alpine run tests.postman_collection.json
           --env-var "url=localhost:80" --reporters cli --bail --color on
 
-      ## Uncomment to print logs for debugging
+      # # Uncomment to print logs for debugging
       # - name: Display docker-compose logs
       #   run: |
-        # docker-compose logs
-        # cat .data/api/logs/api.jsonl
+      #     docker-compose logs
+      #     cat .data/api/logs/api.jsonl
       #   if: always()
 
