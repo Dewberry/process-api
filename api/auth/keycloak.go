@@ -29,15 +29,17 @@ type PublicKey struct {
 
 // KeycloakAuthStrategy implements AuthStrategy for Keycloak authentication.
 type KeycloakAuthStrategy struct {
-	PublicKeys map[string]PublicKey
-	Mutex      sync.RWMutex
+	PublicKeys      map[string]PublicKey
+	Mutex           sync.RWMutex
+	ServiceRoleName string
 }
 
 // NewKeycloakAuthStrategy creates a new instance of KeycloakAuthStrategy and
 // starts a background process to refresh the public keys periodically.
 func NewKeycloakAuthStrategy() (*KeycloakAuthStrategy, error) {
 	strategy := &KeycloakAuthStrategy{
-		PublicKeys: make(map[string]PublicKey),
+		PublicKeys:      make(map[string]PublicKey),
+		ServiceRoleName: os.Getenv("AUTH_SERVICE_ROLE"),
 	}
 
 	kcUrl, exist := os.LookupEnv("KEYCLOAK_PUBLIC_KEYS_URL")
@@ -134,15 +136,28 @@ func (kas *KeycloakAuthStrategy) ValidateToken(tokenString string) (*Claims, err
 	return claims, nil
 }
 
-func (kas *KeycloakAuthStrategy) UserContext(c echo.Context, claims *Claims) (roles []string, err error) {
-	c.Request().Header.Set("X-ProcessAPI-User-Email", claims.Email)
+// Validate X-ProcessAPI-User-Email header against user from claims
+func (kas *KeycloakAuthStrategy) ValidateUser(c echo.Context, claims *Claims) (err error) {
+	roles := claims.RealmAccess["roles"]
+
+	if kas.ServiceRoleName != "" && overlap(roles, []string{kas.ServiceRoleName}) {
+		// assume provided header is correct
+	} else if claims.Email == "" || !(c.Request().Header.Get("X-ProcessAPI-User-Email") == claims.Email) {
+		return fmt.Errorf("invalid X-ProcessAPI-User-Email header")
+	}
+
+	return nil
+}
+
+// Set user roles to API Header
+func (kas *KeycloakAuthStrategy) SetUserRolesHeader(c echo.Context, claims *Claims) (err error) {
 	roles, exists := claims.RealmAccess["roles"]
 	if exists {
 		rolesString := strings.Join(roles, ",")
 		c.Request().Header.Set("X-ProcessAPI-User-Roles", rolesString)
 	} else {
-		return nil, nil
+		return nil
 	}
 
-	return roles, nil
+	return nil
 }

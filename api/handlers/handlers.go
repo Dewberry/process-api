@@ -260,6 +260,15 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
+	if rh.AuthLevel > 0 {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		// admins are allowed to execute all processes, else you need to have a role with same name as processId
+		if !utils.StringInSlice(rh.AdminRoleName, roles) && !utils.StringInSlice(processID, roles) {
+			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+		}
+	}
+
 	var params runRequestBody
 	err = c.Bind(&params)
 	if err != nil {
@@ -388,6 +397,15 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 
 	jobID := c.Param("jobID")
 	if j, ok := rh.ActiveJobs.Jobs[jobID]; ok {
+
+		if rh.AuthLevel > 0 {
+			roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+			if (*j).SUBMITTER() != c.Request().Header.Get("X-ProcessAPI-User-Email") && !utils.StringInSlice(rh.AdminRoleName, roles) {
+				return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			}
+		}
+
 		err := (*j).Kill()
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
@@ -648,13 +666,10 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		}
 	}
 
-	// If roles are not set in the request (meaning security is disabled)
-	// When auth is enabled it will check for overlap of request roles vs allowed roles,
-	// hence it will have at least one role
-	if c.Request().Header.Get("X-ProcessAPI-User-Roles") != "" {
+	if rh.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
-		if !utils.StringInSlice("admin", roles) { // to do: do not hardcode this
+		if !utils.StringInSlice(rh.AdminRoleName, roles) {
 			submitters = c.Request().Header.Get("X-ProcessAPI-User-Email")
 		}
 	}
@@ -711,6 +726,14 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 //
 // Time must be in RFC3339(ISO) format
 func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
+	if rh.AuthLevel > 0 {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		// admins are allowed to execute all processes, else you need to have same role as processId
+		if !utils.StringInSlice(rh.BotRoleName, roles) && !utils.StringInSlice(rh.AdminRoleName, roles) {
+			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+		}
+	}
 
 	jobID := c.Param("jobID")
 

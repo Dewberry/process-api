@@ -114,48 +114,48 @@ func initLogger() (log.Level, *lumberjack.Logger) {
 }
 
 const (
-	authLevelNone      = 0
-	authLevelProtected = 1
-	authLevelAll       = 2
-)
-
-var (
-	writers = []string{"writer", "admin"}
+	authLevelNone    = 0
+	authLevelPartial = 1
+	authLevelAll     = 2
 )
 
 func applyAuthMiddleware(e *echo.Echo, protected *echo.Group, as auth.AuthStrategy, authLevel int) {
 	switch authLevel {
-	case authLevelProtected:
+	case authLevelPartial:
 		// Apply the Authorize middleware only to protected group
-		protected.Use(auth.Authorize(as, writers...))
+		protected.Use(auth.Authorize(as))
 	case authLevelAll:
 		// Apply the Authorize middleware to all routes
-		e.Use(auth.Authorize(as, writers...))
+		e.Use(auth.Authorize(as))
 	}
 }
 
-func initAuth(e *echo.Echo, protected *echo.Group) {
+func initAuth(e *echo.Echo, protected *echo.Group) int {
 	var as auth.AuthStrategy
 	var err error
-
-	switch authSvc {
-	case "":
-		log.Warn("No authentication set up.")
-		return
-	case "keycloak":
-		as, err = auth.NewKeycloakAuthStrategy()
-		if err != nil {
-			log.Fatalf("Error creating KeyCloak auth service: %s", err.Error())
-		}
-	default:
-		log.Fatal("unsupported auth service provider type")
-	}
 
 	authLvlInt, err := strconv.Atoi(authLvl)
 	if err != nil {
 		log.Fatalf("Error converting AUTH_LEVEL to number: %s", err.Error())
 	}
+
+	if authLvlInt == 0 {
+		log.Warn("No authentication set up.")
+		return 0
+	} else {
+		switch authSvc {
+		case "keycloak":
+			as, err = auth.NewKeycloakAuthStrategy()
+			if err != nil {
+				log.Fatalf("Error creating KeyCloak auth service: %s", err.Error())
+			}
+		default:
+			log.Fatal("unsupported auth service provider type")
+		}
+	}
+
 	applyAuthMiddleware(e, protected, as, authLvlInt)
+	return authLvlInt
 }
 
 // @title Process-API Server
@@ -206,7 +206,8 @@ func main() {
 
 	// Create a group for all routes that need to be protected when AUTH_LEVEL = protected
 	pg := e.Group("")
-	initAuth(e, pg)
+	authLvl := initAuth(e, pg)
+	rh.AuthLevel = authLvl
 
 	// Server
 	e.GET("/", rh.LandingPage)
