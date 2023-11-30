@@ -70,6 +70,10 @@ func (j *AWSBatchJob) ProcessID() string {
 	return j.ProcessName
 }
 
+func (j *AWSBatchJob) SUBMITTER() string {
+	return j.Submitter
+}
+
 func (j *AWSBatchJob) ProcessVersionID() string {
 	return j.ProcessVersion
 }

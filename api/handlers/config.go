@@ -41,6 +41,11 @@ type RESTHandler struct {
 	MessageQueue *jobs.MessageQueue
 	ActiveJobs   *jobs.ActiveJobs
 	ProcessList  *pr.ProcessList
+
+	// Read DEV_GUIDE.md to learn about these
+	AuthLevel     int
+	AdminRoleName string
+	BotRoleName   string
 }
 
 // Pretty print a JSON
@@ -74,6 +79,8 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/job-list",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/dismiss",
 		},
+		AdminRoleName: os.Getenv("AUTH_ADMIN_ROLE"),
+		BotRoleName:   os.Getenv("AUTH_BOT_ROLE"),
 	}
 
 	dbType, exist := os.LookupEnv("DB_SERVICE")

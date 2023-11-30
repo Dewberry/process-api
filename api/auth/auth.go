@@ -10,13 +10,15 @@ import (
 
 type AuthStrategy interface {
 	ValidateToken(tokenString string) (*Claims, error)
-	UserContext(c echo.Context, claims *Claims) ([]string, error)
+	ValidateUser(c echo.Context, claims *Claims) error
+	SetUserRolesHeader(c echo.Context, claims *Claims) error
 }
 
 type Claims struct {
 	UserName    string              `json:"preferred_username"`
 	Email       string              `json:"email"`
 	RealmAccess map[string][]string `json:"realm_access"`
+	Audience    []string            `json:"aud,omitempty"`
 	jwt.StandardClaims
 }
 
@@ -32,7 +34,7 @@ func overlap(s1 []string, s2 []string) bool {
 }
 
 // Middleware
-func Authorize(strategy AuthStrategy, allowedRoles ...string) echo.MiddlewareFunc {
+func Authorize(strategy AuthStrategy) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			authHead := c.Request().Header.Get("Authorization")
@@ -48,16 +50,17 @@ func Authorize(strategy AuthStrategy, allowedRoles ...string) echo.MiddlewareFun
 
 			claims, err := strategy.ValidateToken(tokenString)
 			if err != nil {
-				return c.JSON(http.StatusInternalServerError, err.Error())
+				return c.JSON(http.StatusUnauthorized, err.Error())
 			}
 
-			roles, err := strategy.UserContext(c, claims)
+			err = strategy.ValidateUser(c, claims)
+			if err != nil {
+				return c.JSON(http.StatusUnauthorized, err.Error())
+			}
+
+			err = strategy.SetUserRolesHeader(c, claims)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, err.Error())
-			}
-
-			if !overlap(roles, allowedRoles) {
-				return c.JSON(http.StatusUnauthorized, "user is not authorized")
 			}
 
 			return next(c)
