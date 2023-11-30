@@ -28,6 +28,7 @@ type Job interface {
 	JobID() string
 	ProcessID() string
 	ProcessVersionID() string
+	SUBMITTER() string
 
 	// UpdateContainerLogs must first fetch the current container logs before writing
 	// UpdateContainerLogs must update logs stored on the disk

@@ -59,6 +59,10 @@ func (j *DockerJob) ProcessVersionID() string {
 	return j.ProcessVersion
 }
 
+func (j *DockerJob) SUBMITTER() string {
+	return j.Submitter
+}
+
 func (j *DockerJob) CMD() []string {
 	return j.Cmd
 }
