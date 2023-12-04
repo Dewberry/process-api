@@ -59,7 +59,7 @@ func prettyPrint(v interface{}) string {
 
 // Initializes resources and return a new handler
 // errors are fatal
-func NewRESTHander(pluginsDir string) *RESTHandler {
+func NewRESTHander() *RESTHandler {
 	apiName, exist := os.LookupEnv("API_NAME")
 	if !exist {
 		log.Warn("env variable API_NAME not set")
@@ -136,6 +136,8 @@ func NewRESTHander(pluginsDir string) *RESTHandler {
 		JobDone:    make(chan jobs.Job, 1),
 	}
 
+	// Create local logs directory if not exist
+	pluginsDir := os.Getenv("PLUGINS_DIR") // We already know this env variable exist because it is being checked in plguinsInit function
 	processList, err := pr.LoadProcesses(pluginsDir)
 	if err != nil {
 		log.Fatal(err)
