@@ -134,6 +134,15 @@ func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to marshal process data"})
 	}
 
+	// Destination directory
+	destDir := fmt.Sprintf("%s/%s", pluginsDir, processID)
+
+	// Create the destination directory including all intermediate directories
+	err = os.MkdirAll(destDir, 0755)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to deprecate old process"})
+	}
+
 	if err := os.WriteFile(filename, data, 0644); err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to write process file"})
 	}
@@ -170,8 +179,17 @@ func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 
 	// to do: this should be atomic
 
+	// Destination directory
+	destDir := fmt.Sprintf("%s/deprecated/%s", pluginsDir, processID)
+
+	// Create the destination directory including all intermediate directories
+	err = os.MkdirAll(destDir, 0755)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to deprecate old process"})
+	}
+
 	// Move the file
-	err = os.Rename(filename, fmt.Sprintf("%s/deprecated/%s/%s_%s.yml", pluginsDir, processID, processID, oldV))
+	err = os.Rename(filename, fmt.Sprintf("%s/%s_%s.yml", destDir, processID, oldV))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to deprecate old process"})
 	}
@@ -207,8 +225,16 @@ func (rh *RESTHandler) DeleteProcessHandler(c echo.Context) error {
 
 	// to do: this should be atomic
 
+	// Create the destination directory including all intermediate directories
+	destDir := fmt.Sprintf("%s/deprecated/%s", pluginsDir, processID)
+
+	err = os.MkdirAll(destDir, 0755)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to deprecate old process"})
+	}
+
 	// Move the file
-	err = os.Rename(filename, fmt.Sprintf("%s/deprecated/%s/%s_%s.yml", pluginsDir, processID, processID, oldV))
+	err = os.Rename(filename, fmt.Sprintf("%s/%s_%s.yml", destDir, processID, oldV))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errResponse{Message: "Failed to deprecate old process"})
 	}
