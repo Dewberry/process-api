@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"app/processes"
+	"app/utils"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"gopkg.in/yaml.v3"
@@ -109,6 +111,16 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 
 // AddProcessHandler adds a new process configuration
 func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
+
+	if rh.AuthLevel > 0 {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		// non-admins are not allowed
+		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+		}
+	}
+
 	processID := c.Param("processID")
 	_, _, err := rh.ProcessList.Get(processID)
 	if err == nil {
@@ -160,6 +172,16 @@ func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 
 // UpdateProcessHandler updates an existing process configuration
 func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
+
+	if rh.AuthLevel > 0 {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		// non-admins are not allowed
+		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+		}
+	}
+
 	processID := c.Param("processID")
 
 	oldProcess, i, err := rh.ProcessList.Get(processID)
@@ -221,6 +243,16 @@ func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 
 // DeleteProcessHandler deletes a process configuration
 func (rh *RESTHandler) DeleteProcessHandler(c echo.Context) error {
+
+	if rh.AuthLevel > 0 {
+		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
+
+		// non-admins are not allowed
+		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+		}
+	}
+
 	processID := c.Param("processID")
 
 	oldProcess, i, err := rh.ProcessList.Get(processID)
