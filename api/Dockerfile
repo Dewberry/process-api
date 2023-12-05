@@ -28,5 +28,5 @@ COPY --from=dev /app/public /app/public
 COPY --from=dev /app/views /app/views
 COPY --from=dev /app/docs /app/docs
 
-ENTRYPOINT ["/app/main", "-d", "plugins"]
+ENTRYPOINT ["/app/main", "-pld", "plugins"]
 # -------------------------------
