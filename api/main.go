@@ -289,6 +289,10 @@ func main() {
 	// Processes
 	e.GET("/processes", rh.ProcessListHandler)
 	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
+	pg.POST("/processes/:processID", rh.AddProcessHandler)
+	pg.PUT("/processes/:processID", rh.UpdateProcessHandler)
+	pg.DELETE("/processes/:processID", rh.DeleteProcessHandler)
+
 	pg.POST("/processes/:processID/execution", rh.Execution)
 
 	// TODO

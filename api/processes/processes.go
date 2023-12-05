@@ -13,12 +13,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type process struct {
-	Info      Info      `yaml:"info"`
-	Host      Host      `yaml:"host"`
-	Container Container `yaml:"container"`
-	Inputs    []Inputs  `yaml:"inputs"`
-	Outputs   []Outputs `yaml:"outputs"`
+type Process struct {
+	Info      Info      `yaml:"info" json:"info"`
+	Host      Host      `yaml:"host" json:"host"`
+	Container Container `yaml:"container" json:"container"`
+	Inputs    []Inputs  `yaml:"inputs" json:"inputs"`
+	Outputs   []Outputs `yaml:"outputs" json:"outputs"`
 }
 
 type Link struct {
@@ -38,80 +38,59 @@ type Info struct {
 }
 
 type ValueDefinition struct {
-	AnyValue       bool     `yaml:"anyValue"`
-	PossibleValues []string `yaml:"possibleValues"`
+	AnyValue       bool     `yaml:"anyValue" json:"anyValue"`
+	PossibleValues []string `yaml:"possibleValues" json:"possibleValues"`
 }
 
 type LiteralDataDomain struct {
-	DataType        string          `yaml:"dataType"`
-	ValueDefinition ValueDefinition `yaml:"valueDefinition" json:",omitempty"`
+	DataType        string          `yaml:"dataType" json:"dataType"`
+	ValueDefinition ValueDefinition `yaml:"valueDefinition" json:"valueDefinition,omitempty"`
 }
 
 type Input struct {
-	LiteralDataDomain LiteralDataDomain `yaml:"literalDataDomain"`
+	LiteralDataDomain LiteralDataDomain `yaml:"literalDataDomain" json:"literalDataDomain"`
 }
 
 type Inputs struct {
-	ID          string `yaml:"id"`
-	Title       string `yaml:"title"`
-	Description string `yaml:"description"`
-	Input       Input  `yaml:"input"`
-	MinOccurs   int    `yaml:"minOccurs"`
-	MaxOccurs   int    `yaml:"maxOccurs,omitempty"`
+	ID          string `yaml:"id" json:"id"`
+	Title       string `yaml:"title" json:"title"`
+	Description string `yaml:"description" json:"description"`
+	Input       Input  `yaml:"input" json:"input"`
+	MinOccurs   int    `yaml:"minOccurs" json:"minOccurs"`
+	MaxOccurs   int    `yaml:"maxOccurs,omitempty" json:"maxOccurs,omitempty"`
 }
 
 type Output struct {
-	Formats []string `yaml:"transmissionMode"`
+	Formats []string `yaml:"transmissionMode" json:"transmissionMode"`
 }
 
 type Outputs struct {
-	ID          string `yaml:"id"`
-	Title       string `yaml:"title"`
-	Description string `yaml:"description"`
-	Output      Output `yaml:"output"`
-	InputID     string `yaml:"inputId"` //json omit
+	ID          string `yaml:"id" json:"id"`
+	Title       string `yaml:"title" json:"title"`
+	Description string `yaml:"description" json:"description"`
+	Output      Output `yaml:"output" json:"output"`
+	InputID     string `yaml:"inputId" json:"inputId,omitempty"`
 }
 
-// Resources
 type Resources struct {
 	CPUs   float32 `yaml:"cpus" json:"cpus,omitempty"`
 	Memory int     `yaml:"memory" json:"memory,omitempty"`
 }
 
-// Host is currently limited to "local" or "aws-batch", will require changes
-// for extending to additional cloud services (e.g. lambda) or controllers (e.g. Azure)
 type Host struct {
-	// Type should be one of "local", "aws-batch"
-	Type string `yaml:"type"`
-
-	// Host specific jargon
-	// AWS
-	JobDefinition string `yaml:"jobDefinition"`
-	JobQueue      string `yaml:"jobQueue"`
+	Type          string `yaml:"type" json:"type"`
+	JobDefinition string `yaml:"jobDefinition" json:"jobDefinition,omitempty"`
+	JobQueue      string `yaml:"jobQueue" json:"jobQueue,omitempty"`
 }
 
-// Non-OGC types used for this API's implementation of the standard
-
-// Container provides information with which to call the container/job
 type Container struct {
-	// Image is the exact string which docker can use to pull an image
-	// Image will be overwritten for batch jobs defined by job defitions
-	Image string `yaml:"image"`
-
-	EnvVars   []string  `yaml:"envVars"`
-	Command   []string  `yaml:"command"`
-	Resources Resources `yaml:"maxResources"` // max resources this process can use
+	Image     string    `yaml:"image" json:"image"`
+	EnvVars   []string  `yaml:"envVars" json:"envVars,omitempty"`
+	Command   []string  `yaml:"command" json:"command,omitempty"`
+	Resources Resources `yaml:"maxResources" json:"maxResources,omitempty"`
 }
 
-// func (p process) createLinks() []Link {
-// 	var links []Link
-// 	if p.Container.Image != "" {
-// 		links = append(links, Link{Href: fmt.Sprintf("%s/%s", p.Container.Repository, p.Container.Image)})
-// 	}
-// 	return links
-// }
-
-func (p process) Type() string {
+func (p Process) Type() string {
 	return p.Host.Type
 }
 
@@ -121,7 +100,7 @@ type inpOccurance struct {
 	maxOccur int
 }
 
-func (p process) VerifyInputs(inp map[string]interface{}) error {
+func (p Process) VerifyInputs(inp map[string]interface{}) error {
 
 	requestInp := make(map[string]*inpOccurance)
 
@@ -152,7 +131,7 @@ func (p process) VerifyInputs(inp map[string]interface{}) error {
 	return nil
 }
 
-func (p process) VerifyLocalEnvars(container Container) error {
+func (p Process) VerifyLocalEnvars(container Container) error {
 	var missingEnvVars []string
 	for _, envVar := range container.EnvVars {
 		if os.Getenv(envVar) == "" {
@@ -166,29 +145,30 @@ func (p process) VerifyLocalEnvars(container Container) error {
 }
 
 // ProcessList describes processes
+// This is not a map since ProcessList Handler function wants order
 type ProcessList struct {
-	List     []process
+	List     []Process
 	InfoList []Info
 }
 
-func (ps *ProcessList) Get(processID string) (process, error) {
-	for _, p := range (*ps).List {
+func (ps *ProcessList) Get(processID string) (Process, int, error) {
+	for i, p := range (*ps).List {
 		if p.Info.ID == processID {
-			return p, nil
+			return p, i, nil
 		}
 	}
-	return process{}, errors.New("process not found")
+	return Process{}, 0, errors.New("process not found")
 }
 
-func newProcess(f string) (process, error) {
-	var p process
+func MarshallProcess(f string) (Process, error) {
+	var p Process
 	data, err := os.ReadFile(f)
 	if err != nil {
 		return p, err
 	}
 	err = yaml.Unmarshal(data, &p)
 	if err != nil {
-		return process{}, err
+		return Process{}, err
 	}
 
 	// if processes is AWS Batch process get its resources, image, etc
@@ -197,11 +177,11 @@ func newProcess(f string) (process, error) {
 	case "aws-batch":
 		c, err := controllers.NewAWSBatchController(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), os.Getenv("AWS_REGION"))
 		if err != nil {
-			return process{}, err
+			return Process{}, err
 		}
 		jdi, err := c.GetJobDefInfo(p.Host.JobDefinition)
 		if err != nil {
-			return process{}, err
+			return Process{}, err
 		}
 		p.Container.Image = jdi.Image
 		p.Container.Resources.Memory = jdi.Memory
@@ -224,10 +204,10 @@ func LoadProcesses(dir string) (ProcessList, error) {
 		return pl, err
 	}
 	allYamls := append(ymls, yamls...)
-	processes := make([]process, len(allYamls))
+	processes := make([]Process, len(allYamls))
 
 	for i, y := range allYamls {
-		p, err := newProcess(y)
+		p, err := MarshallProcess(y)
 		if err != nil {
 			log.Errorf("could not register process %s Error: %v", filepath.Base(y), err)
 		}
