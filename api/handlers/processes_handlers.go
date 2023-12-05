@@ -126,6 +126,11 @@ func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 		return prepareResponse(c, http.StatusBadRequest, "error", errResponse{Message: "Process ID mismatch", HTTPStatus: http.StatusBadRequest})
 	}
 
+	err = newProcess.Validate()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
+	}
+
 	pluginsDir := os.Getenv("PLUGINS_DIR") // We already know this env variable exist because it is being checked in plguinsInit function
 	filename := fmt.Sprintf("%s/%s/%s.yml", pluginsDir, processID, processID)
 
@@ -170,6 +175,11 @@ func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 
 	if processID != updatedProcess.Info.ID {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "Process ID mismatch"})
+	}
+
+	err = updatedProcess.Validate()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errResponse{Message: err.Error()})
 	}
 
 	pluginsDir := os.Getenv("PLUGINS_DIR") // We already know this env variable exist because it is being checked in plguinsInit function

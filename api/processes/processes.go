@@ -211,6 +211,10 @@ func LoadProcesses(dir string) (ProcessList, error) {
 		if err != nil {
 			log.Errorf("could not register process %s Error: %v", filepath.Base(y), err)
 		}
+		err = p.Validate()
+		if err != nil {
+			log.Errorf("could not register process %s Error: %v", filepath.Base(y), err.Error())
+		}
 		processes[i] = p
 	}
 
@@ -223,4 +227,70 @@ func LoadProcesses(dir string) (ProcessList, error) {
 	pl.InfoList = infos
 
 	return pl, err
+}
+
+// Validate checks if the Process has all required fields properly set.
+func (p *Process) Validate() error {
+	if p.Info.ID == "" {
+		return errors.New("process ID is required")
+	}
+	if p.Info.Title == "" {
+		return errors.New("process title is required")
+	}
+	if p.Info.Version == "" {
+		return errors.New("version is required")
+	}
+
+	// Validate jobControlOptions
+	validJobControlOptions := map[string]bool{
+		"sync-execute":  true,
+		"async-execute": true,
+	}
+	for _, option := range p.Info.JobControlOptions {
+		if !validJobControlOptions[option] {
+			return fmt.Errorf("invalid jobControlOption: %s; must be one of [sync-execute, async-execute]", option)
+		}
+	}
+
+	// Validate outputTransmission
+	validOutputTransmission := map[string]bool{
+		"reference": true,
+		"value":     true,
+	}
+	for _, transmission := range p.Info.OutputTransmission {
+		if !validOutputTransmission[transmission] {
+			return fmt.Errorf("invalid outputTransmission: %s; must be one of [reference, value]", transmission)
+		}
+	}
+
+	// Validate Host Type
+	if p.Host.Type != "local" && p.Host.Type != "aws-batch" {
+		return errors.New("host type must be 'local' or 'aws-batch'")
+	}
+
+	// Validate Container Image (if applicable)
+	if p.Host.Type == "local" && p.Container.Image == "" {
+		return errors.New("container image is required for local host type")
+	}
+
+	// Validate AWS data (if applicable)
+	if p.Host.Type == "aws-batch" && (p.Host.JobQueue == "" || p.Host.JobDefinition == "") {
+		return errors.New("job information is required for aws-batch host type")
+	}
+
+	// Validate Inputs
+	for i, input := range p.Inputs {
+		if input.ID == "" {
+			return fmt.Errorf("input %d: ID is required", i)
+		}
+	}
+
+	// Validate Outputs
+	for i, output := range p.Outputs {
+		if output.ID == "" {
+			return fmt.Errorf("output %d: ID is required", i)
+		}
+	}
+
+	return nil
 }
