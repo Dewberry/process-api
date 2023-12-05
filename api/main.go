@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"context"
 	"flag"
@@ -26,13 +27,13 @@ import (
 )
 
 var (
-	envFP      string
-	pluginsDir string
-	dbPath     string
-	port       string
-	logFile    string
-	authSvc    string
-	authLvl    string
+	envFP          string
+	pluginsLoadDir string
+	dbPath         string
+	port           string
+	logFile        string
+	authSvc        string
+	authLvl        string
 )
 
 func init() {
@@ -55,7 +56,7 @@ func init() {
 
 	// Only variables that are needed at startup and will not be used after startup are available as CLI flags
 	flag.StringVar(&envFP, "e", "", "specify the path of the dot env file to load")
-	flag.StringVar(&pluginsDir, "d", resolveValue("PLUGINS_DIR", "plugins"), "specify the relative path of the processes dir")
+	flag.StringVar(&pluginsLoadDir, "pld", resolveValue("PLUGINS_LOAD_DIR", ""), "specify the relative path of the directory to load plugins from")
 	flag.StringVar(&port, "p", resolveValue("API_PORT", "5050"), "specify the port to run the api on")
 	flag.StringVar(&logFile, "lf", resolveValue("LOG_FILE", "/.data/logs/api.jsonl"), "specify the log file")
 	flag.StringVar(&authSvc, "au", resolveValue("AUTH_SERVICE", ""), "specify the auth service")
@@ -158,6 +159,81 @@ func initAuth(e *echo.Echo, protected *echo.Group) int {
 	return authLvlInt
 }
 
+func initPlugins() {
+	pluginsDir, exist := os.LookupEnv("PLUGINS_DIR")
+	if !exist {
+		log.Fatal("env variable PLUGINS_DIR not set")
+	}
+
+	deprecatedDir := filepath.Join(pluginsDir, "deprecated")
+
+	// Check if pluginsDir exists
+	if _, err := os.Stat(pluginsDir); os.IsNotExist(err) {
+		// Create pluginsDir and deprecated directories
+		if err := os.MkdirAll(pluginsDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+		if err := os.MkdirAll(deprecatedDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+
+		// Copy existing plugins from pluginsDir to .data/plugins
+		err := copyPlugins(pluginsDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else if pluginsLoadDir != "" { // old plugins data exist, yet pluginsLoadDir option specified
+		log.Fatal("Plugins Load Directory specified, but old plugins data folder exist. Remove old plugins data first.")
+	}
+}
+
+func copyPlugins(dstDir string) error {
+
+	if pluginsLoadDir == "" {
+		return nil
+	}
+
+	if _, err := os.Stat(pluginsLoadDir); os.IsNotExist(err) {
+		return fmt.Errorf("specified directory to load plugins from does not exist: %s", pluginsLoadDir)
+	}
+
+	// Match only .yml and .yaml files one level down
+	ymls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yml", pluginsLoadDir))
+	if err != nil {
+		return err
+	}
+	yamls, err := filepath.Glob(fmt.Sprintf("%s/*/*.yaml", pluginsLoadDir))
+	if err != nil {
+		return err
+	}
+	allYamls := append(ymls, yamls...)
+
+	for _, srcFile := range allYamls {
+		fileName := filepath.Base(srcFile)
+		dstFile := filepath.Join(dstDir, strings.TrimSuffix(fileName, filepath.Ext(fileName)), fileName)
+		if err := copyFile(srcFile, dstFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	input, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the destination directory exists
+	dstDir := filepath.Dir(dst)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return err
+	}
+
+	return os.WriteFile(dst, input, 0644)
+}
+
 // @title Process-API Server
 // @version dev-8.16.23
 // @description An OGC compliant process server.
@@ -175,11 +251,10 @@ func initAuth(e *echo.Echo, protected *echo.Group) int {
 // @externalDocs.description   Schemas
 // @externalDocs.url    http://schemas.opengis.net/ogcapi/processes/part1/1.0/openapi/schemas/
 func main() {
-	_, lw := initLogger()
-	fmt.Println("Logging to", logFile)
+	initPlugins()
 
 	// Initialize resources
-	rh := handlers.NewRESTHander(pluginsDir)
+	rh := handlers.NewRESTHander()
 	// todo: handle this error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running
 	// todo: all non terminated job statuses should be updated to unknown
 	// todo: all logs in the logs directory should be moved to storage
@@ -195,9 +270,6 @@ func main() {
 	// e.HideBanner = true
 	e.HidePort = true
 	e.Use(middleware.Recover())
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Output: lw,
-	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowCredentials: true,
 		AllowOrigins:     []string{"*"},
@@ -217,6 +289,10 @@ func main() {
 	// Processes
 	e.GET("/processes", rh.ProcessListHandler)
 	e.GET("/processes/:processID", rh.ProcessDescribeHandler)
+	pg.POST("/processes/:processID", rh.AddProcessHandler)
+	pg.PUT("/processes/:processID", rh.UpdateProcessHandler)
+	pg.DELETE("/processes/:processID", rh.DeleteProcessHandler)
+
 	pg.POST("/processes/:processID/execution", rh.Execution)
 
 	// TODO
@@ -234,6 +310,12 @@ func main() {
 	// Callbacks
 	pg.PUT("/jobs/:jobID/status", rh.JobStatusUpdateHandler)
 	// e.POST("/jobs/:jobID/results", rh.JobResultsUpdateHandler)
+
+	_, lw := initLogger()
+	fmt.Println("Logging to", logFile)
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Output: lw,
+	}))
 
 	// Start server
 	go func() {

@@ -142,102 +142,6 @@ func (rh *RESTHandler) Conformance(c echo.Context) error {
 	return prepareResponse(c, http.StatusOK, "conformance", output)
 }
 
-// ProcessListHandler godoc
-// @Summary List Available Processes
-// @Description [Process List Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_list)
-// @Tags processes
-// @Accept */*
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router /processes [get]
-func (rh *RESTHandler) ProcessListHandler(c echo.Context) error {
-	err := validateFormat(c)
-	if err != nil {
-		return err
-	}
-
-	// to meet ogc api core requirement /req/core/pl-limit-definition
-	limitStr := c.QueryParam("limit")
-	offsetStr := c.QueryParam("offset")
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit > 100 || limit < 1 {
-		limit = 20
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-
-	// instantiate result variable without importing processes pkg
-	result := rh.ProcessList.InfoList[0:0]
-
-	if offset < len(rh.ProcessList.InfoList) {
-		upperBound := offset + limit
-		if upperBound > len(rh.ProcessList.InfoList) {
-			upperBound = len(rh.ProcessList.InfoList)
-		}
-		result = rh.ProcessList.InfoList[offset:upperBound]
-	}
-
-	// required by /req/core/process-list-success
-	links := make([]link, 0)
-
-	// if offset is not 0
-	if offset != 0 {
-		lnk := link{
-			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset-limit, limit),
-			Title: "prev",
-		}
-		links = append(links, lnk)
-	}
-
-	// if limit is not exhausted
-	if limit == len(result) {
-		lnk := link{
-			Href:  fmt.Sprintf("/processes?offset=%v&limit=%v", offset+limit, limit),
-			Title: "next",
-		}
-		links = append(links, lnk)
-	}
-
-	output := make(map[string]interface{}, 0)
-	output["processes"] = result
-	output["links"] = links
-
-	return prepareResponse(c, http.StatusOK, "processes", output)
-}
-
-// ProcessDescribeHandler godoc
-// @Summary Describe Process Information
-// @Description [Process Description Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_process_description)
-// @Tags processes
-// @Param processID path string true "example: pyecho"
-// @Accept */*
-// @Produce json
-// @Success 200 {object} processes.processDescription
-// @Router /processes/{processID} [get]
-func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
-	processID := c.Param("processID")
-
-	err := validateFormat(c)
-	if err != nil {
-		return err
-	}
-
-	p, err := rh.ProcessList.Get(processID)
-	if err != nil {
-		return prepareResponse(c, http.StatusBadRequest, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusBadRequest})
-	}
-
-	description, err := p.Describe()
-	if err != nil {
-		return prepareResponse(c, http.StatusInternalServerError, "error", errResponse{Message: err.Error(), HTTPStatus: http.StatusInternalServerError})
-	}
-	return prepareResponse(c, http.StatusOK, "process", description)
-}
-
 // @Summary Execute Process
 // @Description [Execute Process Specification](https://docs.ogc.org/is/18-062r2/18-062r2.html#sc_create_job)
 // @Tags processes
@@ -255,7 +159,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' parameter is required"})
 	}
 
-	p, err := rh.ProcessList.Get(processID)
+	p, _, err := rh.ProcessList.Get(processID)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
@@ -645,7 +549,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		processIDList = strings.Split(processIDs, ",")
 	}
 	for _, pid := range processIDList {
-		_, err = rh.ProcessList.Get(pid)
+		_, _, err = rh.ProcessList.Get(pid)
 		if err != nil {
 			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("processID %s incorrect, no such process exist", pid)}
 			return prepareResponse(c, http.StatusBadRequest, "error", output)

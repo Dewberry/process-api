@@ -9,7 +9,7 @@ type processDescription struct {
 	Links     []Link    `json:"links"`
 }
 
-func (p process) Describe() (processDescription, error) {
+func (p Process) Describe() (processDescription, error) {
 	pd := processDescription{
 		Info: p.Info, Image: p.Container.Image, Resources: p.Container.Resources, Inputs: p.Inputs, Outputs: p.Outputs} // Links: p.createLinks()
 

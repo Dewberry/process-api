@@ -42,7 +42,42 @@
 						}
 					},
 					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
 				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200 ', function(){",
+							"    pm.response.to.have.status(200)",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 1000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+							"});",
+							"",
+							"if (pm.response.responseTime > 100) {",
+							"    console.log(`⚠️ Warning: Response time is ${pm.response.responseTime}ms which is greater than 100ms.`);",
+							"}"
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "processes",
+			"item": [
 				{
 					"name": "processes",
 					"event": [
@@ -128,6 +163,96 @@
 								{
 									"key": "processID",
 									"value": "pyecho"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "add-process",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"info\": {\r\n        \"version\": \"12.5.2023\",\r\n        \"id\": \"dfcTest\",\r\n        \"title\": \"Depth Frequency Curve\",\r\n        \"description\": \"Returns data for depth-frequency curve\",\r\n        \"jobControlOptions\": [\"async-execute\"],\r\n        \"outputTransmission\": [\"value\"]\r\n    },\r\n    \"host\": {\r\n        \"type\": \"aws-batch\",\r\n        \"jobDefinition\": \"process-sandbox:2\",\r\n        \"jobQueue\": \"micro-test\"\r\n    },\r\n    \"container\": {\r\n        \"command\": [\"python\", \"dfc.py\"]\r\n    },\r\n    \"inputs\": [\r\n        {\r\n            \"id\": \"crs\",\r\n            \"title\": \"crs\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 0,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"tile\",\r\n            \"title\": \"tile\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"epoch\",\r\n            \"title\": \"epoch\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"points\",\r\n            \"title\": \"points\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 999999\r\n        }\r\n    ],\r\n    \"outputs\": [\r\n        {\r\n            \"id\": \"dfc\",\r\n            \"title\": \"dfc\",\r\n            \"description\": \"\",\r\n            \"output\": {\r\n                \"transmissionMode\": [\r\n                    \"value\"\r\n                ]\r\n            }\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/:processID",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								":processID"
+							],
+							"variable": [
+								{
+									"key": "processID",
+									"value": "dfcTest"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update-process",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"info\": {\r\n        \"version\": \"12.5.2023\",\r\n        \"id\": \"dfcTest\",\r\n        \"title\": \"Depth Frequency Curve\",\r\n        \"description\": \"Returns data for depth-frequency curve\",\r\n        \"jobControlOptions\": [\"async-execute\"],\r\n        \"outputTransmission\": [\"value\"]\r\n    },\r\n    \"host\": {\r\n        \"type\": \"aws-batch\",\r\n        \"jobDefinition\": \"process-sandbox:2\",\r\n        \"jobQueue\": \"micro-test\"\r\n    },\r\n    \"container\": {\r\n        \"command\": [\"python\", \"dfc.py\"]\r\n    },\r\n    \"inputs\": [\r\n        {\r\n            \"id\": \"crs\",\r\n            \"title\": \"crs\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 0,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"tile\",\r\n            \"title\": \"tile\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"epoch\",\r\n            \"title\": \"epoch\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 1\r\n        },\r\n        {\r\n            \"id\": \"points\",\r\n            \"title\": \"points\",\r\n            \"description\": \"\",\r\n            \"input\": {\r\n                \"literalDataDomain\": {\r\n                    \"dataType\": \"value\",\r\n                    \"valueDefinition\": {\r\n                        \"anyValue\": true,\r\n                        \"possibleValues\": null\r\n                    }\r\n                }\r\n            },\r\n            \"minOccurs\": 1,\r\n            \"maxOccurs\": 999999\r\n        }\r\n    ],\r\n    \"outputs\": [\r\n        {\r\n            \"id\": \"dfc\",\r\n            \"title\": \"dfc\",\r\n            \"description\": \"\",\r\n            \"output\": {\r\n                \"transmissionMode\": [\r\n                    \"value\"\r\n                ]\r\n            }\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/processes/:processID",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								":processID"
+							],
+							"variable": [
+								{
+									"key": "processID",
+									"value": "dfcTest"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete-process",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/processes/:processID",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								":processID"
+							],
+							"variable": [
+								{
+									"key": "processID",
+									"value": "dfcTest"
 								}
 							]
 						}
@@ -878,7 +1003,7 @@
 															"    pm.response.to.have.jsonBody(\"processID\");\r",
 															"});\r",
 															"\r",
-															"setTimeout(() => {}, 40000); "
+															"setTimeout(() => {}, 50000); "
 														],
 														"type": "text/javascript"
 													}
