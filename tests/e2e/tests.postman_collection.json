@@ -1720,40 +1720,6 @@
 								}
 							},
 							"response": []
-						},
-						{
-							"name": "fetch-with-invalid-processID",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{url}}/jobs?processID=invalidProcessID",
-									"host": [
-										"{{url}}"
-									],
-									"path": [
-										"jobs"
-									],
-									"query": [
-										{
-											"key": "processID",
-											"value": "invalidProcessID"
-										}
-									]
-								}
-							},
-							"response": []
 						}
 					],
 					"event": [
