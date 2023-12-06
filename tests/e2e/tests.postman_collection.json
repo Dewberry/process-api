@@ -170,6 +170,30 @@
 					"response": []
 				},
 				{
+					"name": "delete-startup-process",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/processes/:processID",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"processes",
+								":processID"
+							],
+							"variable": [
+								{
+									"key": "processID",
+									"value": "pywrite"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "add-process",
 					"request": {
 						"method": "POST",
