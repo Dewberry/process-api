@@ -548,13 +548,6 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 	if processIDs != "" {
 		processIDList = strings.Split(processIDs, ",")
 	}
-	for _, pid := range processIDList {
-		_, _, err = rh.ProcessList.Get(pid)
-		if err != nil {
-			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: fmt.Sprintf("processID %s incorrect, no such process exist", pid)}
-			return prepareResponse(c, http.StatusBadRequest, "error", output)
-		}
-	}
 
 	var statusList []string
 	if statuses != "" {
