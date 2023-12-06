@@ -633,8 +633,8 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 	if rh.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
-		// admins are allowed to execute all processes, else you need to have same role as processId
-		if !utils.StringInSlice(rh.BotRoleName, roles) && !utils.StringInSlice(rh.AdminRoleName, roles) {
+		// only service accounts or admins can post status updates
+		if !utils.StringInSlice(rh.ServiceRoleName, roles) && !utils.StringInSlice(rh.AdminRoleName, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}

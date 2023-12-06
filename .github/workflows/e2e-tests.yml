@@ -25,6 +25,7 @@ jobs:
           echo STORAGE_RESULTS_PREFIX='results' >> .env
           echo STORAGE_LOGS_PREFIX='logs' >> .env
 
+          echo PLUGINS_LOAD_DIR='plugins' >> .env
           echo PLUGINS_DIR='/.data/plugins' >> .env
           echo TMP_JOB_LOGS_DIR='/.data/tmp/logs' >> .env
 

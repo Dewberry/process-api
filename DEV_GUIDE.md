@@ -16,6 +16,7 @@
 - A user can use tools like Postman to set these headers themselves, but if auth is enabled, they will be checked against the token. This setup allows adding submitter info to the database when auth is not enabled.
 - I auth is enabled `X-ProcessAPI-User-Email` header is mandatory.
 - Requests from Service Role will not be verified for `X-ProcessAPI-User-Email`.
+- Only service_accounts can post callbacks
 - Requests from Admin Role are allowed to execute all processes, non-admins must have the role with same name as `processID` to execute that process.
 - Requests from Admin Role are allowed to retrieve all jobs information, non admins can only retrieve information for jobs that they submitted.
 - Only admins can add/update/delete processes
