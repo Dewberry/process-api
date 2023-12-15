@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -14,11 +15,33 @@ type AuthStrategy interface {
 	SetUserRolesHeader(c echo.Context, claims *Claims) error
 }
 
+type Audience []string
+
+// aud in token can be []string or string, therefore we need a custom unmarshaler.
+// jwt package uses the json package for unmarshalling JSON into Go structs.
+func (a *Audience) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal data into a slice of strings
+	var audienceSlice []string
+	if err := json.Unmarshal(data, &audienceSlice); err == nil {
+		*a = audienceSlice
+		return nil
+	}
+
+	// If the above fails, try to unmarshal as a single string
+	var singleAud string
+	if err := json.Unmarshal(data, &singleAud); err != nil {
+		return err
+	}
+
+	*a = []string{singleAud}
+	return nil
+}
+
 type Claims struct {
 	UserName    string              `json:"preferred_username"`
 	Email       string              `json:"email"`
 	RealmAccess map[string][]string `json:"realm_access"`
-	Audience    []string            `json:"aud,omitempty"`
+	Audience    Audience            `json:"aud,omitempty"`
 	jwt.StandardClaims
 }
 
