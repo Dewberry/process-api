@@ -108,7 +108,8 @@ func (kas *KeycloakAuthStrategy) getPublicKeyStr(kid string) string {
 }
 
 func (kas *KeycloakAuthStrategy) ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	var claims Claims
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -128,12 +129,7 @@ func (kas *KeycloakAuthStrategy) ValidateToken(tokenString string) (*Claims, err
 		return nil, fmt.Errorf("invalid JWT")
 	}
 
-	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		return nil, fmt.Errorf("invalid JWT claims")
-	}
-
-	return claims, nil
+	return &claims, nil
 }
 
 // Validate X-ProcessAPI-User-Email header against user from claims
