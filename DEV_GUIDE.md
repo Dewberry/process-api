@@ -4,7 +4,6 @@
 - Command line flags are available for config that is only needed at startup, they take precedence over the environment variables when used.
 - Other configs are defined through env variables so that they can be modified without restarting the server.
 - Here is the resolution order:
-
     - Flag, where option is available and used
     - Environment variable
     - Default value, where available
