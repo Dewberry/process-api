@@ -279,7 +279,7 @@ func main() {
 	// Create a group for all routes that need to be protected when AUTH_LEVEL = protected
 	pg := e.Group("")
 	authLvl := initAuth(e, pg)
-	rh.AuthLevel = authLvl
+	rh.Config.AuthLevel = authLvl
 
 	// Server
 	e.GET("/", rh.LandingPage)

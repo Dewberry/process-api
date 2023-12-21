@@ -164,11 +164,11 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errResponse{Message: "'processID' incorrect"})
 	}
 
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		// admins are allowed to execute all processes, else you need to have a role with same name as processId
-		if !utils.StringInSlice(rh.AdminRoleName, roles) && !utils.StringInSlice(processID, roles) {
+		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) && !utils.StringInSlice(processID, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}
@@ -302,10 +302,10 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 	jobID := c.Param("jobID")
 	if j, ok := rh.ActiveJobs.Jobs[jobID]; ok {
 
-		if rh.AuthLevel > 0 {
+		if rh.Config.AuthLevel > 0 {
 			roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
-			if (*j).SUBMITTER() != c.Request().Header.Get("X-ProcessAPI-User-Email") && !utils.StringInSlice(rh.AdminRoleName, roles) {
+			if (*j).SUBMITTER() != c.Request().Header.Get("X-ProcessAPI-User-Email") && !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 				return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 			}
 		}
@@ -563,10 +563,10 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		}
 	}
 
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
-		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 			submitters = c.Request().Header.Get("X-ProcessAPI-User-Email")
 		}
 	}
@@ -623,11 +623,11 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 //
 // Time must be in RFC3339(ISO) format
 func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		// only service accounts or admins can post status updates
-		if !utils.StringInSlice(rh.ServiceRoleName, roles) && !utils.StringInSlice(rh.AdminRoleName, roles) {
+		if !utils.StringInSlice(rh.Config.ServiceRoleName, roles) && !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}
