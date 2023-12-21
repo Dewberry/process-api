@@ -29,7 +29,21 @@ func (t Template) Render(w io.Writer, name string, data interface{}, c echo.Cont
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-// Store configuration that need to be passed around to handler funcs.
+// Config holds the configuration settings for the REST API server.
+type Config struct {
+	// Only settings that are typically environment-specific and can be loaded from
+	// external sources like configuration files, environment variables, or remote
+	// configuration services, should go here.
+
+	// Read DEV_GUIDE.md to learn about these
+	AuthLevel       int
+	AdminRoleName   string
+	ServiceRoleName string
+}
+
+// RESTHandler encapsulates the operational components and dependencies necessary for handling
+// RESTful API requests by different handler functions and orchestrating interactions with
+// various backend services and resources.
 type RESTHandler struct {
 	Name         string
 	Title        string
@@ -41,11 +55,7 @@ type RESTHandler struct {
 	MessageQueue *jobs.MessageQueue
 	ActiveJobs   *jobs.ActiveJobs
 	ProcessList  *pr.ProcessList
-
-	// Read DEV_GUIDE.md to learn about these
-	AuthLevel       int
-	AdminRoleName   string
-	ServiceRoleName string
+	Config       *Config
 }
 
 // Pretty print a JSON
@@ -79,8 +89,10 @@ func NewRESTHander() *RESTHandler {
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/job-list",
 			"http://www.opengis.net/spec/ogcapi-processes-1/1.0/conf/dismiss",
 		},
-		AdminRoleName:   os.Getenv("AUTH_ADMIN_ROLE"),
-		ServiceRoleName: os.Getenv("AUTH_SERVICE_ROLE"),
+		Config: &Config{
+			AdminRoleName:   os.Getenv("AUTH_ADMIN_ROLE"),
+			ServiceRoleName: os.Getenv("AUTH_SERVICE_ROLE"),
+		},
 	}
 
 	dbType, exist := os.LookupEnv("DB_SERVICE")

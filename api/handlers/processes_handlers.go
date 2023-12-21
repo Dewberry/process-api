@@ -112,11 +112,11 @@ func (rh *RESTHandler) ProcessDescribeHandler(c echo.Context) error {
 // AddProcessHandler adds a new process configuration
 func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		// non-admins are not allowed
-		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}
@@ -173,11 +173,11 @@ func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 // UpdateProcessHandler updates an existing process configuration
 func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		// non-admins are not allowed
-		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}
@@ -244,11 +244,11 @@ func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 // DeleteProcessHandler deletes a process configuration
 func (rh *RESTHandler) DeleteProcessHandler(c echo.Context) error {
 
-	if rh.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 0 {
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		// non-admins are not allowed
-		if !utils.StringInSlice(rh.AdminRoleName, roles) {
+		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
 			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
 		}
 	}
