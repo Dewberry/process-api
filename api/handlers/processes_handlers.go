@@ -117,7 +117,7 @@ func (rh *RESTHandler) AddProcessHandler(c echo.Context) error {
 
 		// non-admins are not allowed
 		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
-			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 		}
 	}
 
@@ -178,7 +178,7 @@ func (rh *RESTHandler) UpdateProcessHandler(c echo.Context) error {
 
 		// non-admins are not allowed
 		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
-			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 		}
 	}
 
@@ -249,7 +249,7 @@ func (rh *RESTHandler) DeleteProcessHandler(c echo.Context) error {
 
 		// non-admins are not allowed
 		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
-			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 		}
 	}
 

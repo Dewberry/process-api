@@ -169,7 +169,7 @@ func (rh *RESTHandler) Execution(c echo.Context) error {
 
 		// admins are allowed to execute all processes, else you need to have a role with same name as processId
 		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) && !utils.StringInSlice(processID, roles) {
-			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 		}
 	}
 
@@ -306,7 +306,7 @@ func (rh *RESTHandler) JobDismissHandler(c echo.Context) error {
 			roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 			if (*j).SUBMITTER() != c.Request().Header.Get("X-ProcessAPI-User-Email") && !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
-				return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+				return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 			}
 		}
 
@@ -628,7 +628,7 @@ func (rh *RESTHandler) JobStatusUpdateHandler(c echo.Context) error {
 
 		// only service accounts or admins can post status updates
 		if !utils.StringInSlice(rh.Config.ServiceRoleName, roles) && !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
-			return c.JSON(http.StatusUnauthorized, errResponse{Message: "unauthorized"})
+			return c.JSON(http.StatusForbidden, errResponse{Message: "Forbidden"})
 		}
 	}
 
