@@ -14,7 +14,6 @@ type PostgresDB struct {
 }
 
 // Initialize the database.
-// Creates intermediate directories if not exist.
 func NewPostgresDB(dbConnString string) (*PostgresDB, error) {
 	h, err := sql.Open("postgres", dbConnString)
 
