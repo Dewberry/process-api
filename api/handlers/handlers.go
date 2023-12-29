@@ -493,18 +493,16 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) (err error) {
 		return err
 	}
 
-	var pid string
+	var pid, status string
 	var jRcrd jobs.JobRecord
 
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		err = (*job).UpdateContainerLogs()
-		if err != nil {
-			output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while updating container logs: " + err.Error()}
-			return prepareResponse(c, http.StatusInternalServerError, "error", output)
-		}
+		_ = (*job).UpdateContainerLogs()
 		pid = (*job).ProcessID()
+		status = (*job).CurrentStatus()
 	} else if jRcrd, ok, err = rh.DB.GetJob(jobID); ok { // db hit
 		pid = jRcrd.ProcessID
+		status = jRcrd.Status
 	} else { // miss
 		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
@@ -515,12 +513,14 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) (err error) {
 		return prepareResponse(c, http.StatusInternalServerError, "error", output)
 	}
 
-	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, pid, false)
+	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, false)
 	if err != nil {
 		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: "error while fetching logs: " + err.Error()}
 		return prepareResponse(c, http.StatusInternalServerError, "error", output)
 	}
 
+	logs.ProcessID = pid
+	logs.Status = status
 	return prepareResponse(c, http.StatusOK, "jobLogs", logs)
 
 }

@@ -9,7 +9,18 @@
 </head>
 
 <body>
-    <h1>Logs · {{.JobID}}</h1>
+    <h1>
+        Logs · {{.JobID}}
+        {{if eq .Status "successful"}}
+        <img src="/public/svgs/check-icon.svg" alt="successful" />
+        {{else if eq .Status "failed"}}
+        <img src="/public/svgs/cross-icon.svg" alt="failed" />
+        {{else if eq .Status "dismissed"}}
+        <img src="/public/svgs/delete-icon.svg" alt="dismissed" />
+        {{else if or (eq .Status "accepted") (eq .Status "running")}}
+        <img src="/public/svgs/yellow-circle-icon.svg" alt="in progress" />
+        {{end}}
+    </h1>
     <h2>Process: {{.ProcessID}}</h2>
 
     <h3>Server Logs</h3>
