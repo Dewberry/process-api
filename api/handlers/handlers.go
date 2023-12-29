@@ -497,20 +497,25 @@ func (rh *RESTHandler) JobLogsHandler(c echo.Context) (err error) {
 	var jRcrd jobs.JobRecord
 
 	if job, ok := rh.ActiveJobs.Jobs[jobID]; ok { // ActiveJobs hit
-		_ = (*job).UpdateContainerLogs()
 		pid = (*job).ProcessID()
 		status = (*job).CurrentStatus()
+		if status == jobs.ACCEPTED { // this prevents AWS Cloudwatch errors where logs are not available till some time after job is started
+			output := errResponse{HTTPStatus: http.StatusBadRequest, Message: "Logs will be available after the job has reached running state."}
+			return prepareResponse(c, http.StatusBadRequest, "error", output)
+		}
+
+		_ = (*job).UpdateContainerLogs()
 	} else if jRcrd, ok, err = rh.DB.GetJob(jobID); ok { // db hit
 		pid = jRcrd.ProcessID
 		status = jRcrd.Status
+
+		if err != nil {
+			output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
+			return prepareResponse(c, http.StatusInternalServerError, "error", output)
+		}
 	} else { // miss
 		output := errResponse{HTTPStatus: http.StatusNotFound, Message: "jobID not found"}
 		return prepareResponse(c, http.StatusNotFound, "error", output)
-	}
-
-	if err != nil {
-		output := errResponse{HTTPStatus: http.StatusInternalServerError, Message: err.Error()}
-		return prepareResponse(c, http.StatusInternalServerError, "error", output)
 	}
 
 	logs, err := jobs.FetchLogs(rh.StorageSvc, jobID, false)
