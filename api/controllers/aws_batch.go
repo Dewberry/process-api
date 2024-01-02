@@ -129,17 +129,15 @@ func (c *AWSBatchController) JobMonitor(batchID string) (string, string, error) 
 	status := aws.StringValue(output.Jobs[0].Status)
 	lsn := aws.StringValue(output.Jobs[0].Container.LogStreamName)
 
-	if status == "FAILED" {
+	switch status {
+	case "FAILED":
 		reason := aws.StringValue(output.Jobs[0].StatusReason)
 		// Non-standard reason used here to facilitate ogc implementation
 		if reason == "DISMISSED" {
 			return reason, lsn, nil
 		} else {
-			return status, lsn, fmt.Errorf("aws provided StatusReason for failure: %s", reason)
+			return status, lsn, nil
 		}
-	}
-
-	switch status {
 	case "SUBMITTED":
 		return "ACCCEPTED", lsn, nil
 	case "PENDING":
@@ -149,12 +147,12 @@ func (c *AWSBatchController) JobMonitor(batchID string) (string, string, error) 
 	case "STARTING":
 		return "RUNNING", lsn, nil
 	case "RUNNING":
-		return "RUNNING", lsn, nil
+		return status, lsn, nil
 	case "SUCCEEDED":
-		return "SUCCEEDED", lsn, nil
+		return status, lsn, nil
 
 	default:
-		return status, lsn, fmt.Errorf("unrecognized status  %s", status)
+		return "", lsn, fmt.Errorf("unrecognized status  %s", status)
 	}
 }
 

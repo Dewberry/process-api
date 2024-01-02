@@ -307,16 +307,16 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 	if j.logStreamName == "" {
 		err := j.getLogStreamName()
 		if err != nil {
-			return nil, fmt.Errorf("could not get log stream name")
+			return nil, fmt.Errorf("could not get aws log stream name: %s", err.Error())
 		}
-		j.logger.Info("Log Stream Name: ", j.logStreamName)
+
+		if j.logStreamName == "" {
+			return nil, fmt.Errorf("aws log stream name is empty")
+		} else {
+			j.logger.Info("AWS Log Stream Name: ", j.logStreamName)
+		}
 	}
 
-	if j.logStreamName == "" {
-		return nil, fmt.Errorf("logStreamName is empty. If you just ran your job, retry in few seconds")
-	}
-
-	// Create a new session in the desired region
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION")),
 	})
@@ -324,7 +324,6 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 		return nil, fmt.Errorf("Error creating session: " + err.Error())
 	}
 
-	// Create a CloudWatchLogs client
 	svc := cloudwatchlogs.New(sess)
 
 	logs := make([]string, 0)
@@ -343,9 +342,9 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 		// Call the GetLogEvents API to read the log events
 		resp, err := svc.GetLogEvents(params)
 		if err != nil {
-			j.logger.Error(err)
 			// If token error, reset the token and start from the beginning
 			if strings.Contains(err.Error(), "InvalidParameterException") {
+				j.logger.Error(err)
 				// reset everything
 				j.cloudWatchForwardToken = ""
 				logs = make([]string, 0)
@@ -359,6 +358,7 @@ func (j *AWSBatchJob) fetchCloudWatchLogs() ([]string, error) {
 			} else if err.Error() == "ResourceNotFoundException: The specified log stream does not exist." {
 				return []string{}, nil
 			} else {
+				j.logger.Error(err)
 				return nil, err
 			}
 		}
@@ -397,7 +397,7 @@ func (j *AWSBatchJob) WriteMetaData() {
 	}
 
 	// imgDgst would be incorrect if tag has been updated in between
-	// if there are multiple architechture available for same image tag
+	// if there are multiple architecture available for same image tag
 	var imgDgst string
 	if strings.Contains(imgURI, "amazonaws.com/") {
 		imgDgst, err = getECRImageDigest(imgURI)
@@ -471,7 +471,7 @@ func (j *AWSBatchJob) Close() {
 
 	for i := 1; i <= maxAttempts; i++ {
 		// It can take a few moments for logs to be delivered to CloudWatch
-		// Programs like docker don't give much time after sending interrupt signal
+		// Programs like docker (which might be running this app) don't give much time after sending interrupt signal
 		// Hence this duration can't be too high
 		time.Sleep(time.Duration(i) * 5 * time.Second)
 

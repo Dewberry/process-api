@@ -47,7 +47,8 @@ type Job interface {
 	// If old status is one of the terminated status, it should not update status.
 	NewStatusUpdate(string, time.Time)
 
-	// Create must change job status to accepted
+	// Create must change job status to accepted.
+	// Must create log files.
 	// At this point job should be ready to be processed and added to database
 	Create() error
 
@@ -106,6 +107,7 @@ func DecodeLogStrings(s []string) []LogEntry {
 type JobLogs struct {
 	JobID         string     `json:"jobID"`
 	ProcessID     string     `json:"processID"`
+	Status        string     `json:"status"`
 	ContainerLogs []LogEntry `json:"container_logs"`
 	ServerLogs    []LogEntry `json:"server_logs"`
 }
@@ -133,7 +135,7 @@ const (
 // Assumes last log will be results always
 func FetchResults(svc *s3.S3, jid string) (interface{}, error) {
 
-	logs, err := FetchLogs(svc, jid, "", true)
+	logs, err := FetchLogs(svc, jid, true)
 	if err != nil {
 		return nil, err
 	}
@@ -206,13 +208,11 @@ func FetchMeta(svc *s3.S3, jid string) (interface{}, error) {
 	return data, nil
 }
 
-// If JobID exists but log file doesn't then it raises an error
 // Check for logs in local disk and storage svc
-// Assumes jobID is valid
-func FetchLogs(svc *s3.S3, jid, pid string, onlyContainer bool) (JobLogs, error) {
+// Assumes jobID is valid, if log file doesn't exist then it raises an error
+func FetchLogs(svc *s3.S3, jid string, onlyContainer bool) (JobLogs, error) {
 	var result JobLogs
 	result.JobID = jid
-	result.ProcessID = pid
 	localDir := os.Getenv("TMP_JOB_LOGS_DIR") // Local directory where logs are stored
 
 	keys := []struct {

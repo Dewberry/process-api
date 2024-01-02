@@ -18,4 +18,8 @@
 - Only service_accounts can post callbacks
 - Requests from Admin Role are allowed to execute all processes, non-admins must have the role with same name as `processID` to execute that process.
 - Requests from Admin Role are allowed to retrieve all jobs information, non admins can only retrieve information for jobs that they submitted.
-- Only admins can add/update/delete processes
+- Only admins can add/update/delete processes.
+
+
+## Scope
+- The behavior of logging is unknown for AWS Batch processes with job definitions having number of attempts more than 1.
