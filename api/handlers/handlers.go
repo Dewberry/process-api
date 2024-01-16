@@ -568,7 +568,7 @@ func (rh *RESTHandler) ListJobsHandler(c echo.Context) error {
 		}
 	}
 
-	if rh.Config.AuthLevel > 0 {
+	if rh.Config.AuthLevel > 1 { // changed for hotfix, should be > 0 when clients are updated
 		roles := strings.Split(c.Request().Header.Get("X-ProcessAPI-User-Roles"), ",")
 
 		if !utils.StringInSlice(rh.Config.AdminRoleName, roles) {
