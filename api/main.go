@@ -300,7 +300,7 @@ func main() {
 	// pg.Delete("processes/:processID", rh.RegisterNewProcess)
 
 	// Jobs
-	pg.GET("/jobs", rh.ListJobsHandler)
+	e.GET("/jobs", rh.ListJobsHandler) // changed for hotfix, should be pg.GET when clients are updated
 	e.GET("/jobs/:jobID", rh.JobStatusHandler)
 	e.GET("/jobs/:jobID/results", rh.JobResultsHandler)
 	e.GET("/jobs/:jobID/logs", rh.JobLogsHandler)
